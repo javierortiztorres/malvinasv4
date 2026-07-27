@@ -1,0 +1,1772 @@
+[
+  {
+    "nombre": "Aceite de pescado y aerosil (OGAP)",
+    "keywords": "aceite de pescado y aerosil, aceite de pescado, omega, omega 3",
+    "concentracion": 0.97,
+    "ip": 0.9,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Aerosil",
+        "fraccion": 0.03
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Acetazolamida 40%",
+    "keywords": "acetazolamida",
+    "concentracion": 0.4,
+    "ip": 1.25,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.4998
+      },
+      {
+        "nombre": "PG",
+        "fraccion": 0.1002
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 25,
+      "velRet": 25,
+      "descarte": 0,
+      "pausaBal": 1.5
+    },
+    "alerta": "Respetar estricto orden de adición de solventes: incorporar el propilenglicol como primer agente humectante de la formulación.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Acetazolamida 20%",
+    "keywords": "acetazolamida",
+    "concentracion": 0.2,
+    "ip": 1.2,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.692
+      },
+      {
+        "nombre": "PG",
+        "fraccion": 0.108
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 25,
+      "velRet": 25,
+      "descarte": 0,
+      "pausaBal": 1.5
+    },
+    "alerta": "Respetar estricto orden de adición de solventes: incorporar el propilenglicol como primer agente humectante de la formulación.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Amitriptilina 3%",
+    "keywords": "amitriptilina",
+    "concentracion": 0.03,
+    "ip": 1.11,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.776
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.194
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 0,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Ashwaganda 50%",
+    "keywords": "ashwaganda",
+    "concentracion": 0.5,
+    "ip": 1.039,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 25,
+      "velRet": 25,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Ashwaganda salvavidas 60%",
+    "keywords": "ashwaganda",
+    "concentracion": 0.6,
+    "ip": 1.039,
+    "aManopla": true,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.4
+      }
+    ],
+    "parametros": null,
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "B12 1.1%",
+    "keywords": "b12, vit. b12, vitamina b12, cianocobalamina",
+    "concentracion": 0.011,
+    "ip": 0.989,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.7912
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.1978
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "B12 (concentrada) 5.45%",
+    "keywords": "b12, vit. b12, vitamina b12, cianocobalamina",
+    "concentracion": 0.0545,
+    "ip": 0.989,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.7564
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.1891
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "B12 (diluida) 0.23%",
+    "keywords": "b12, vit. b12, vitamina b12, cianocobalamina",
+    "concentracion": 0.0023,
+    "ip": 0.989,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.79816
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.19954
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "B6 Piridoxina 35%",
+    "keywords": "b6 piridoxina, vit. b6, piridoxina, vitamina b6",
+    "concentracion": 0.35,
+    "ip": 1.026,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.52
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.13
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "PRECAUCIÓN: Incorporar el agua destilada exclusivamente después de la dispersión completa de la piridoxina para evitar un aumento abrupto de viscosidad y la gelificación indeseada de la matriz.",
+    "poe": "FPI.01.PI019",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "B9 acido folico 0.43%",
+    "keywords": "b9 acido folico, vit. b9, acido folico, folico",
+    "concentracion": 0.0043,
+    "ip": 0.912,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.79656
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.19914
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Bisglicinato de hierro 55%",
+    "keywords": "bisglicinato de hierro",
+    "concentracion": 0.55,
+    "ip": 1.242,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.45
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Carbonato de Calcio 60%",
+    "keywords": "carbonato de calcio",
+    "concentracion": 0.6,
+    "ip": 1.465,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.4
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "Riesgo de solidificación prematura en boquilla. Monitorear de forma estricta el flujo de extrusión continuo.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Citrato de Calcio 50%",
+    "keywords": "citrato de calcio",
+    "concentracion": 0.5,
+    "ip": 1.117,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "Alta tendencia a la solidificación prematura y aglomeración en boquilla. Configurar retracción en 0.1 y realizar un purgado amplio (descarte) antes de iniciar la impresión.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Citrato de Calcio (Salvavidas) 55%",
+    "keywords": "citrato de calcio",
+    "concentracion": 0.55,
+    "ip": 1.153,
+    "aManopla": true,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.45
+      }
+    ],
+    "parametros": null,
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Citrato de magnesio 50%",
+    "keywords": "citrato de magnesio, citrato de magnesio",
+    "concentracion": 0.5,
+    "ip": 1.295,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "Inestabilidad física en reposo (separación de fases). Requiere agitación mecánica vigorosa para su completa homogeneización inmediatamente previa a la fase de extrusión.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Cloruro de Potasio 60%",
+    "keywords": "cloruro de potasio",
+    "concentracion": 0.6,
+    "ip": 1.25,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 5%",
+        "fraccion": 0.4
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "PRECAUCIÓN: Procesar y extruir estrictamente a temperatura ambiente (25°C). Riesgo elevado de precipitación rápida del principio activo en la matriz lipídica frente a estrés térmico.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Vitamina D (impura) 13%",
+    "keywords": "vitamina d, vit. d, vit. d3, vitamina d3, colecalciferol",
+    "concentracion": 0.13,
+    "ip": 0.9,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.87
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "FPI.01.PI007",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "DHEA 30%",
+    "keywords": "dhea",
+    "concentracion": 0.3,
+    "ip": 1.085,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.4998
+      },
+      {
+        "nombre": "PG",
+        "fraccion": 0.2002
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Dutasteride 0.2%",
+    "keywords": "dutasteride",
+    "concentracion": 0.002,
+    "ip": 1.113,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.98802
+      },
+      {
+        "nombre": "PG",
+        "fraccion": 0.00998
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Dutasteride 0.4%",
+    "keywords": "dutasteride",
+    "concentracion": 0.004,
+    "ip": 1.053,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.98604
+      },
+      {
+        "nombre": "PG",
+        "fraccion": 0.00996
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "GABA 50%",
+    "keywords": "gaba",
+    "concentracion": 0.5,
+    "ip": 1,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 50,
+      "velRet": 50,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Ginkgo biloba 50%",
+    "keywords": "ginkgo biloba",
+    "concentracion": 0.5,
+    "ip": 1.08,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Ginseng 50%",
+    "keywords": "ginseng",
+    "concentracion": 0.5,
+    "ip": 1.11,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Ginseng salvavidas 60%",
+    "keywords": "ginseng",
+    "concentracion": 0.6,
+    "ip": 1.26,
+    "aManopla": true,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.4
+      }
+    ],
+    "parametros": null,
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Glicinato de magnesio 55%",
+    "keywords": "glicinato de magnesio, glicinato de magnesio",
+    "concentracion": 0.55,
+    "ip": 1.2,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.45
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "FPI.01.PI003",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Hidrocortisona 1%",
+    "keywords": "hidrocortisona",
+    "concentracion": 0.01,
+    "ip": 1.09,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.99
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Hidroxi Triptofano en Aerosil 40%",
+    "keywords": "hidroxi triptofano en aerosil, 5-htp, hidroxitriptofano, hidroxi triptofano",
+    "concentracion": 0.4,
+    "ip": 1.083,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Aerosil 4%",
+        "fraccion": 0.6
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Hierro quelado 60%",
+    "keywords": "hierro quelado",
+    "concentracion": 0.6,
+    "ip": 1.26,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.4
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "L Teanina 40%",
+    "keywords": "l teanina",
+    "concentracion": 0.4,
+    "ip": 0.955,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.6
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "L Teanina (salvavidas) 45%",
+    "keywords": "l teanina",
+    "concentracion": 0.45,
+    "ip": 0.955,
+    "aManopla": true,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.55
+      }
+    ],
+    "parametros": null,
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "L-cistina 50%",
+    "keywords": "l-cistina, l-cistina, cistina, l cistina",
+    "concentracion": 0.5,
+    "ip": 1.188,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "FPI.01.PI043",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "L-Metionina salvavidas 50%",
+    "keywords": "l-metionina",
+    "concentracion": 0.5,
+    "ip": 0.95,
+    "aManopla": true,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": null,
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Lavanda 96%",
+    "keywords": "lavanda",
+    "concentracion": 0.96,
+    "ip": 0.848,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Aerosil",
+        "fraccion": 0.04
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "Formular a temperatura ambiente bajo agitación magnética continua. Calentar a 70°C únicamente para la fase de impresión.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Lev. Selenio 50%",
+    "keywords": "lev. selenio, selenio, levadura de selenio",
+    "concentracion": 0.5,
+    "ip": 1.028,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "FPI.01.PI040",
+    "convUnidad": "µg",
+    "convMgPorUnidad": 0.5
+  },
+  {
+    "nombre": "Manganeso Quelado 40%",
+    "keywords": "manganeso quelado",
+    "concentracion": 0.4,
+    "ip": 1.013,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.6
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Melatonina 15%",
+    "keywords": "melatonina",
+    "concentracion": 0.15,
+    "ip": 1.11,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.85
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Melatonina (salvavidas) 20%",
+    "keywords": "melatonina",
+    "concentracion": 0.2,
+    "ip": 1.093,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.8
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Melatonina para 2 mg 6.67%",
+    "keywords": "melatonina",
+    "concentracion": 0.0667,
+    "ip": 1.093,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.9333
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Minoxidil 1%",
+    "keywords": "minoxidil",
+    "concentracion": 0.01,
+    "ip": 1.126,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.9801
+      },
+      {
+        "nombre": "PPG",
+        "fraccion": 0.0099
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 0,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Minoxidil 4%",
+    "keywords": "minoxidil",
+    "concentracion": 0.04,
+    "ip": 1.1,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.9504
+      },
+      {
+        "nombre": "PPG",
+        "fraccion": 0.0096
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 0,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Minoxidil 8%",
+    "keywords": "minoxidil",
+    "concentracion": 0.08,
+    "ip": 1.024,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.90988
+      },
+      {
+        "nombre": "PPG",
+        "fraccion": 0.01012
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 0,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Oleogel 2.5%",
+    "keywords": "oleogel",
+    "concentracion": 0.025,
+    "ip": 0.9,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Aceite de girasol",
+        "fraccion": 0.975
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 50,
+      "velRet": 50,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "FPI.01.PI004",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Oleogel 5%",
+    "keywords": "oleogel",
+    "concentracion": 0.05,
+    "ip": 0.9,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Aceite de girasol",
+        "fraccion": 0.95
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 50,
+      "velRet": 50,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Pantotenato de calcio 60%",
+    "keywords": "pantotenato de calcio",
+    "concentracion": 0.6,
+    "ip": 1.11,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.4
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Progesterona 25%",
+    "keywords": "progesterona",
+    "concentracion": 0.25,
+    "ip": 1.123,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.71775
+      },
+      {
+        "nombre": "PPG",
+        "fraccion": 0.03225
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Resveratrol 45%",
+    "keywords": "resveratrol",
+    "concentracion": 0.45,
+    "ip": 1.045,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.55
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Resveratrol Salvavidas 50%",
+    "keywords": "resveratrol",
+    "concentracion": 0.5,
+    "ip": 1.09,
+    "aManopla": true,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": null,
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Riboflavina 40%",
+    "keywords": "riboflavina, vit. b2, riboflavina, vitamina b2",
+    "concentracion": 0.4,
+    "ip": 1.08,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.6
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Sulf. de Zn 20%",
+    "keywords": "sulf. de zn, sulfato de zinc, zinc",
+    "concentracion": 0.2,
+    "ip": 1.095,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.8
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Tadalafilo 4.54%",
+    "keywords": "tadalafilo",
+    "concentracion": 0.0454,
+    "ip": 1.2,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.754134
+      },
+      {
+        "nombre": "PG",
+        "fraccion": 0.200466
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Tiamina 40%",
+    "keywords": "tiamina, vit. b1, tiamina, vitamina b1",
+    "concentracion": 0.4,
+    "ip": 1.032,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.6
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Tiamina 36%",
+    "keywords": "tiamina, vit. b1, tiamina, vitamina b1",
+    "concentracion": 0.36,
+    "ip": 1.02,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.64
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Triptofano 30%",
+    "keywords": "triptofano",
+    "concentracion": 0.3,
+    "ip": 0.912,
+    "aManopla": true,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.7
+      }
+    ],
+    "parametros": null,
+    "alerta": "Inestabilidad reológica durante la extrusión que compromete la uniformidad del lote. Se indica preparación estrictamente manual.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Vit A 15%",
+    "keywords": "vit a, vit. a, vitamina a, retinol",
+    "concentracion": 0.15,
+    "ip": 0.88,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 5%",
+        "fraccion": 0.85
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Vit A 1.7%",
+    "keywords": "vit a, vit. a, vitamina a, retinol",
+    "concentracion": 0.017,
+    "ip": 0.861,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 5%",
+        "fraccion": 0.983
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Vit E 47.5%",
+    "keywords": "vit e, vit. e, vitamina e, tocoferol",
+    "concentracion": 0.475,
+    "ip": 0.848,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 5%",
+        "fraccion": 0.525
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Vitamina B9 acido folico 1.33%",
+    "keywords": "vitamina b9 acido folico, vit. b9, acido folico, folico",
+    "concentracion": 0.0133,
+    "ip": 1.08,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.78936
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.19734
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Vitamina k2 0.15%",
+    "keywords": "vitamina k2, vit. k2, vitamina k2, menaquinona",
+    "concentracion": 0.0015,
+    "ip": 1.07,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.988515
+      },
+      {
+        "nombre": "PG",
+        "fraccion": 0.009985
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 100,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "FPI.01.PI030",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Coenzima Q10 100%",
+    "keywords": "coenzima q10",
+    "concentracion": 1,
+    "ip": 1,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 25,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Idebenona 100%",
+    "keywords": "idebenona",
+    "concentracion": 1,
+    "ip": 1,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 25,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "PEG 4000 puro",
+    "keywords": "peg 4000",
+    "concentracion": 1,
+    "ip": 1.11,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 25,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Melatonina para 1 mg 3%",
+    "keywords": "melatonina",
+    "concentracion": 0.03,
+    "ip": 1.093,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.97
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 25,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Vit C 50%",
+    "keywords": "vit c, vit. c, vitamina c, acido ascorbico",
+    "concentracion": 0.5,
+    "ip": 1.296,
+    "aManopla": false,
+    "ubicacion": "cuerpo",
+    "excipientes": [
+      {
+        "nombre": "Oleogel 2,5%",
+        "fraccion": 0.5
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0.05,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 0,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "MALAXAR previamente la vitamina C antes de cargar en jeringa.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  },
+  {
+    "nombre": "Amitriptilina 6%",
+    "keywords": "amitriptilina",
+    "concentracion": 0.06,
+    "ip": 1.11,
+    "aManopla": false,
+    "ubicacion": "tapa",
+    "excipientes": [
+      {
+        "nombre": "PEG 4000",
+        "fraccion": 0.752
+      },
+      {
+        "nombre": "Agua destilada",
+        "fraccion": 0.188
+      }
+    ],
+    "parametros": {
+      "temp": 70,
+      "retraccion": 0,
+      "pausa": 0.5,
+      "velExt": 100,
+      "velRet": 0,
+      "descarte": 0.1,
+      "pausaBal": 1.5
+    },
+    "alerta": "3% solubilizada en agua y luego PEG 4000. Del excipiente total, 20% es agua destilada.",
+    "poe": "",
+    "convUnidad": "",
+    "convMgPorUnidad": null
+  }
+]
