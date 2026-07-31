@@ -2,13 +2,18 @@ import type { ActivoFormula } from '@/db/schema';
 import { PREFIJO_LOTE_PI } from './config';
 
 // ---- Fechas ----
+// Fecha del día en Argentina (Córdoba, UTC-3), no la del servidor (Vercel corre en UTC).
 export function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Cordoba' });
 }
 
 export function sumarMeses(iso: string, meses: number): string {
   const [y, m, d] = iso.split('-').map(Number);
-  const f = new Date(Date.UTC(y, m - 1 + meses, d));
+  const totalMeses = m - 1 + meses;
+  const targetYear = y + Math.floor(totalMeses / 12);
+  const targetMes = ((totalMeses % 12) + 12) % 12;
+  const ultimoDiaDelMes = new Date(Date.UTC(targetYear, targetMes + 1, 0)).getUTCDate();
+  const f = new Date(Date.UTC(targetYear, targetMes, Math.min(d, ultimoDiaDelMes)));
   return f.toISOString().slice(0, 10);
 }
 
@@ -25,9 +30,9 @@ export function diasHasta(iso: string): number | null {
   if (!iso) return null;
   const [y, m, d] = iso.split('-').map(Number);
   if (!d) return null;
-  const hoy = new Date();
+  const [hy, hm, hd] = hoyISO().split('-').map(Number);
   const a = Date.UTC(y, m - 1, d);
-  const b = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const b = Date.UTC(hy, hm - 1, hd);
   return Math.round((a - b) / 86400000);
 }
 
