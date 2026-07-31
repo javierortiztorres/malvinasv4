@@ -6,6 +6,7 @@ import { formatoLote, formatoLotePI, fechaAR, coincideFiltro } from '@/lib/utils
 import { limpiarNombreTinta, fmtPct } from '@/lib/engine';
 import { generarRotulo } from '@/lib/rotulo';
 import { SUCURSALES } from '@/lib/config';
+import { useCerrarModal } from '@/hooks/useCerrarModal';
 
 export default function Terminados({
   registros,
@@ -18,6 +19,7 @@ export default function Terminados({
 }) {
   const [rotuloDe, setRotuloDe] = useState<Registro | null>(null);
   const [filtro, setFiltro] = useState('');
+  const backdrop = useCerrarModal(() => setRotuloDe(null), rotuloDe !== null);
 
   const ptVisibles = registros.filter((r) =>
     coincideFiltro(
@@ -121,7 +123,7 @@ export default function Terminados({
       {/* -------- Modal rótulo -------- */}
       {rotuloDe && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setRotuloDe(null)}>
+          {...backdrop}>
           <div className="card w-full max-w-lg space-y-3 p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Rótulo — {rotuloDe.paciente}</h3>

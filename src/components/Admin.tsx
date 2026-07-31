@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { Catalogos } from '@/app/page';
 import type { Tinta, ExcipienteTinta, ParametrosImpresion } from '@/db/schema';
 import { fmtPct } from '@/lib/engine';
+import { useCerrarModal } from '@/hooks/useCerrarModal';
 
 // =================== GESTIÓN ===================
 // Principio I+D: TODO lo de una tinta es editable acá —
@@ -140,6 +141,7 @@ function TintaModal({
     poe: tinta?.poe ?? '',
   });
   const [error, setError] = useState('');
+  const backdrop = useCerrarModal(onCerrar);
 
   // SEMÁNTICA v2.0.4: los % de excipientes son sobre el TOTAL de la tinta.
   // Activo (concentración) + excipientes = 100%.
@@ -200,7 +202,7 @@ function TintaModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" {...backdrop}>
       <div className="card max-h-[92vh] w-full max-w-2xl space-y-4 overflow-auto p-5"
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
