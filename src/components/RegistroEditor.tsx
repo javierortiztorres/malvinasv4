@@ -108,13 +108,33 @@ export default function RegistroEditor({
         ...c,
         extrusionMl: extrusionCapa(c.dosisMg, c.concentracion, c.ip, res.capsulasPorToma),
       }));
-      const sug = capsulasSugeridas(r.dias, res.capsulasPorToma);
+      // El selector manual de "cada N" (cambiarDivision) sigue recalculando
+      // siempre, como hasta ahora. Las ediciones de capa (sin esa key en
+      // extras) solo tocan el total si la edición cambió la división
+      // automática — si no, lo que cargó el operador/la receta queda intacto.
+      const esCambioDeDivisionManual = extras.capsulasPorTomaManual !== undefined;
+      let capsulasTotales = r.capsulasTotales;
+      let aprobadas = r.aprobadas;
+      if (esCambioDeDivisionManual) {
+        const sug = capsulasSugeridas(r.dias, res.capsulasPorToma);
+        capsulasTotales = sug ?? r.capsulasTotales;
+        aprobadas = sug ?? r.aprobadas;
+      } else if (res.capsulasPorToma !== r.capsulasPorToma) {
+        const nuevoTotal = r.dias
+          ? r.dias * res.capsulasPorToma
+          : r.capsulasTotales
+          ? Math.round((r.capsulasTotales / (r.capsulasPorToma || 1)) * res.capsulasPorToma)
+          : r.capsulasTotales;
+        capsulasTotales = nuevoTotal;
+        aprobadas = nuevoTotal;
+      }
+
       set({
         ...extras,
         capas: capasFinal,
         capsulasPorToma: res.capsulasPorToma,
-        capsulasTotales: sug ?? r.capsulasTotales,
-        aprobadas: sug ?? r.aprobadas,
+        capsulasTotales,
+        aprobadas,
       });
     },
     [r, set, catalogos.tintas]
