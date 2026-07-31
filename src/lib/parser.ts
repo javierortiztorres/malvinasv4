@@ -22,16 +22,20 @@ export type RecetaParseada = {
   diagnostico: string;
   formulas: FormulaParseada[];
   advertencias: string[];
+  // true cuando el fallback de IA completó o corrigió campos
+  _fuenteIA?: boolean;
 };
 
-const RE_ACTIVO = /^[-•*]\s*(.+?):\s*([\d.,]+)\s*(µg|μg|ug|mcg|mg|g|ui|ml|%)\b/i;
+const UNIDADES = 'µg|μg|ug|mcg|u\\.i\\.|ui|mg|g|ml|cc|%';
+const RE_ACTIVO = new RegExp(`^[-•*]\\s*(.+?):\\s*([\\d.,]+)\\s*(${UNIDADES})(?:[/\\s][^\\s]*)?\\b`, 'i');
 // Formato nacional: "Componente: Melatonina 12 mg" (sin guion, dosis pegada al nombre)
-const RE_COMPONENTE = /^Componentes?\s*:\s*(.+?)\s+([\d.,]+)\s*(µg|μg|ug|mcg|mg|g|ui|ml)\b/i;
+const RE_COMPONENTE = new RegExp(`^Componentes?\\s*:\\s*(.+?)\\s+([\\d.,]+)\\s*(${UNIDADES.replace(/\\\./g, '.')})\\b`, 'i');
 const RE_DURACION = /^Duraci[oó]n\s*:\s*(\d+)\s*d[ií]as?/i;
 const RE_TOTAL_CAPS = /^Total\s+de\s+c[aá]psulas\s*:\s*(\d+)/i;
 const RE_INDICACIONES = /^Indicaciones?\s*:\s*(.+)$/i;
 const RE_DIAS = /cantidad\s+suficiente\s+para\s+(\d+)\s*d[ií]as/i;
 const RE_LABEL = /^([^\-•*].{0,50}?)\s*:\s*$/; // línea corta que termina en ":"
+const RE_RP = /^RP\/\s*\d*/i; // marcador de inicio de fórmula en formato nacional
 
 // Palabras clave ante las que siempre cortamos línea (el texto extraído
 // de los PDF del CFC suele venir todo en un solo renglón).
@@ -63,6 +67,12 @@ const KEYWORDS_CORTE = [
   'FECHA VENCIMIENTO:',
   'Este documento ha sido firmado',
   'Ley 27553',
+  // --- PAMI ---
+  'Nro Orden:', 'Nro Trámite:', 'Nro Tramite:', 'Beneficiario:', 'Prestadora:',
+  'NroAfiliado', 'Nro Afiliado', 'Código Prestación:', 'Codigo Prestacion:',
+  // --- IOMA y otros colegios provinciales ---
+  'Credencial:', 'Diagnóstico CIE:', 'Diagnostico CIE:', 'Nro Credencial:',
+  'Provincia:', 'Partido:',
 ];
 
 // Convierte el texto "plano" del PDF en líneas lógicas que el parser entiende.
@@ -83,9 +93,10 @@ export function segmentarTexto(texto: string): string {
 }
 
 function normalizarUnidad(u: string): string {
-  const x = u.toLowerCase().replace('μ', 'µ');
+  const x = u.toLowerCase().replace('μ', 'µ').replace(/^u\.i\.$/, 'ui');
   if (x === 'ug' || x === 'mcg' || x === 'µg') return 'µg';
   if (x === 'ui') return 'UI';
+  if (x === 'cc') return 'ml';
   return x; // mg, g, ml, %
 }
 
@@ -146,16 +157,17 @@ export function parseReceta(textoCrudo: string): RecetaParseada {
       }
     }
   }
-  // Fallback formato nacional: "Afiliado: APELLIDO, NOMBRE" + "D.N.I.: 12345678"
+  // Fallback formato nacional: "Afiliado: APELLIDO, NOMBRE" o "Beneficiario: ..."
   if (!res.paciente) {
-    const todos = Array.from(texto.matchAll(/^(?:Nro\s*)?Afiliado\s*:\s*(.+)$/gim));
+    const todos = Array.from(texto.matchAll(/^(?:Nro\s*)?(?:Afiliado|Beneficiario)\s*:\s*(.+)$/gim));
     const esNombre = (v: string) => /,/.test(v) || v.trim().split(/\s+/).filter((w) => /[a-záéíóúñ]{2,}/i.test(w)).length >= 2;
     const candidato = todos.map((m) => m[1]).find(esNombre);
     if (candidato) res.paciente = limpiarNombre(candidato.replace(/\s+,/g, ','));
   }
   if (!res.dni) {
-    const mDni = texto.match(/D\.?\s?N\.?\s?I\.?\s*:?\s*(\d{6,9})/i);
-    if (mDni) res.dni = mDni[1];
+    // DNI puede venir con puntos: 28.456.789 → normalizar
+    const mDni = texto.match(/D\.?\s?N\.?\s?I\.?\s*:?\s*([\d.]{7,11})/i);
+    if (mDni) res.dni = mDni[1].replace(/\./g, '');
   }
   if (!res.paciente) advertencias.push('No pude detectar el nombre del paciente.');
 
@@ -242,6 +254,12 @@ export function parseReceta(textoCrudo: string): RecetaParseada {
     }
     if (/^TOTAL\s+GENERAL/i.test(l)) {
       cerrar();
+      continue;
+    }
+    // "RP/" o "RP/1" en formato nacional → abre nueva fórmula sin título
+    if (RE_RP.test(l)) {
+      cerrar();
+      actual = { titulo: '', activos: [], indicacion: '', dias: null, totalCapsulas: null };
       continue;
     }
     const mLabel = l.match(RE_LABEL);

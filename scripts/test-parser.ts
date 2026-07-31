@@ -1,71 +1,77 @@
 import { parseReceta } from '../src/lib/parser';
+import { TODOS_LOS_EJEMPLOS, type EjemploParser } from '../src/lib/parser-examples';
 
-const recetaDefagot = `
-OOSS: MAGISTRALES FECHA RECETA: 02-07-2026 NRO: 1213267
-Plan Medico: DISPENSA PROPIA
-APELLIDO Y NOMBRE DNI MAGISTRAL
-DEFAGOT, JUAN SEGUNDO 44762968 RECETA
-DETALLE DE FORMULA MAGISTRAL
-Tratamiento personalizado con cápsulas multicapa de manufactura aditiva.
-1:
-- Vit. E: 200 mg
-- Sulfato de Zinc: 50 mg
-- Selenio: 100 µg
-- Vit. B12: 250 µg
-Indicaciones: En ayunas
-Cápsulas multicapa de impresión 3D = cantidad suficiente para 90 días. HSA.
-2:
-- Nicotinamida: 250 mg
-- Citrato de Magnesio: 200 mg
-Indicaciones: En ayunas
-Cápsulas multicapa de impresión 3D = cantidad suficiente para 90 días. HSA.
-3:
-- N- Acetilcisteina: 200 mg
-- Glicinato de Magnesio: 200 mg
-- Vit. D3: 1000 UI
-- Vit. K2: 50 µg
-- Aceite de pescado: 157.05 mg
-Indicaciones: A la noche
-Cápsulas multicapa de impresión 3D = cantidad suficiente para 90 días. HSA.
-DIAGNOSTICO :
-Anemia apl
-FIRMA Y SELLOS MEDICO
-MATRICULA PROVINCIAL 38602 | APELLIDO Y NOMBRE: Bianchi, Sofia Laura
-ESPECIALIDAD: Médico Clínico
-`;
+type Resultado = { campo: string; esperado: string; obtenido: string; ok: boolean };
 
-const recetaPagnan = `
-OOSS: MAGISTRALES FECHA RECETA: 01-07-2026 NRO: 1212977
-Plan Medico: DISPENSA PROPIA
-APELLIDO Y NOMBRE DNI MAGISTRAL
-PAGNAN, MONICA 13725924 RECETA
-DETALLE DE FORMULA MAGISTRAL
-Tratamiento personalizado con cápsulas multicapa de manufactura aditiva.
-antioxidante:
-- Vit. C: 250 mg
-- Vit. B2 (Riboflavina): 50 mg
-- Vit. B9 (ácido fólico): 1 mg
-- Vit. B12: 250 µg
-- Sulfato de Zinc: 8 mg
-- Selenio: 250 µg
-- Glicinato de Magnesio: 50 mg
-- Manganeso Quelado: 0.5 mg
-- Coenzima Q10: 50 mg
-- Aceite de pescado: 640.36 mg
-Indicaciones: mañana
-Cápsulas multicapa de impresión 3D = cantidad suficiente para 60 días. HSA.
-DIAGNOSTICO :
-Malestar y fatiga
-FIRMA Y SELLOS MEDICO
-MATRICULA PROVINCIAL 41453 | APELLIDO Y NOMBRE: Zuin, Lucía
-ESPECIALIDAD:
-`;
+function checkEjemplo(ej: EjemploParser): Resultado[] {
+  const r = parseReceta(ej.texto);
+  const resultados: Resultado[] = [];
 
-function check(nombre: string, texto: string) {
-  const r = parseReceta(texto);
-  console.log('====', nombre, '====');
-  console.log(JSON.stringify(r, null, 2));
+  const chk = (campo: string, esperado: unknown, obtenido: unknown) => {
+    const e = String(esperado ?? '').trim();
+    const o = String(obtenido ?? '').trim();
+    resultados.push({ campo, esperado: e, obtenido: o, ok: e === o });
+  };
+
+  if (ej.esperado.paciente !== undefined) chk('paciente', ej.esperado.paciente, r.paciente);
+  if (ej.esperado.dni !== undefined) chk('dni', ej.esperado.dni, r.dni);
+  if (ej.esperado.medico !== undefined) chk('medico', ej.esperado.medico, r.medico);
+  if (ej.esperado.matricula !== undefined) chk('matricula', ej.esperado.matricula, r.matricula);
+  if (ej.esperado.nroReceta !== undefined) chk('nroReceta', ej.esperado.nroReceta, r.nroReceta);
+  if (ej.esperado.diagnostico !== undefined) chk('diagnostico', ej.esperado.diagnostico, r.diagnostico);
+
+  if (ej.esperado.formulas !== undefined) {
+    const expF = ej.esperado.formulas;
+    chk('formulas.length', expF.length, r.formulas.length);
+    expF.forEach((ef, i) => {
+      const rf = r.formulas[i];
+      if (!rf) {
+        resultados.push({ campo: `formula[${i}]`, esperado: 'existe', obtenido: 'FALTA', ok: false });
+        return;
+      }
+      if (ef.titulo !== undefined) chk(`formula[${i}].titulo`, ef.titulo, rf.titulo);
+      if (ef.indicacion !== undefined) chk(`formula[${i}].indicacion`, ef.indicacion, rf.indicacion);
+      if (ef.dias !== undefined) chk(`formula[${i}].dias`, ef.dias, rf.dias);
+      if (ef.totalCapsulas !== undefined) chk(`formula[${i}].totalCapsulas`, ef.totalCapsulas, rf.totalCapsulas);
+      if (ef.activos !== undefined) {
+        chk(`formula[${i}].activos.length`, ef.activos.length, rf.activos.length);
+        ef.activos.forEach((ea, j) => {
+          const ra = rf.activos[j];
+          if (!ra) {
+            resultados.push({ campo: `formula[${i}].activos[${j}]`, esperado: ea.activo, obtenido: 'FALTA', ok: false });
+            return;
+          }
+          chk(`formula[${i}].activos[${j}].activo`, ea.activo, ra.activo);
+          chk(`formula[${i}].activos[${j}].dosis`, ea.dosis, ra.dosis);
+          chk(`formula[${i}].activos[${j}].unidad`, ea.unidad, ra.unidad);
+        });
+      }
+    });
+  }
+
+  return resultados;
 }
 
-check('DEFAGOT', recetaDefagot);
-check('PAGNAN', recetaPagnan);
+let totalOk = 0;
+let totalFail = 0;
+
+for (const ej of TODOS_LOS_EJEMPLOS) {
+  const resultados = checkEjemplo(ej);
+  const fails = resultados.filter((r) => !r.ok);
+  const ok = resultados.filter((r) => r.ok).length;
+  totalOk += ok;
+  totalFail += fails.length;
+
+  const estado = fails.length === 0 ? '✓ PASS' : `✗ FAIL (${fails.length} error/es)`;
+  console.log(`\n[${ej.formato}] ${ej.nombre} — ${estado}`);
+  if (fails.length > 0) {
+    for (const f of fails) {
+      console.log(`  ✗ ${f.campo}`);
+      console.log(`      esperado : ${f.esperado}`);
+      console.log(`      obtenido : ${f.obtenido}`);
+    }
+  }
+}
+
+console.log(`\n━━━ Resultado: ${totalOk} OK · ${totalFail} FAIL ━━━`);
+if (totalFail > 0) process.exit(1);

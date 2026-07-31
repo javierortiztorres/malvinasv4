@@ -21,6 +21,7 @@ export default function LectorRecetas({
   const [seleccion, setSeleccion] = useState<boolean[]>([]);
   const [error, setError] = useState('');
   const [arrastrando, setArrastrando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
 
   function procesarArchivo(file: File | undefined | null) {
     if (!file) return;
@@ -65,17 +66,12 @@ export default function LectorRecetas({
     const items = receta.formulas
       .filter((_, i) => seleccion[i])
       .map((f) => {
-        // Capas: una por activo, con la tinta sugerida automáticamente
-        // (criterio: imprimible ≥0.03 mL y de menor volumen). La dosis se
-        // convierte por tinta (UI, µg de elemento → mg de materia prima).
         const capas = f.activos.map((a, i) => {
           const opciones = tintasParaActivo(a.activo, a.dosis, a.unidad, catalogos.tintas);
           const mejor = opciones[0]?.tinta ?? null;
           return capaDesdeTinta(i + 1, a.activo, a.dosis, a.unidad, mejor);
         });
-        // División automática de cápsulas por toma
         const res = calcularCapsula(capas, { manual: false, capsulasPorToma: 1 });
-        // Ubicación cuerpo/tapa: la tapa solo se usa si el cuerpo supera 0.9 mL
         const capasUbicadas = autoUbicarCapas(capas, res.capsulasPorToma, catalogos.tintas);
         const capasConExtrusion = capasUbicadas.map((c) => ({
           ...c,
@@ -125,7 +121,27 @@ export default function LectorRecetas({
     }
   }
 
+  function copiarEjemplo() {
+    if (!receta) return;
+    const ejemplo = {
+      texto: texto || '/* pegar texto de la receta acá */',
+      esperado: {
+        paciente: receta.paciente,
+        medico: receta.medico,
+        matricula: receta.matricula,
+        diagnostico: receta.diagnostico,
+        formulas: receta.formulas,
+      },
+    };
+    navigator.clipboard.writeText(JSON.stringify(ejemplo, null, 2));
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }
+
   const color = receta ? colorDeGrupo(`${receta.paciente}|${receta.dni}`) : null;
+
+  // Input editable inline: sin borde visible en reposo, borde bottom al hacer foco
+  const estiloInput = 'bg-transparent border-none p-0 focus:outline-none focus:border-b focus:border-slate-400';
 
   return (
     <div className="space-y-4">
@@ -146,24 +162,11 @@ export default function LectorRecetas({
                 ? 'border-teal-600 bg-teal-50'
                 : 'border-slate-300 bg-slate-50 hover:border-teal-600'
             }`}
-            onDragOver={(e) => {
-              // Sin preventDefault el navegador no permite soltar (abre el PDF)
-              e.preventDefault();
-              e.stopPropagation();
-              setArrastrando(true);
-            }}
-            onDragEnter={(e) => {
-              e.preventDefault();
-              setArrastrando(true);
-            }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              setArrastrando(false);
-            }}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setArrastrando(true); }}
+            onDragEnter={(e) => { e.preventDefault(); setArrastrando(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setArrastrando(false); }}
             onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setArrastrando(false);
+              e.preventDefault(); e.stopPropagation(); setArrastrando(false);
               procesarArchivo(e.dataTransfer.files?.[0]);
             }}>
             <span className="text-3xl">📄</span>
@@ -174,10 +177,7 @@ export default function LectorRecetas({
               Se procesa en memoria: no se guarda ninguna imagen ni archivo.
             </span>
             <input type="file" accept="application/pdf" className="hidden"
-              onChange={(e) => {
-                procesarArchivo(e.target.files?.[0]);
-                e.target.value = ''; // permite volver a subir el mismo archivo
-              }} />
+              onChange={(e) => { procesarArchivo(e.target.files?.[0]); e.target.value = ''; }} />
           </label>
         ) : (
           <div className="space-y-3">
@@ -200,14 +200,42 @@ export default function LectorRecetas({
         <div className="card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3"
             style={{ background: color!.bg, borderBottom: `3px solid ${color!.border}` }}>
-            <div>
-              <p className="text-xl font-black uppercase leading-tight">{receta.paciente || '—'}</p>
-              <p className="text-sm">
-                DNI {receta.dni || '—'} · Dr/a. {receta.medico || '—'} (MP {receta.matricula || '—'}) ·
-                Receta {receta.nroReceta || '—'} del {receta.fechaReceta || '—'}
+            <div className="flex-1 min-w-0">
+              {receta._fuenteIA && (
+                <span className="mb-1 inline-block text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                  ⚠ Asistido por IA — revisá los campos
+                </span>
+              )}
+              <input
+                type="text"
+                value={receta.paciente || ''}
+                onChange={(e) => setReceta((r) => r ? { ...r, paciente: e.target.value } : r)}
+                className={`${estiloInput} block w-full text-xl font-black uppercase leading-tight`}
+                onFocus={(e) => e.target.select()}
+              />
+              <p className="text-sm flex flex-wrap gap-x-1 items-center">
+                <span>DNI {receta.dni || '—'} · Dr/a.</span>
+                <input
+                  type="text"
+                  value={receta.medico || ''}
+                  onChange={(e) => setReceta((r) => r ? { ...r, medico: e.target.value } : r)}
+                  className={`${estiloInput} text-sm w-40`}
+                  onFocus={(e) => e.target.select()}
+                />
+                <span>(MP</span>
+                <input
+                  type="text"
+                  value={receta.matricula || ''}
+                  onChange={(e) => setReceta((r) => r ? { ...r, matricula: e.target.value } : r)}
+                  className={`${estiloInput} text-sm w-16`}
+                  onFocus={(e) => e.target.select()}
+                />
+                <span>) · Receta {receta.nroReceta || '—'} del {receta.fechaReceta || '—'}</span>
               </p>
             </div>
-            <span className="badge bg-white/70">{receta.formulas.length} fórmula{receta.formulas.length !== 1 && 's'}</span>
+            <span className="badge bg-white/70 ml-3 shrink-0">
+              {receta.formulas.length} fórmula{receta.formulas.length !== 1 && 's'}
+            </span>
           </div>
 
           <div className="space-y-3 p-5">
@@ -218,12 +246,20 @@ export default function LectorRecetas({
                 ))}
               </div>
             )}
-            {receta.diagnostico && (
-              <p className="text-sm"><b>Diagnóstico:</b> {receta.diagnostico}</p>
+            {receta.diagnostico !== undefined && (
+              <p className="text-sm flex items-baseline gap-1">
+                <b className="shrink-0">Diagnóstico:</b>
+                <input
+                  type="text"
+                  value={receta.diagnostico}
+                  onChange={(e) => setReceta((r) => r ? { ...r, diagnostico: e.target.value } : r)}
+                  className={`${estiloInput} text-sm flex-1`}
+                  onFocus={(e) => e.target.select()}
+                />
+              </p>
             )}
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {receta.formulas.map((f, i) => {
-                // Vista previa de mapeo de tintas
                 const preview = f.activos.map((a) => {
                   const op = tintasParaActivo(a.activo, a.dosis, a.unidad, catalogos.tintas)[0];
                   return { a, tinta: op?.tinta.nombre ?? null };
@@ -259,9 +295,14 @@ export default function LectorRecetas({
               })}
             </div>
             <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-slate-500">
-                Se crea una tarjeta y un lote por fórmula, con la tinta sugerida en cada capa. Todo editable.
-              </p>
+              <div>
+                <p className="text-xs text-slate-500">
+                  Se crea una tarjeta y un lote por fórmula, con la tinta sugerida en cada capa. Todo editable.
+                </p>
+                <button onClick={copiarEjemplo} className="btn-ghost mt-1 text-xs">
+                  {copiado ? '✓ ¡Copiado!' : '📋 Copiar ejemplo para el corpus'}
+                </button>
+              </div>
               <button className="btn-primary" onClick={crearRegistros}
                 disabled={cargando || seleccion.every((s) => !s)}>
                 Crear {seleccion.filter(Boolean).length} registro{seleccion.filter(Boolean).length !== 1 && 's'} →
