@@ -239,6 +239,12 @@ export const operadores = pgTable('operadores', {
   rol: text('rol').notNull().default('produce'),
 });
 
+// Configuración editable del sistema (clave/valor)
+export const configuracion = pgTable('configuracion', {
+  clave: text('clave').primaryKey(),
+  valor: text('valor').notNull(),
+});
+
 export type Tinta = typeof tintas.$inferSelect;
 export type Registro = typeof registros.$inferSelect;
 export type RegistroPi = typeof registrosPi.$inferSelect;
