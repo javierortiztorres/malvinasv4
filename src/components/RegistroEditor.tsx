@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Registro, CapaTinta, ActivoFormula } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import { dosisPorCapsula, capsulasSugeridas, sumarMeses, hoyISO } from '@/lib/utils';
@@ -9,6 +9,7 @@ import {
   calcularCapsula, tintasParaActivo, capaDesdeTinta, extrusionCapa,
   autoUbicarCapas, dosisEnMgParaTinta, normUnidad, fmtMl, fmtPct,
 } from '@/lib/engine';
+import { useAutosave } from '@/hooks/useAutosave';
 import ResultadosPanel from './ResultadosPanel';
 
 type Color = { bg: string; border: string; name: string };
@@ -28,66 +29,12 @@ export default function RegistroEditor({
   onActualizado: (r: Registro) => void;
 }) {
   // ---------------- Estado + persistencia híbrida (local + nube) ----------------
-  const [r, setR] = useState<Registro>(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) {
-        try {
-          const draft = JSON.parse(raw);
-          if (new Date(draft.updatedAt) > new Date(registro.updatedAt)) return draft;
-        } catch {}
-      }
-    }
-    return registro;
+  const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
+    draftKey: DRAFT_KEY,
+    endpoint: (id) => `/api/registros/${id}`,
+    onActualizado,
   });
-  const [sync, setSync] = useState<'ok' | 'guardando' | 'pendiente'>('ok');
   const [errores, setErrores] = useState<string[] | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
-  const rRef = useRef(r);
-  rRef.current = r;
-
-  const sincronizar = useCallback(async (data: Registro) => {
-    setSync('guardando');
-    try {
-      const res = await fetch(`/api/registros/${data.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error();
-      localStorage.removeItem(DRAFT_KEY(data.id));
-      setSync('ok');
-    } catch {
-      setSync('pendiente');
-    }
-  }, []);
-
-  const set = useCallback(
-    (patch: Partial<Registro>) => {
-      const next = { ...rRef.current, ...patch, updatedAt: new Date() } as Registro;
-      rRef.current = next;
-      setR(next);
-      try {
-        localStorage.setItem(DRAFT_KEY(next.id), JSON.stringify(next));
-      } catch {}
-      clearTimeout(timer.current);
-      timer.current = setTimeout(() => sincronizar(next), 700);
-      // Actualiza la lista en memoria del padre: al cambiar de paciente o
-      // de solapa y volver, la tarjeta se re-monta con estos datos y no
-      // con los de la carga inicial de la página.
-      onActualizado(next);
-    },
-    [sincronizar, onActualizado]
-  );
-
-  useEffect(() => {
-    const reintentar = () => {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) sincronizar(JSON.parse(raw));
-    };
-    window.addEventListener('online', reintentar);
-    return () => window.removeEventListener('online', reintentar);
-  }, [registro.id, sincronizar]);
 
   // ---------------- MOTOR: resultado en vivo ----------------
   const resultado = useMemo(
@@ -233,6 +180,16 @@ export default function RegistroEditor({
           <span>{estadoSync}</span>
           <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar registro</button>
         </div>
+        {sesionVencida && (
+          <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+            ⚠ Sesión vencida — recargá la página y volvé a entrar. Tus cambios quedaron guardados localmente.
+          </p>
+        )}
+        {errorStorage && (
+          <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+            ⚠ No se pudo guardar el borrador local (espacio agotado). Cerrá otras pestañas o liberá espacio.
+          </p>
+        )}
 
         {/* ---------- 0 · Esquema de impresión (resumen para el operador) ---------- */}
         <EsquemaImpresion r={r} resultado={resultado} />

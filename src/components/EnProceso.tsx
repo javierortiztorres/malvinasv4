@@ -30,13 +30,16 @@ export default function EnProceso({
 
   // Pasa el registro a la otra solapa (Pendientes ↔ En producción)
   async function mover(r: Registro) {
-    const next = { ...r, enProduccion: !r.enProduccion, updatedAt: new Date() } as Registro;
+    const enProduccion = !r.enProduccion;
+    const next = { ...r, enProduccion, updatedAt: new Date() } as Registro;
     onActualizado(next); // cambio de solapa instantáneo
     try {
+      // Solo el patch, no la fila entera: si el editor tenía cambios sin
+      // sincronizar, un PUT con la fila completa los pisaría.
       const res = await fetch(`/api/registros/${r.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next),
+        body: JSON.stringify({ enProduccion }),
       });
       if (!res.ok) throw new Error();
     } catch {

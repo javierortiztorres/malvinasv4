@@ -1,11 +1,12 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RegistroPi, MateriaPrima, Tinta } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import { hoyISO, sumarMeses, formatoLotePI, coincideFiltro } from '@/lib/utils';
 import { MESES_VENCIMIENTO } from '@/lib/config';
 import { pesadasPI, fmtG, fmtPct, limpiarNombreTinta } from '@/lib/engine';
 import { faltantesPI } from '@/lib/validation';
+import { useAutosave } from '@/hooks/useAutosave';
 
 const DRAFT_KEY = (id: number) => `draft-pi-${id}`;
 
@@ -175,65 +176,12 @@ function PiEditor({
   onCambio: () => void;
   onActualizado: (r: RegistroPi) => void;
 }) {
-  const [r, setR] = useState<RegistroPi>(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) {
-        try {
-          const draft = JSON.parse(raw);
-          if (new Date(draft.updatedAt) > new Date(registro.updatedAt)) return draft;
-        } catch {}
-      }
-    }
-    return registro;
+  const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
+    draftKey: DRAFT_KEY,
+    endpoint: (id) => `/api/registros-pi/${id}`,
+    onActualizado,
   });
-  const [sync, setSync] = useState<'ok' | 'guardando' | 'pendiente'>('ok');
   const [errores, setErrores] = useState<string[] | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
-  const rRef = useRef(r);
-  rRef.current = r;
-
-  const sincronizar = useCallback(async (data: RegistroPi) => {
-    setSync('guardando');
-    try {
-      const res = await fetch(`/api/registros-pi/${data.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error();
-      localStorage.removeItem(DRAFT_KEY(data.id));
-      setSync('ok');
-    } catch {
-      setSync('pendiente');
-    }
-  }, []);
-
-  const set = useCallback(
-    (patch: Partial<RegistroPi>) => {
-      const next = { ...rRef.current, ...patch, updatedAt: new Date() } as RegistroPi;
-      rRef.current = next;
-      setR(next);
-      try {
-        localStorage.setItem(DRAFT_KEY(next.id), JSON.stringify(next));
-      } catch {}
-      clearTimeout(timer.current);
-      timer.current = setTimeout(() => sincronizar(next), 700);
-      // Mantiene la lista del padre al día: al colapsar y reabrir el lote
-      // no se pierden los cambios en pantalla.
-      onActualizado(next);
-    },
-    [sincronizar, onActualizado]
-  );
-
-  useEffect(() => {
-    const reintentar = () => {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) sincronizar(JSON.parse(raw));
-    };
-    window.addEventListener('online', reintentar);
-    return () => window.removeEventListener('online', reintentar);
-  }, [registro.id, sincronizar]);
 
   const tinta: Tinta | undefined = useMemo(
     () => catalogos.tintas.find((t) => t.id === r.tintaId),
@@ -303,6 +251,16 @@ function PiEditor({
         <span>{estadoSync}</span>
         <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar</button>
       </div>
+      {sesionVencida && (
+        <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+          ⚠ Sesión vencida — recargá la página y volvé a entrar. Tus cambios quedaron guardados localmente.
+        </p>
+      )}
+      {errorStorage && (
+        <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+          ⚠ No se pudo guardar el borrador local (espacio agotado). Cerrá otras pestañas o liberá espacio.
+        </p>
+      )}
 
       {/* Datos del lote */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
