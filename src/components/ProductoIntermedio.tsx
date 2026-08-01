@@ -34,8 +34,11 @@ export default function ProductoIntermedio({
   async function nuevaProduccion() {
     const t = catalogos.tintas.find((x) => String(x.id) === tintaNueva);
     if (!t) return;
+    if (!t.poe) {
+      alert(`Esta tinta no tiene Nº POE cargado. Cargalo una vez en Gestión → ${t.nombre} y volvé a intentar.`);
+      return;
+    }
     setCreando(true);
-    const nl = await fetch(`/api/next-lote-pi?poe=${encodeURIComponent(t.poe)}`).then((r) => r.json());
     const fechaElab = hoyISO();
     const body = {
       estado: 'en_proceso',
@@ -43,7 +46,8 @@ export default function ProductoIntermedio({
       tintaNombre: t.nombre,
       nombreProducto: `TINTA DE ${limpiarNombreTinta(t.nombre).toUpperCase()}`,
       poe: t.poe,
-      loteNumero: nl.proximo,
+      // El número lo asigna el servidor al crear (P### propio de esta tinta).
+      loteNumero: null,
       concentracion: t.concentracion,
       volumenJeringaMl: 10,
       materiasPrimas: [],
@@ -61,6 +65,9 @@ export default function ProductoIntermedio({
     if (res.ok) {
       setTintaNueva('');
       onCambio();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? 'No se pudo crear el registro de PI.');
     }
   }
 

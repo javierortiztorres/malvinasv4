@@ -222,7 +222,14 @@ export const registrosPi = pgTable('registros_pi', {
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  // Ya aplicado a mano en Neon (migración v4-B06, fuera de este repo).
+  // Declarativo: documenta el índice que garantiza la unicidad del lote de
+  // PI por tinta ante creaciones simultáneas.
+  uxLote: uniqueIndex('ux_registros_pi_lote')
+    .on(table.tintaId, table.loteNumero)
+    .where(sql`${table.loteNumero} IS NOT NULL`),
+}));
 
 export const excipientesRotulo = pgTable('excipientes', {
   id: serial('id').primaryKey(),

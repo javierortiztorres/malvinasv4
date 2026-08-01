@@ -101,6 +101,7 @@ export default function Admin({ catalogos, onCambio }: { catalogos: Catalogos; o
       {editando && (
         <TintaModal
           tinta={editando === 'nueva' ? null : editando}
+          tintas={catalogos.tintas}
           excipientesCatalogo={catalogos.excipientes.map((e) => e.nombre)}
           onCerrar={() => setEditando(null)}
           onGuardado={() => { setEditando(null); onCambio(); }}
@@ -117,11 +118,13 @@ const PARAMS_DEFAULT: ParametrosImpresion = {
 
 function TintaModal({
   tinta,
+  tintas,
   excipientesCatalogo,
   onCerrar,
   onGuardado,
 }: {
   tinta: Tinta | null;
+  tintas: Tinta[];
   excipientesCatalogo: string[];
   onCerrar: () => void;
   onGuardado: () => void;
@@ -171,6 +174,13 @@ function TintaModal({
     if (!fraccionesOk) {
       setError(`Activo + excipientes deben sumar 100%: con ${Number(t.concentracion.toFixed(4))}% de activo, los excipientes tienen que sumar ${Number((objetivoExc * 100).toFixed(4))}%`);
       return;
+    }
+    setError('');
+    // Aviso NO bloqueante: cada tinta debería tener su propio POE.
+    const poe = t.poe.trim();
+    if (poe) {
+      const otra = tintas.find((x) => x.poe === poe && x.activo && x.id !== tinta?.id);
+      if (otra) alert(`Ojo: ese POE ya lo usa ${otra.nombre} — cada tinta debería tener su propio POE.`);
     }
     const body = {
       tabla: 'tintas',

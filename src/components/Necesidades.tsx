@@ -137,11 +137,14 @@ export default function Necesidades({
 
   // ---------------- Crear el PI precargado ----------------
   async function hacer(g: GrupoNecesidad) {
+    const t = g.tintaId != null ? catalogos.tintas.find((x) => x.id === g.tintaId) : undefined;
+    const poe = t?.poe || g.poe;
+    if (!poe) {
+      alert(`Esta tinta no tiene Nº POE cargado. Cargalo una vez en Gestión → ${g.nombreLimpio} y volvé a intentar.`);
+      return;
+    }
     setCreando(g.key);
     try {
-      const t = g.tintaId != null ? catalogos.tintas.find((x) => x.id === g.tintaId) : undefined;
-      const poe = t?.poe || g.poe;
-      const nl = await fetch(`/api/next-lote-pi?poe=${encodeURIComponent(poe)}`).then((x) => x.json());
       // El lote se arma DESDE EL ACTIVO: necesidad × 1.45 (merma 45%),
       // y el total de producto sale por porcentaje. Todo editable después.
       const activo = activoConMerma(g.gramosActivo);
@@ -167,7 +170,8 @@ export default function Necesidades({
           tintaNombre: g.tintaNombre,
           nombreProducto: `TINTA DE ${g.nombreLimpio.toUpperCase()}`,
           poe,
-          loteNumero: nl.proximo,
+          // El número lo asigna el servidor al crear (P### propio de esta tinta).
+          loteNumero: null,
           concentracion: g.concentracion,
           cantidadProductoG: cantidad,
           jeringas,
@@ -179,9 +183,13 @@ export default function Necesidades({
           fechaHoraFin: '',
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? 'No se pudo crear el registro de PI.');
+        return;
+      }
       const creado = await res.json();
-      setHechos((h) => ({ ...h, [g.key]: { id: creado.id, lote: formatoLotePI(poe, nl.proximo) } }));
+      setHechos((h) => ({ ...h, [g.key]: { id: creado.id, lote: formatoLotePI(poe, creado.loteNumero) } }));
       onCambio();
     } catch {
       alert('No se pudo crear el registro de PI. Revisá la conexión.');
