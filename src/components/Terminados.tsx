@@ -14,6 +14,17 @@ function claveTerminacion(r: { fechaHoraFin: string; fechaElab: string; createdA
   return new Date(r.fechaHoraFin || r.fechaElab || r.createdAt).getTime();
 }
 
+// Orden de PT: por lote_prefijo (alfabético) y dentro de cada prefijo por
+// loteNumero DESCENDENTE (el lote más alto arriba). Sin número, al final.
+function claveLotePT(a: Registro, b: Registro): number {
+  const porPrefijo = a.lotePrefijo.localeCompare(b.lotePrefijo);
+  if (porPrefijo !== 0) return porPrefijo;
+  if (a.loteNumero == null && b.loteNumero == null) return 0;
+  if (a.loteNumero == null) return 1;
+  if (b.loteNumero == null) return -1;
+  return b.loteNumero - a.loteNumero;
+}
+
 // Huecos en la numeración de lote por prefijo, entre el mínimo y el máximo
 // de los TERMINADOS (registros ya viene filtrado a estado='terminado' desde
 // el padre). Solo informativo, no bloquea nada.
@@ -51,7 +62,7 @@ export default function Terminados({
   const backdrop = useCerrarModal(() => setRotuloDe(null), rotuloDe !== null);
 
   const ptVisibles = [...registros]
-    .sort((a, b) => claveTerminacion(b) - claveTerminacion(a))
+    .sort(claveLotePT)
     .filter((r) =>
       coincideFiltro(
         filtro,
