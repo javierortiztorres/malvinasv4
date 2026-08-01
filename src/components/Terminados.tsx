@@ -8,6 +8,35 @@ import { generarRotulo } from '@/lib/rotulo';
 import { SUCURSALES } from '@/lib/config';
 import { useCerrarModal } from '@/hooks/useCerrarModal';
 
+// Orden por fecha de TERMINACIÓN: fechaHoraFin (formato datetime-local, ordena
+// bien como texto/timestamp) → fechaElab → createdAt, en ese orden de preferencia.
+function claveTerminacion(r: { fechaHoraFin: string; fechaElab: string; createdAt: Date | string }): number {
+  return new Date(r.fechaHoraFin || r.fechaElab || r.createdAt).getTime();
+}
+
+// Huecos en la numeración de lote por prefijo, entre el mínimo y el máximo
+// de los TERMINADOS (registros ya viene filtrado a estado='terminado' desde
+// el padre). Solo informativo, no bloquea nada.
+function loteosSalteados(registros: Registro[]): Record<string, number[]> {
+  const porPrefijo = new Map<string, number[]>();
+  for (const r of registros) {
+    if (r.loteNumero == null) continue;
+    porPrefijo.set(r.lotePrefijo, [...(porPrefijo.get(r.lotePrefijo) ?? []), r.loteNumero]);
+  }
+  const resultado: Record<string, number[]> = {};
+  for (const [prefijo, numeros] of Array.from(porPrefijo)) {
+    const presentes = new Set(numeros);
+    const min = Math.min(...numeros);
+    const max = Math.max(...numeros);
+    const faltantes: number[] = [];
+    for (let n = min; n <= max; n++) {
+      if (!presentes.has(n)) faltantes.push(n);
+    }
+    if (faltantes.length > 0) resultado[prefijo] = faltantes;
+  }
+  return resultado;
+}
+
 export default function Terminados({
   registros,
   registrosPi,
@@ -21,18 +50,23 @@ export default function Terminados({
   const [filtro, setFiltro] = useState('');
   const backdrop = useCerrarModal(() => setRotuloDe(null), rotuloDe !== null);
 
-  const ptVisibles = registros.filter((r) =>
-    coincideFiltro(
-      filtro,
-      r.paciente, r.medico, r.tituloFormula, r.indicacion, r.producto,
-      formatoLote(r.lotePrefijo, r.loteNumero), r.fechaElab && fechaAR(r.fechaElab),
-      (r.formula ?? []).map((a) => a.activo).join(' ')
-    )
-  );
-  const piVisibles = registrosPi.filter((r) =>
-    coincideFiltro(filtro, r.nombreProducto, r.operador, r.poe,
-      formatoLotePI(r.poe, r.loteNumero), r.fechaElab && fechaAR(r.fechaElab))
-  );
+  const ptVisibles = [...registros]
+    .sort((a, b) => claveTerminacion(b) - claveTerminacion(a))
+    .filter((r) =>
+      coincideFiltro(
+        filtro,
+        r.paciente, r.medico, r.tituloFormula, r.indicacion, r.producto,
+        formatoLote(r.lotePrefijo, r.loteNumero), r.fechaElab && fechaAR(r.fechaElab),
+        (r.formula ?? []).map((a) => a.activo).join(' ')
+      )
+    );
+  const piVisibles = [...registrosPi]
+    .sort((a, b) => claveTerminacion(b) - claveTerminacion(a))
+    .filter((r) =>
+      coincideFiltro(filtro, r.nombreProducto, r.operador, r.poe,
+        formatoLotePI(r.poe, r.loteNumero), r.fechaElab && fechaAR(r.fechaElab))
+    );
+  const salteadosPT = loteosSalteados(registros);
   const [sucursal, setSucursal] = useState(SUCURSALES[0].id);
   const [copiado, setCopiado] = useState(false);
 
@@ -59,6 +93,15 @@ export default function Terminados({
       {/* -------- Producto terminado -------- */}
       <div>
         <h2 className="section-title">💊 Producto terminado{filtro && ` · ${ptVisibles.length} de ${registros.length}`}</h2>
+        {Object.entries(salteadosPT).map(([prefijo, numeros]) => {
+          const mostrados = numeros.slice(0, 15).map((n) => `P${String(n).padStart(3, '0')}`).join(', ');
+          const resto = numeros.length - 15;
+          return (
+            <p key={prefijo} className="mb-2 rounded bg-amber-100 px-3 py-2 text-sm text-amber-800">
+              ⚠ Números salteados en {prefijo}: {mostrados}{resto > 0 && `, … y ${resto} más`}
+            </p>
+          );
+        })}
         {registros.length === 0 ? (
           <div className="card p-8 text-center text-slate-500">Todavía no hay lotes de producto terminado.</div>
         ) : ptVisibles.length === 0 ? (
