@@ -28,8 +28,9 @@ export const registroTerminadoSchema = z.object({
   producto: z.string().min(1, 'Nombre del producto'),
   masaVolumen: z.string().min(1, 'Masa o volumen de las unidades'),
   lotePrefijo: z.string().min(1, 'Prefijo de lote'),
-  // El número de lote lo asigna el servidor al terminar (ver
+  // Opcional: si viene vacío, el servidor lo asigna al terminar (ver
   // api/registros/[id]/route.ts) — no se le exige al cliente.
+  loteNumero: z.number().int().positive('Número de lote (P…)').nullable().optional(),
   capas: z
     .array(
       z.object({

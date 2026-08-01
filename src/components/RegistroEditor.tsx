@@ -501,6 +501,7 @@ export default function RegistroEditor({
               <input className="input" type="number" value={r.loteNumero ?? ''}
                 placeholder={r.loteNumero == null ? 'P— (se asigna al terminar)' : undefined}
                 onChange={(e) => set({ loteNumero: Number(e.target.value) || null })} />
+              <p className="mt-0.5 text-xs text-slate-400">Vacío = se asigna solo al terminar</p>
             </div>
             <div>
               <label className="label">Inicio producción</label>
