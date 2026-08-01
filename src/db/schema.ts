@@ -7,7 +7,9 @@ import {
   boolean,
   jsonb,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ---------- Tipos JSON embebidos ----------
 
@@ -173,7 +175,14 @@ export const registros = pgTable('registros', {
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  // Ya aplicado a mano en Neon (migración fuera de este repo). Declarativo:
+  // documenta el índice para que el esquema de Drizzle refleje la realidad
+  // de la base. Es quien garantiza la unicidad del lote ante carreras.
+  uxLote: uniqueIndex('ux_registros_lote')
+    .on(table.lotePrefijo, table.loteNumero)
+    .where(sql`${table.loteNumero} IS NOT NULL`),
+}));
 
 // Registros de PRODUCTO INTERMEDIO (lotes de tinta)
 export const registrosPi = pgTable('registros_pi', {

@@ -146,12 +146,16 @@ export default function RegistroEditor({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(r),
     });
+    const data = await res.json();
     if (res.ok) {
       localStorage.removeItem(DRAFT_KEY(r.id));
+      // El número de lote lo asignó el servidor recién ahí — se refleja acá.
+      set({ loteNumero: data.loteNumero, estado: data.estado });
       onCambio();
+    } else if (res.status === 409) {
+      setErrores([data.error ?? 'Ese número de lote ya existe']);
     } else {
-      const data = await res.json();
-      setErrores(data.faltantes ?? ['Error del servidor']);
+      setErrores(data.faltantes ?? [data.error ?? 'Error del servidor']);
     }
   }
 
@@ -495,6 +499,7 @@ export default function RegistroEditor({
             <div>
               <label className="label">Nº de lote (P…)</label>
               <input className="input" type="number" value={r.loteNumero ?? ''}
+                placeholder={r.loteNumero == null ? 'P— (se asigna al terminar)' : undefined}
                 onChange={(e) => set({ loteNumero: Number(e.target.value) || null })} />
             </div>
             <div>

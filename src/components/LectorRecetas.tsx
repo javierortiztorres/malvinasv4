@@ -59,8 +59,6 @@ export default function LectorRecetas({
     setCargando(true);
     const grupo = `${receta.paciente}|${receta.dni}`;
     const fechaElab = hoyISO();
-    const nl = await fetch('/api/next-lote?prefijo=PT001').then((r) => r.json());
-    let numero = nl.proximo as number;
 
     const items = receta.formulas
       .filter((_, i) => seleccion[i])
@@ -102,7 +100,7 @@ export default function LectorRecetas({
             ? f.totalCapsulas * res.capsulasPorToma
             : capsulasSugeridas(f.dias, res.capsulasPorToma),
           lotePrefijo: 'PT001',
-          loteNumero: numero++,
+          loteNumero: null,
           fechaElab,
           fechaVto: sumarMeses(fechaElab, MESES_VENCIMIENTO),
           fechaHoraInicio: '',
