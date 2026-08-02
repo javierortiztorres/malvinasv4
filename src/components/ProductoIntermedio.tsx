@@ -27,6 +27,10 @@ export default function ProductoIntermedio({
   const [abiertos, setAbiertos] = useState<Record<number, boolean>>({});
   const [tintaNueva, setTintaNueva] = useState('');
   const [filtro, setFiltro] = useState('');
+  // Si el navegador bloquea el popup al terminar un PI, la tarjeta ya
+  // desapareció de esta lista (pasó a Terminados) cuando llega la
+  // respuesta: el aviso vive acá arriba, no en PiEditor, para no perderse.
+  const [avisoDoc, setAvisoDoc] = useState<string | null>(null);
 
   const visibles = registros.filter((r) =>
     coincideFiltro(filtro, r.nombreProducto, r.operador, r.poe,
@@ -100,6 +104,21 @@ export default function ProductoIntermedio({
       <input className="input max-w-md" placeholder="🔍 Buscar por tinta, lote, operador…"
         value={filtro} onChange={(e) => setFiltro(e.target.value)} />
 
+      {avisoDoc && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-l-4 border-l-amber-500 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">
+            ⚠ El navegador bloqueó la pestaña del documento del PI recién terminado.
+          </p>
+          <div className="flex items-center gap-2">
+            <a className="btn-primary" href={avisoDoc} target="_blank" rel="noopener"
+              onClick={() => setAvisoDoc(null)}>
+              📄 Abrir documento
+            </a>
+            <button className="btn-ghost" onClick={() => setAvisoDoc(null)}>✕</button>
+          </div>
+        </div>
+      )}
+
       {registros.length === 0 ? (
         <div className="card p-10 text-center text-slate-500">
           No hay producciones de producto intermedio en proceso.
@@ -112,9 +131,9 @@ export default function ProductoIntermedio({
             const abierto = abiertos[r.id] ?? false;
             return (
               <div key={r.id} className="card overflow-hidden border-l-4 border-l-profundo">
-                <button className="block w-full bg-hueso/60 text-left"
-                  onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
-                  <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center justify-between gap-2 bg-hueso/60 px-4 py-3">
+                  <button className="flex-1 text-left"
+                    onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
                     <div>
                       {/* Nombre limpio del activo (sin "para X mg", apodos ni %) */}
                       <p className="text-xl font-black uppercase leading-none">
@@ -127,10 +146,21 @@ export default function ProductoIntermedio({
                         {r.jeringas ? ` · ${r.jeringas} jeringas` : ''}
                       </p>
                     </div>
-                    <span className="text-2xl">{abierto ? '▾' : '▸'}</span>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <a className="btn-ghost text-xs" href={`/registro-pi/${r.id}/print`}
+                      target="_blank" rel="noopener">
+                      📄 Documento
+                    </a>
+                    <button className="text-2xl" onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
+                      {abierto ? '▾' : '▸'}
+                    </button>
                   </div>
-                </button>
-                {abierto && <PiEditor registro={r} catalogos={catalogos} onCambio={onCambio} onActualizado={onActualizado} />}
+                </div>
+                {abierto && (
+                  <PiEditor registro={r} catalogos={catalogos} onCambio={onCambio} onActualizado={onActualizado}
+                    onPopupBloqueado={setAvisoDoc} />
+                )}
               </div>
             );
           })}
@@ -180,11 +210,13 @@ function PiEditor({
   catalogos,
   onCambio,
   onActualizado,
+  onPopupBloqueado,
 }: {
   registro: RegistroPi;
   catalogos: Catalogos;
   onCambio: () => void;
   onActualizado: (r: RegistroPi) => void;
+  onPopupBloqueado: (url: string) => void;
 }) {
   const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
     draftKey: DRAFT_KEY,
@@ -255,6 +287,9 @@ function PiEditor({
     });
     if (res.ok) {
       localStorage.removeItem(DRAFT_KEY(r.id));
+      const docUrl = `/registro-pi/${r.id}/print`;
+      const ventana = window.open(docUrl, '_blank');
+      if (!ventana) onPopupBloqueado(docUrl);
       onCambio();
     } else {
       const data = await res.json();

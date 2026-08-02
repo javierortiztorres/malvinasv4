@@ -1,4 +1,16 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.10 (02-ago-2026) — abrir el documento al terminar un PI
+
+1. **Al marcar un PI como TERMINADO, su documento se abre solo en una
+   pestaña nueva** (`/registro-pi/[id]/print`), sin tener que ir a buscarlo
+   a Terminados. Si Chrome bloquea el popup, no rompe nada: aparece un
+   aviso arriba de la lista con un botón «📄 Abrir documento» para abrirlo
+   a mano. El resto del flujo de terminar (operador obligatorio, recarga de
+   la lista) sigue igual.
+2. **Botón «📄 Documento» en cada tarjeta de PI en proceso**, junto al
+   nombre del lote, para abrir el documento sin tener que terminarlo ni
+   esperar a que pase a Terminados.
+
 ## v2.0.9 (02-ago-2026) — firma del operador y DT en el documento de PI
 
 1. **Roles de operador con fallback**: los selects de operador/supervisor
