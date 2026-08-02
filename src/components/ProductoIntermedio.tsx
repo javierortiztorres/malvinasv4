@@ -108,8 +108,8 @@ export default function ProductoIntermedio({
           {visibles.map((r) => {
             const abierto = abiertos[r.id] ?? false;
             return (
-              <div key={r.id} className="card overflow-hidden border-l-4 border-l-teal-600">
-                <button className="block w-full bg-teal-50/60 text-left"
+              <div key={r.id} className="card overflow-hidden border-l-4 border-l-profundo">
+                <button className="block w-full bg-hueso/60 text-left"
                   onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
                   <div className="flex items-center justify-between px-4 py-3">
                     <div>
@@ -155,7 +155,7 @@ function ActivoInput({ r, set }: { r: RegistroPi; set: (p: Partial<RegistroPi>) 
   }
   return (
     <input
-      className="input border-teal-300 font-semibold"
+      className="input border-profundo font-semibold"
       type="number" step="any"
       value={local ?? (derivado ?? '')}
       onFocus={() => setLocal(derivado != null ? String(derivado) : '')}
@@ -293,12 +293,12 @@ function PiEditor({
             onChange={(e) => set({ loteNumero: Number(e.target.value) || null })} />
         </div>
         <div className="flex items-end">
-          <span className="badge w-full justify-center bg-teal-50 py-2 font-mono text-teal-800">
+          <span className="badge w-full justify-center bg-profundo/10 py-2 font-mono text-profundo">
             {formatoLotePI(r.poe, r.loteNumero)}
           </span>
         </div>
         <div>
-          <label className="label text-teal-700">Cant. de PRINCIPIO ACTIVO (g)</label>
+          <label className="label text-profundo">Cant. de PRINCIPIO ACTIVO (g)</label>
           <ActivoInput r={r} set={set} />
           <p className="mt-0.5 text-[10px] text-slate-400">el producto total se calcula solo: activo ÷ concentración</p>
         </div>
@@ -340,7 +340,7 @@ function PiEditor({
             <thead>
               <tr className="text-left text-xs uppercase text-slate-500">
                 <th className="py-1">Nº</th><th>Materia prima</th><th>Pureza</th>
-                <th>Nº lote</th><th>Teórica (g)</th><th className="text-teal-700">Pesada real</th>
+                <th>Nº lote</th><th>Teórica (g)</th><th className="text-profundo">Pesada real</th>
               </tr>
             </thead>
             <tbody>
@@ -349,7 +349,7 @@ function PiEditor({
                   <td className="py-1 pr-2 font-bold">{m.ref}</td>
                   <td className="pr-2">
                     <input className="input" value={m.nombre} onChange={(e) => setMP(i, { nombre: e.target.value })} />
-                    {m.esPI && <p className="text-[10px] font-medium text-teal-700">↳ es un producto intermedio: usar su lote FPI</p>}
+                    {m.esPI && <p className="text-[10px] font-medium text-profundo">↳ es un producto intermedio: usar su lote FPI</p>}
                   </td>
                   <td className="pr-2">
                     <input className="input w-20" value={m.pureza} onChange={(e) => setMP(i, { pureza: e.target.value })} />
@@ -360,7 +360,7 @@ function PiEditor({
                   </td>
                   <td className="pr-2 font-semibold">{m.cantidadTeorica ?? '—'}</td>
                   <td className="pr-2">
-                    <input className="input w-24 border-teal-300" value={m.pesadaReal}
+                    <input className="input w-24 border-profundo" value={m.pesadaReal}
                       onChange={(e) => setMP(i, { pesadaReal: e.target.value })} />
                   </td>
                 </tr>

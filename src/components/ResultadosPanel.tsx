@@ -90,7 +90,7 @@ export default function ResultadosPanel({
         <div className="flex items-center justify-between border-t border-slate-200 pt-2">
           <span>Cápsulas por toma:</span>
           <span className="flex items-center gap-2">
-            <span className={`badge ${r.seDivide ? 'bg-red-100 text-red-700' : 'bg-teal-50 text-teal-700'} text-base`}>
+            <span className={`badge ${r.seDivide ? 'bg-red-100 text-red-700' : 'bg-profundo/10 text-profundo'} text-base`}>
               {r.capsulasPorToma}
             </span>
             <select className="input w-auto py-1 text-xs"

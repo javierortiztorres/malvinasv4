@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 494 122" role="img" aria-label="Malvinas">
+  <title>MALVINAS — Extrusora Austral</title>
+  <desc>Boquilla de extrusión depositando capa sobre capa: la capa nueva en oro, la capa media abierta en el canal, las curvas del viento austral.</desc>
+  <!-- Isotipo -->
+  <g transform="translate(14,18) scale(0.95)">
+    <path d="M 37 5 L 63 5 L 63 14 L 56 26 L 54 26 L 52 32 L 48 32 L 46 26 L 44 26 L 37 14 Z" fill="#0E3A4D"/>
+    <path d="M 50 33 L 50 41" fill="none" stroke="#C1913A" stroke-width="5" stroke-linecap="round"/>
+    <g fill="none" stroke-width="9" stroke-linecap="round">
+      <path d="M 30 45 C 42 42.5 58 42.5 70 45" stroke="#C1913A"/>
+      <path d="M 20 61 C 30 58.5 38 57.7 44 57.5" stroke="#0E3A4D"/>
+      <path d="M 56 57.5 C 62 57.7 70 58.5 80 61" stroke="#0E3A4D"/>
+      <path d="M 18 77 C 34 73 66 73 82 77" stroke="#0E3A4D"/>
+    </g>
+  </g>
+  <!-- Logotipo trazado a medida -->
+  <g fill="none" stroke="#0E3A4D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" transform="translate(126,31) scale(0.8)">
+    <path d="M 0 70 L 0 0 L 23 46 L 46 0 L 46 70"/>
+    <path d="M 62 70 L 85 0 L 108 70"/>
+    <path d="M 69.5 48 L 100.5 48"/>
+    <path d="M 124 0 L 124 70 L 156 70"/>
+    <path d="M 172 0 L 195 70 L 218 0"/>
+    <path d="M 239 0 L 239 70"/>
+    <path d="M 260 70 L 260 0 L 306 70 L 306 0"/>
+    <path d="M 322 70 L 345 0 L 368 70"/>
+    <path d="M 329.5 48 L 360.5 48"/>
+    <path d="M 417 8 C 412 -2 392 -1 388 9 C 384 18 390 25 400.5 30.5 C 412 36 421 44 417.5 56 C 414 69 392 73 387.5 61"/>
+  </g>
+</svg>

@@ -141,8 +141,8 @@ export default function LectorRecetas({
           <label
             className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center transition-colors ${
               arrastrando
-                ? 'border-teal-600 bg-teal-50'
-                : 'border-slate-300 bg-slate-50 hover:border-teal-600'
+                ? 'border-profundo bg-profundo/5'
+                : 'border-slate-300 bg-slate-50 hover:border-profundo'
             }`}
             onDragOver={(e) => {
               // Sin preventDefault el navegador no permite soltar (abre el PDF)
@@ -229,7 +229,7 @@ export default function LectorRecetas({
                 return (
                   <label key={i}
                     className={`cursor-pointer rounded-xl border-2 p-3 text-sm ${
-                      seleccion[i] ? 'border-teal-600 bg-teal-50/50' : 'border-slate-200 opacity-60'
+                      seleccion[i] ? 'border-profundo bg-profundo/5' : 'border-slate-200 opacity-60'
                     }`}>
                     <div className="mb-1 flex items-center justify-between">
                       <b>Fórmula {f.titulo}</b>
@@ -241,7 +241,7 @@ export default function LectorRecetas({
                         <li key={j}>
                           • {a.activo}: {a.dosis} {a.unidad}
                           {tinta ? (
-                            <span className="ml-1 text-xs text-teal-700">→ {tinta}</span>
+                            <span className="ml-1 text-xs text-profundo">→ {tinta}</span>
                           ) : (
                             <span className="ml-1 text-xs text-amber-600">→ elegir tinta</span>
                           )}

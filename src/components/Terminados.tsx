@@ -155,7 +155,7 @@ export default function Terminados({
         ) : (
           <div className="space-y-3">
             {piVisibles.map((r) => (
-              <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-teal-600 p-4">
+              <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-profundo p-4">
                 <div>
                   <p className="text-lg font-black uppercase leading-tight">{limpiarNombreTinta(r.tintaNombre)}</p>
                   <p className="text-sm text-slate-600">

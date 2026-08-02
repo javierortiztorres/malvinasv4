@@ -76,7 +76,7 @@ export default function Admin({ catalogos, onCambio }: { catalogos: Catalogos; o
                     {(t.excipientes ?? []).map((e) => `${e.nombre} ${Number((e.fraccion * 100).toFixed(2))}%`).join(' · ') || '—'}
                   </td>
                   <td className="whitespace-nowrap">
-                    <button className="mr-2 text-slate-400 hover:text-teal-700" onClick={() => setEditando(t)}>✎</button>
+                    <button className="mr-2 text-slate-400 hover:text-profundo" onClick={() => setEditando(t)}>✎</button>
                     <button className="text-red-500" onClick={() => borrarTinta(t.id)}>✕</button>
                   </td>
                 </tr>
@@ -330,7 +330,7 @@ function TintaModal({
               + Agregar excipiente
             </button>
             {t.excipientes.length > 0 && !fraccionesOk && (
-              <button className="btn-ghost text-xs text-teal-700" title="Completa el último excipiente con lo que falta para llegar a 100% (c.s.p.)"
+              <button className="btn-ghost text-xs text-profundo" title="Completa el último excipiente con lo que falta para llegar a 100% (c.s.p.)"
                 onClick={completarRestante}>
                 ⚖ Completar restante en el último ({Number((Math.max(0, objetivoExc - t.excipientes.slice(0, -1).reduce((s, e) => s + (e.fraccion || 0), 0)) * 100).toFixed(4))}%)
               </button>
@@ -435,7 +435,7 @@ function CatalogoSimple({
               {item.rol && <span className="text-slate-400"> · {item.rol}</span>}
             </span>
             <span className="flex gap-2">
-              <button className="text-slate-400 hover:text-teal-700" onClick={() => editar(item)}>✎</button>
+              <button className="text-slate-400 hover:text-profundo" onClick={() => editar(item)}>✎</button>
               <button className="text-red-500" onClick={() => borrar(item.id)}>✕</button>
             </span>
           </li>

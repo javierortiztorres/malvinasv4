@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Registro, RegistroPi, Tinta } from '@/db/schema';
 import { APP } from '@/lib/config';
+import MarcaMalvinas from '@/components/MarcaMalvinas';
 import LectorRecetas from '@/components/LectorRecetas';
 import EnProceso from '@/components/EnProceso';
 import ProductoIntermedio from '@/components/ProductoIntermedio';
@@ -81,12 +82,12 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-[1500px] p-4">
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-profundo px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-700 text-2xl">💊</div>
+          <MarcaMalvinas variante="negativa" className="h-9 w-auto shrink-0" />
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">{APP.nombre}</h1>
-            <p className="text-sm text-slate-500">{APP.subtitulo}</p>
+            <h1 className="font-archivo text-2xl font-bold tracking-tight text-hueso">{APP.nombre}</h1>
+            <p className="text-sm text-niebla">{APP.subtitulo}</p>
           </div>
         </div>
         {!online && (
@@ -105,13 +106,13 @@ export default function Home() {
               onClick={() => setTab(t.id)}
               className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
                 tab === t.id
-                  ? 'bg-teal-700 text-white shadow-sm'
-                  : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  ? 'bg-profundo text-hueso shadow-sm'
+                  : 'border border-slate-200 bg-white text-turba hover:bg-slate-50'
               }`}
             >
               {t.label}
               {count > 0 && (
-                <span className={`ml-2 rounded-full px-2 text-xs ${tab === t.id ? 'bg-white/25' : 'bg-teal-50 text-teal-700'}`}>
+                <span className={`ml-2 rounded-full px-2 text-xs ${tab === t.id ? 'bg-white/25' : 'bg-profundo/10 text-profundo'}`}>
                   {count}
                 </span>
               )}

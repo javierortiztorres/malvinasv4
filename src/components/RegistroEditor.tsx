@@ -247,7 +247,7 @@ export default function RegistroEditor({
             <thead>
               <tr className="text-left text-xs uppercase text-slate-500">
                 <th className="py-1">Activo</th><th>Dosis</th><th>Unidad</th>
-                <th className="text-teal-700">Por cápsula</th><th></th>
+                <th className="text-profundo">Por cápsula</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -263,7 +263,7 @@ export default function RegistroEditor({
                   <td className="pr-2">
                     <input className="input w-16" value={a.unidad} onChange={(e) => setActivo(i, { unidad: e.target.value })} />
                   </td>
-                  <td className="pr-2 font-semibold text-teal-700">{dosisPorCapsula(a, r.capsulasPorToma)}</td>
+                  <td className="pr-2 font-semibold text-profundo">{dosisPorCapsula(a, r.capsulasPorToma)}</td>
                   <td>
                     <button className="text-red-500" onClick={() => set({ formula: r.formula.filter((_, j) => j !== i) })}>✕</button>
                   </td>
@@ -284,7 +284,7 @@ export default function RegistroEditor({
                 return (
                   <button key={e.id}
                     className={`rounded-full border px-3 py-1 text-sm ${
-                      on ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white'
+                      on ? 'border-profundo bg-profundo text-hueso' : 'border-slate-300 bg-white'
                     }`}
                     onClick={() => toggleExcipiente(e.nombre)}>
                     {on && '✓ '}{e.nombre}
@@ -319,9 +319,9 @@ export default function RegistroEditor({
                     <div className="flex items-center gap-1 pb-1.5">
                       <span className="w-5 text-base font-black">{i + 1}</span>
                       <span className="flex flex-col leading-none">
-                        <button className="text-slate-400 hover:text-teal-700 disabled:opacity-20" disabled={i === 0}
+                        <button className="text-slate-400 hover:text-profundo disabled:opacity-20" disabled={i === 0}
                           onClick={() => moverCapa(i, -1)}>▲</button>
-                        <button className="text-slate-400 hover:text-teal-700 disabled:opacity-20"
+                        <button className="text-slate-400 hover:text-profundo disabled:opacity-20"
                           disabled={i === r.capas.length - 1} onClick={() => moverCapa(i, 1)}>▼</button>
                       </span>
                     </div>
@@ -366,7 +366,7 @@ export default function RegistroEditor({
                       onChange={(e) => setCapa(i, { tinta: e.target.value })} />
                   )}
                   {convAplicada && (
-                    <p className="mt-1 text-[11px] font-medium text-teal-700">
+                    <p className="mt-1 text-[11px] font-medium text-profundo">
                       ✓ Convertido por la tinta: {c.dosisOriginal} {c.unidadOriginal} ×{' '}
                       {tintaSel?.convMgPorUnidad} mg/{tintaSel?.convUnidad} ={' '}
                       <b>{c.dosisMg != null ? Number(c.dosisMg.toFixed(4)) : '—'} mg de materia prima</b>
@@ -398,7 +398,7 @@ export default function RegistroEditor({
                     <div className="w-32">
                       <label className="label">Extrusión/cáps</label>
                       <p className={`rounded-lg border px-2 py-1.5 text-center text-sm font-black ${
-                        calc?.bajoMinimo ? 'border-red-300 bg-red-50 text-red-600' : 'border-teal-200 bg-teal-50 text-teal-700'
+                        calc?.bajoMinimo ? 'border-red-300 bg-red-50 text-red-600' : 'border-profundo/20 bg-profundo/5 text-profundo'
                       }`}>
                         {fmtMl(calc?.extrusion)}
                       </p>
@@ -417,7 +417,7 @@ export default function RegistroEditor({
                       <label className="label">
                         Ubicación{' '}
                         {c.ubicacionManual ? (
-                          <button className="font-bold text-teal-700 hover:underline" title="Volver a ubicación automática (tapa solo si el cuerpo supera 0.9 mL)"
+                          <button className="font-bold text-profundo hover:underline" title="Volver a ubicación automática (tapa solo si el cuerpo supera 0.9 mL)"
                             onClick={() => setCapa(i, { ubicacionManual: false })}>
                             (fijada · ↺ auto)
                           </button>
@@ -646,7 +646,7 @@ function EsquemaImpresion({ r, resultado }: { r: Registro; resultado: ReturnType
             💊 <b>{totales || '—'}</b> cápsulas{resultado.capsulasPorToma > 1 && <> · <b className="text-red-300">{resultado.capsulasPorToma}/toma</b></>}
           </span>
           <span className="rounded-full bg-white/10 px-2.5 py-1">🧪 <b>{fmtMl(resultado.volumenTotal)}</b>/cáps</span>
-          <span className="rounded-full bg-teal-500/25 px-2.5 py-1">Σ tinta a usar: <b>{totales > 0 ? `${Number(mlFinales.toFixed(1))} mL` : '—'}</b></span>
+          <span className="rounded-full bg-tussok/25 px-2.5 py-1">Σ tinta a usar: <b>{totales > 0 ? `${Number(mlFinales.toFixed(1))} mL` : '—'}</b></span>
         </div>
       </div>
       <div className="divide-y divide-white/10 bg-slate-800/60">
@@ -664,7 +664,7 @@ function EsquemaImpresion({ r, resultado }: { r: Registro; resultado: ReturnType
                 </span>
               </span>
               <span className="text-slate-300">dosis <b className="text-white">{c.dosisMg != null ? `${Number(c.dosisMg.toFixed(3))} mg` : '—'}</b></span>
-              <span className="text-slate-300">extrusión <b className={calc?.bajoMinimo ? 'text-red-300' : 'text-teal-300'}>{fmtMl(calc?.extrusion)}</b>/cáps</span>
+              <span className="text-slate-300">extrusión <b className={calc?.bajoMinimo ? 'text-red-300' : 'text-tussok'}>{fmtMl(calc?.extrusion)}</b>/cáps</span>
               <span className="text-slate-300">total <b className="text-white">{mlTot != null ? `${Number(mlTot.toFixed(2))} mL` : '—'}</b></span>
               {c.lote && <span className="text-xs text-slate-400">lote {c.lote}</span>}
             </div>

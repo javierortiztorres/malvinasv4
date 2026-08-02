@@ -165,12 +165,12 @@ export default function EnProceso({
                 {(r.formula ?? []).length > 3 && ` +${r.formula.length - 3}`}
               </p>
               <div className="flex items-center justify-between gap-2 pt-1">
-                <p className="text-xs font-semibold text-teal-700">Abrir en pantalla completa →</p>
+                <p className="text-xs font-semibold text-profundo">Abrir en pantalla completa →</p>
                 <button
                   className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
                     enProduccion
                       ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      : 'bg-teal-600 text-white hover:bg-teal-700'
+                      : 'bg-tussok text-profundo hover:opacity-90'
                   }`}
                   title={enProduccion ? 'Sacar de producción (vuelve a Pendientes)' : 'Pasar a la solapa En producción'}
                   onClick={(e) => { e.stopPropagation(); mover(r); }}>

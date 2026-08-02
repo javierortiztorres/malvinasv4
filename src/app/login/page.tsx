@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { APP } from '@/lib/config';
+import MarcaMalvinas from '@/components/MarcaMalvinas';
 
 export default function Login() {
   const [password, setPassword] = useState('');
@@ -23,9 +24,9 @@ export default function Login() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <form onSubmit={entrar} className="card w-full max-w-sm space-y-4 p-8">
         <div className="text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-700 text-3xl">💊</div>
-          <h1 className="text-2xl font-black">{APP.nombre}</h1>
-          <p className="text-sm text-slate-500">{APP.subtitulo}</p>
+          <MarcaMalvinas variante="positiva" className="mx-auto mb-3 h-12 w-auto" />
+          <h1 className="font-archivo text-2xl font-bold text-profundo">{APP.nombre}</h1>
+          <p className="text-sm text-niebla">{APP.subtitulo}</p>
         </div>
         <div>
           <label className="label">Contraseña</label>
