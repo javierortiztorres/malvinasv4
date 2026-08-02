@@ -1,4 +1,12 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.12 (02-ago-2026) — sacar el botón Documento de las tarjetas en proceso
+
+1. **Se sacó el botón «📄 Documento» de las tarjetas en proceso de PT y
+   PI** (B-11/B-11.1): el documento de un registro sin terminar sale a
+   medio llenar y no sirve. El documento sigue abriéndose solo al
+   terminar (con su aviso si el navegador bloquea el popup) y sigue
+   disponible en la solapa Terminados.
+
 ## v2.0.11 (02-ago-2026) — abrir el documento al terminar un PT
 
 1. **Al marcar un PT como TERMINADO, su documento se abre solo en una

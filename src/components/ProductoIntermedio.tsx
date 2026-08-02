@@ -147,15 +147,9 @@ export default function ProductoIntermedio({
                       </p>
                     </div>
                   </button>
-                  <div className="flex items-center gap-2">
-                    <a className="btn-ghost text-xs" href={`/registro-pi/${r.id}/print`}
-                      target="_blank" rel="noopener">
-                      📄 Documento
-                    </a>
-                    <button className="text-2xl" onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
-                      {abierto ? '▾' : '▸'}
-                    </button>
-                  </div>
+                  <button className="text-2xl" onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
+                    {abierto ? '▾' : '▸'}
+                  </button>
                 </div>
                 {abierto && (
                   <PiEditor registro={r} catalogos={catalogos} onCambio={onCambio} onActualizado={onActualizado}
