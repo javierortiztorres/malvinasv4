@@ -1,4 +1,19 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.13 (02-ago-2026) — planilla única de pesadas de PI en proceso
+
+1. **Nueva planilla imprimible `/pesadas/print`** (B-12): lista TODOS los
+   productos intermedios en proceso, ordenados por lote, en una sola hoja
+   para llevar a la balanza — una sección por PI con nombre de producto,
+   tinta, concentración, POE, lote, cantidad a producir y la tabla de
+   materias primas (componente, lote a usar, masa teórica, y masa real en
+   blanco para completar a mano), más la línea de inicio/fin de proceso.
+   Los valores salen tal cual del registro (sin recalcular); si no hay
+   ningún PI pendiente, muestra un mensaje claro en vez de una hoja vacía.
+2. **Botón «⚖️ Planilla de pesadas»** en la cabecera de la solapa Producto
+   Intermedio, junto al alta de nueva producción, que abre la planilla en
+   una pestaña nueva. Sin botón por tarjeta: las tarjetas de PI en proceso
+   quedan como en B-11.2.
+
 ## v2.0.12 (02-ago-2026) — sacar el botón Documento de las tarjetas en proceso
 
 1. **Se sacó el botón «📄 Documento» de las tarjetas en proceso de PT y

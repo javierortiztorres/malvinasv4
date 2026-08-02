@@ -96,6 +96,9 @@ export default function ProductoIntermedio({
         <button className="btn-primary" onClick={nuevaProduccion} disabled={!tintaNueva || creando}>
           🧪 Nueva producción de PI →
         </button>
+        <a className="btn-ghost" href="/pesadas/print" target="_blank" rel="noopener">
+          ⚖️ Planilla de pesadas
+        </a>
         <p className="w-full text-xs text-slate-500">
           El lote se numera solo (P### por tinta). Si la tinta no está en el catálogo, agregala primero en Gestión.
         </p>
