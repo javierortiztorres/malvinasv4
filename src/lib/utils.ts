@@ -1,4 +1,4 @@
-import type { ActivoFormula } from '@/db/schema';
+import type { ActivoFormula, RegistroPi } from '@/db/schema';
 import { PREFIJO_LOTE_PI } from './config';
 
 // ---- Fechas ----
@@ -60,6 +60,13 @@ export function formatoLote(prefijo: string, numero: number | null): string {
 export function formatoLotePI(poe: string, numero: number | null): string {
   const p = numero == null ? 'P—' : `P${String(numero).padStart(3, '0')}`;
   return `${PREFIJO_LOTE_PI}/${poe || 'FPI.—'}/${p}`;
+}
+
+// Criterio único de "PI pendiente": el mismo que usa la solapa Producto
+// Intermedio (page.tsx). Cualquier otra pantalla que necesite la misma
+// lista (ej. la planilla de pesadas) debe reusar esto, no reimplementarlo.
+export function esPiPendiente(r: Pick<RegistroPi, 'estado'>): boolean {
+  return r.estado === 'en_proceso';
 }
 
 // ---- Dosis por cápsula (para el rótulo y el documento) ----

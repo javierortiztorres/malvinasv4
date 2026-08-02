@@ -1,7 +1,6 @@
 import { db } from '@/db';
 import { registrosPi } from '@/db/schema';
-import { eq, asc } from 'drizzle-orm';
-import { fechaHoraAR, formatoLotePI, hoyISO } from '@/lib/utils';
+import { fechaHoraAR, formatoLotePI, hoyISO, esPiPendiente } from '@/lib/utils';
 import { fmtPct } from '@/lib/engine';
 import BotonImprimir from '@/components/BotonImprimir';
 
@@ -20,11 +19,13 @@ function ahoraConHora(): string {
 }
 
 export default async function PlanillaPesadas() {
-  const registros = await db
-    .select()
-    .from(registrosPi)
-    .where(eq(registrosPi.estado, 'en_proceso'))
-    .orderBy(asc(registrosPi.loteNumero));
+  // Mismo criterio y misma fuente que la solapa Producto Intermedio
+  // (page.tsx): se traen TODOS los PI y se filtra en JS con esPiPendiente,
+  // para que nunca puedan divergir un lote de diferencia entre las dos.
+  const todos = await db.select().from(registrosPi);
+  const registros = todos
+    .filter(esPiPendiente)
+    .sort((a, b) => (a.loteNumero ?? 0) - (b.loteNumero ?? 0));
 
   return (
     <div className="doc-impresion mx-auto max-w-[820px] bg-white p-10 text-[13px] leading-relaxed text-black">
@@ -55,6 +56,9 @@ export default async function PlanillaPesadas() {
                   <b>Cantidad a producir:</b> {r.cantidadProductoG != null ? `${r.cantidadProductoG} g` : '-'}
                   {r.jeringas ? ` · ${r.jeringas} jeringas de ${r.volumenJeringaMl} ml` : ''}
                 </p>
+                {r.materiasPrimas.length === 0 && (
+                  <p className="text-[11px] italic">(pesadas sin cargar en el sistema)</p>
+                )}
               </div>
 
               <table className="w-full border-collapse border border-black text-center">
@@ -67,9 +71,14 @@ export default async function PlanillaPesadas() {
                 </thead>
                 <tbody>
                   {r.materiasPrimas.length === 0 ? (
-                    <tr className="break-inside-avoid">
-                      <td className="border border-black p-2" colSpan={4}>Sin pesadas cargadas todavía.</td>
-                    </tr>
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <tr key={i} className="break-inside-avoid">
+                        <td className="border border-black p-2">&nbsp;</td>
+                        <td className="border border-black p-2">&nbsp;</td>
+                        <td className="border border-black p-2">&nbsp;</td>
+                        <td className="border border-black p-2">&nbsp;</td>
+                      </tr>
+                    ))
                   ) : (
                     r.materiasPrimas.map((m, i) => (
                       <tr key={i} className="break-inside-avoid">
@@ -86,6 +95,10 @@ export default async function PlanillaPesadas() {
               <p className="mt-2">
                 <b>Inicio:</b> {fechaHoraAR(r.fechaHoraInicio) || '______'} ·{' '}
                 <b>Fin:</b> {fechaHoraAR(r.fechaHoraFin) || '______'}
+              </p>
+              <p className="mt-1">
+                <b>Jeringas obtenidas:</b> ________ ·{' '}
+                <b>Volumen:</b> ☐ 10 mL · ☐ 60 mL
               </p>
             </section>
           ))}

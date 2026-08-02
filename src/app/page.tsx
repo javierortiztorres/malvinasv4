@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Registro, RegistroPi, Tinta } from '@/db/schema';
 import { APP } from '@/lib/config';
+import { esPiPendiente } from '@/lib/utils';
 import MarcaMalvinas from '@/components/MarcaMalvinas';
 import LectorRecetas from '@/components/LectorRecetas';
 import EnProceso from '@/components/EnProceso';
@@ -76,7 +77,7 @@ export default function Home() {
   const ptProceso = registros.filter((r) => r.estado === 'en_proceso');
   const enProduccion = ptProceso.filter((r) => r.enProduccion);
   const pendientes = ptProceso.filter((r) => !r.enProduccion);
-  const piProceso = registrosPi.filter((r) => r.estado === 'en_proceso');
+  const piProceso = registrosPi.filter(esPiPendiente);
   const ptTerm = registros.filter((r) => r.estado === 'terminado');
   const piTerm = registrosPi.filter((r) => r.estado === 'terminado');
 

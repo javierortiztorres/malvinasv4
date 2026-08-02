@@ -1,4 +1,20 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.14 (02-ago-2026) — planilla de pesadas: mismo filtro que la solapa + jeringas obtenidas
+
+1. **Filtro de `/pesadas/print` corregido** (B-12.1): la planilla ahora usa
+   exactamente el mismo criterio de "PI pendiente" que la solapa Producto
+   Intermedio (`esPiPendiente` en `src/lib/utils.ts`, compartido entre
+   `page.tsx` y la planilla) en vez de repetir el filtro en la consulta
+   SQL — así nunca puede listar menos lotes que los que se ven en la
+   solapa.
+2. **Un PI pendiente sin materias primas cargadas ya no desaparece de la
+   planilla**: aparece con su cabecera igual que los demás, la nota
+   "(pesadas sin cargar en el sistema)" y la tabla con 4 filas en blanco
+   para completar a mano.
+3. **Campos de envasado al pie de cada sección**: "Jeringas obtenidas:
+   ____" y casilleros "☐ 10 mL · ☐ 60 mL", siempre en blanco para anotar a
+   mano el resultado real del envasado.
+
 ## v2.0.13 (02-ago-2026) — planilla única de pesadas de PI en proceso
 
 1. **Nueva planilla imprimible `/pesadas/print`** (B-12): lista TODOS los
