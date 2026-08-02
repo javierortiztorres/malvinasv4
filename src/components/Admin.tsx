@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { Catalogos } from '@/app/page';
 import type { Tinta, ExcipienteTinta, ParametrosImpresion } from '@/db/schema';
 import { fmtPct } from '@/lib/engine';
+import { ROLES_OPERADOR } from '@/lib/utils';
 import { useCerrarModal } from '@/hooks/useCerrarModal';
 
 // =================== GESTIÓN ===================
@@ -95,7 +96,7 @@ export default function Admin({ catalogos, onCambio }: { catalogos: Catalogos; o
           onCambio={onCambio} />
         <CatalogoSimple titulo="Operadores y supervisores" tabla="operadores" items={catalogos.operadores}
           campos={[{ key: 'nombre', label: 'Nombre' }, { key: 'rol', label: 'produce | revisa' }]}
-          onCambio={onCambio} />
+          rolesCanonicos={ROLES_OPERADOR} onCambio={onCambio} />
       </div>
 
       {editando && (
@@ -366,15 +367,21 @@ function TintaModal({
 
 // =================== Catálogos simples ===================
 function CatalogoSimple({
-  titulo, tabla, items, campos, onCambio,
+  titulo, tabla, items, campos, onCambio, rolesCanonicos,
 }: {
   titulo: string;
   tabla: string;
   items: any[];
   campos: { key: string; label: string }[];
   onCambio: () => void;
+  // Si se pasa, el campo 'rol' se edita con un <select> de estas opciones
+  // en vez de prompt() de texto libre (hoy solo lo usa el catálogo de
+  // operadores).
+  rolesCanonicos?: string[];
 }) {
   const [nuevo, setNuevo] = useState<Record<string, string>>({});
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editValores, setEditValores] = useState<Record<string, string>>({});
 
   async function agregar() {
     if (!nuevo.nombre?.trim()) return;
@@ -392,7 +399,7 @@ function CatalogoSimple({
     onCambio();
   }
 
-  async function editar(item: any) {
+  async function editarConPrompt(item: any) {
     const datos: Record<string, string> = {};
     for (const c of campos) {
       const v = prompt(`${c.label}:`, item[c.key] ?? '');
@@ -413,6 +420,31 @@ function CatalogoSimple({
     onCambio();
   }
 
+  function empezarEdicion(item: any) {
+    if (!rolesCanonicos) { editarConPrompt(item); return; }
+    setEditId(item.id);
+    setEditValores(Object.fromEntries(campos.map((c) => [c.key, item[c.key] ?? ''])));
+  }
+
+  async function guardarEdicion() {
+    if (editId == null) return;
+    const datos: Record<string, string> = {};
+    for (const c of campos) datos[c.key] = (editValores[c.key] ?? '').trim();
+    if (!datos.nombre) return;
+    const res = await fetch('/api/catalogos', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tabla, id: editId, ...datos }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? 'No se pudo editar');
+      return;
+    }
+    setEditId(null);
+    onCambio();
+  }
+
   async function borrar(id: number) {
     if (!confirm('¿Eliminar este ítem?')) return;
     await fetch('/api/catalogos', {
@@ -429,15 +461,38 @@ function CatalogoSimple({
       <ul className="mb-3 max-h-56 space-y-1 overflow-auto text-sm">
         {items.map((item) => (
           <li key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-1">
-            <span>
-              {item.nombre}
-              {item.matricula && <span className="text-slate-400"> · MP {item.matricula}</span>}
-              {item.rol && <span className="text-slate-400"> · {item.rol}</span>}
-            </span>
-            <span className="flex gap-2">
-              <button className="text-slate-400 hover:text-profundo" onClick={() => editar(item)}>✎</button>
-              <button className="text-red-500" onClick={() => borrar(item.id)}>✕</button>
-            </span>
+            {editId === item.id ? (
+              <div className="flex flex-1 flex-wrap items-center gap-1.5">
+                {campos.map((c) =>
+                  c.key === 'rol' ? (
+                    <select key={c.key} className="input" value={editValores.rol ?? ''}
+                      onChange={(e) => setEditValores((v) => ({ ...v, rol: e.target.value }))}>
+                      {editValores.rol && !rolesCanonicos!.includes(editValores.rol) && (
+                        <option value={editValores.rol}>{editValores.rol}</option>
+                      )}
+                      {rolesCanonicos!.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  ) : (
+                    <input key={c.key} className="input" placeholder={c.label} value={editValores[c.key] ?? ''}
+                      onChange={(e) => setEditValores((v) => ({ ...v, [c.key]: e.target.value }))} />
+                  )
+                )}
+                <button className="text-emerald-600" onClick={guardarEdicion}>✓</button>
+                <button className="text-slate-400" onClick={() => setEditId(null)}>✕</button>
+              </div>
+            ) : (
+              <>
+                <span>
+                  {item.nombre}
+                  {item.matricula && <span className="text-slate-400"> · MP {item.matricula}</span>}
+                  {item.rol && <span className="text-slate-400"> · {item.rol}</span>}
+                </span>
+                <span className="flex gap-2">
+                  <button className="text-slate-400 hover:text-profundo" onClick={() => empezarEdicion(item)}>✎</button>
+                  <button className="text-red-500" onClick={() => borrar(item.id)}>✕</button>
+                </span>
+              </>
+            )}
           </li>
         ))}
       </ul>

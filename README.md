@@ -1,4 +1,31 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.9 (02-ago-2026) — firma del operador y DT en el documento de PI
+
+1. **Roles de operador con fallback**: los selects de operador/supervisor
+   (PT y PI) ahora comparan el rol normalizado (sin mayúsculas ni espacios).
+   Si un typo en la base deja el filtro vacío, se muestran todos los
+   operadores en vez de un select en blanco.
+2. **Supervisor / DT opcional en el editor de PI**, junto al operador. Se
+   guarda en `registros_pi.supervisor` (columna aplicada a mano en Neon,
+   ver `migration-v4-B10.sql` — no incluida en este repo, se corrió antes
+   del deploy).
+3. **Operador obligatorio para terminar un PI**, con aviso claro («Elegí el
+   operador que elaboró el lote»). El supervisor sigue siendo opcional.
+4. **En Gestión, el rol del operador se elige de una lista cerrada**
+   (`produce` / `revisa`) en vez de tipearse por `prompt()`.
+5. **El documento de PI ahora firma «Elaboró» y «Controló (DT)»** (antes
+   solo tenía una línea de operador, que además podía salir vacía). Los PI
+   históricos sin operador quedan con la línea en blanco para firmar a
+   mano.
+6. **Impresión sin URL ni fecha del navegador**: `@page { margin: 0 }` en
+   los documentos de PT y PI (el fix que el changelog prometía desde
+   v2.0.5), con el margen visual repuesto por padding propio del
+   documento. El bloque de firmas nunca se corta entre páginas
+   (`break-inside-avoid`).
+
+Sin migración de base en este repo: `registros_pi.supervisor` ya se agregó
+a mano en Neon antes de este deploy, siguiendo el protocolo del proyecto.
+
 ## v2.0.8 (16-jul-2026) — necesidades en activo, merma 45% y «Hacer» reversible
 
 1. **El dashboard ahora habla en gramos de PRINCIPIO ACTIVO** (el número

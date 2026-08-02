@@ -53,7 +53,15 @@ body {
   @apply flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-center;
 }
 
+/* Sin margen de página: así Chrome no tiene dónde imprimir la URL
+   vercel.app ni la fecha en encabezado/pie. El margen visual de los
+   documentos lo pone .doc-impresion (ver abajo) con padding propio. */
+@page {
+  margin: 0;
+}
+
 @media print {
   .no-print { display: none !important; }
   body { background: white; }
+  .doc-impresion { padding: 14mm !important; }
 }

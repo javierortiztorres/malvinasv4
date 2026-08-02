@@ -2,7 +2,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Registro, CapaTinta, ActivoFormula } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
-import { dosisPorCapsula, capsulasSugeridas, sumarMeses, hoyISO } from '@/lib/utils';
+import {
+  dosisPorCapsula, capsulasSugeridas, sumarMeses, hoyISO, operadoresPorRol,
+  ROL_OPERADOR_PRODUCE, ROL_OPERADOR_REVISA,
+} from '@/lib/utils';
 import { MESES_VENCIMIENTO } from '@/lib/config';
 import { faltantes } from '@/lib/validation';
 import {
@@ -41,6 +44,23 @@ export default function RegistroEditor({
     () => calcularCapsula(r.capas, { manual: r.capsulasPorTomaManual, capsulasPorToma: r.capsulasPorToma }),
     [r.capas, r.capsulasPorTomaManual, r.capsulasPorToma]
   );
+
+  // Operador/supervisor: lista filtrada por rol (con fallback si el rol
+  // tiene typo en la base), más el valor ya guardado si quedó fuera de la
+  // lista (para no perderlo silenciosamente, sin duplicarlo).
+  const operadoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_PRODUCE);
+    return r.operador && !base.some((o) => o.nombre === r.operador)
+      ? [...base, { id: -1, nombre: r.operador, rol: ROL_OPERADOR_PRODUCE }]
+      : base;
+  }, [catalogos.operadores, r.operador]);
+
+  const supervisoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_REVISA);
+    return r.supervisor && !base.some((o) => o.nombre === r.supervisor)
+      ? [...base, { id: -2, nombre: r.supervisor, rol: ROL_OPERADOR_REVISA }]
+      : base;
+  }, [catalogos.operadores, r.supervisor]);
 
   // Aplica cambios en capas recalculando división, ubicación cuerpo/tapa,
   // extrusiones y cápsulas totales
@@ -533,16 +553,13 @@ export default function RegistroEditor({
               <label className="label">Operador (produjo)</label>
               <select className="input" value={r.operador} onChange={(e) => set({ operador: e.target.value })}>
                 <option value="">—</option>
-                {catalogos.operadores.filter((o) => o.rol === 'produce')
-                  .map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
+                {operadoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
               </select>
             </div>
             <div>
               <label className="label">Supervisor (revisó)</label>
               <select className="input" value={r.supervisor} onChange={(e) => set({ supervisor: e.target.value })}>
-                {catalogos.operadores.filter((o) => o.rol === 'revisa')
-                  .map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
-                <option value={r.supervisor}>{r.supervisor}</option>
+                {supervisoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
               </select>
             </div>
           </div>

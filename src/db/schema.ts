@@ -216,6 +216,7 @@ export const registrosPi = pgTable('registros_pi', {
   fechaHoraInicio: text('fecha_hora_inicio').notNull().default(''),
   fechaHoraFin: text('fecha_hora_fin').notNull().default(''),
   operador: text('operador').notNull().default(''),
+  supervisor: text('supervisor'),
 
   fechaElab: text('fecha_elab').notNull().default(''),
   fechaVto: text('fecha_vto').notNull().default(''),

@@ -75,3 +75,20 @@ export function capsulasSugeridas(dias: number | null, capsulasPorToma: number):
   if (!dias) return null;
   return dias * (capsulasPorToma || 1);
 }
+
+// ---- Roles canónicos de operador ----
+// Únicos literales de rol del sistema: los usan los selects de operador/
+// supervisor (PT y PI) y el catálogo de operadores en Gestión.
+export const ROL_OPERADOR_PRODUCE = 'produce';
+export const ROL_OPERADOR_REVISA = 'revisa';
+export const ROLES_OPERADOR = [ROL_OPERADOR_PRODUCE, ROL_OPERADOR_REVISA];
+
+// ---- Operadores por rol, con fallback ----
+// Si un operador tiene el rol con typo o mayúsculas en la base, igual entra
+// acá (comparación normalizada). Si el filtro queda VACÍO (ningún operador
+// con ese rol, ni siquiera normalizado), se devuelven todos: un typo en la
+// base nunca más deja un select sin opciones.
+export function operadoresPorRol<T extends { rol?: string | null }>(operadores: T[], rol: string): T[] {
+  const filtrados = operadores.filter((o) => (o.rol ?? '').trim().toLowerCase() === rol);
+  return filtrados.length > 0 ? filtrados : operadores;
+}

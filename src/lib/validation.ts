@@ -78,7 +78,7 @@ export const registroPiTerminadoSchema = z.object({
   rechazadas: z.number().int().min(0),
   fechaHoraInicio: z.string().min(1, 'Fecha y hora de inicio'),
   fechaHoraFin: z.string().min(1, 'Fecha y hora de finalización'),
-  operador: z.string().min(1, 'Operador'),
+  operador: z.string().min(1, 'Elegí el operador que elaboró el lote'),
   fechaElab: z.string().min(1, 'Fecha de elaboración'),
   fechaVto: z.string().min(1, 'Fecha de vencimiento'),
 });

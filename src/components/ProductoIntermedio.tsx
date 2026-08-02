@@ -2,7 +2,10 @@
 import { useMemo, useState } from 'react';
 import type { RegistroPi, MateriaPrima, Tinta } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
-import { hoyISO, sumarMeses, formatoLotePI, coincideFiltro } from '@/lib/utils';
+import {
+  hoyISO, sumarMeses, formatoLotePI, coincideFiltro, operadoresPorRol,
+  ROL_OPERADOR_PRODUCE, ROL_OPERADOR_REVISA,
+} from '@/lib/utils';
 import { MESES_VENCIMIENTO } from '@/lib/config';
 import { pesadasPI, fmtG, fmtPct, limpiarNombreTinta } from '@/lib/engine';
 import { faltantesPI } from '@/lib/validation';
@@ -194,6 +197,23 @@ function PiEditor({
     () => catalogos.tintas.find((t) => t.id === r.tintaId),
     [catalogos.tintas, r.tintaId]
   );
+
+  // Operador/supervisor: lista filtrada por rol (con fallback si el rol
+  // tiene typo en la base), más el valor ya guardado si quedó fuera de la
+  // lista (para no perderlo silenciosamente, sin duplicarlo).
+  const operadoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_PRODUCE);
+    return r.operador && !base.some((o) => o.nombre === r.operador)
+      ? [...base, { id: -1, nombre: r.operador, rol: ROL_OPERADOR_PRODUCE }]
+      : base;
+  }, [catalogos.operadores, r.operador]);
+
+  const supervisoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_REVISA);
+    return r.supervisor && !base.some((o) => o.nombre === r.supervisor)
+      ? [...base, { id: -2, nombre: r.supervisor, rol: ROL_OPERADOR_REVISA }]
+      : base;
+  }, [catalogos.operadores, r.supervisor]);
 
   // ---- Pesadas teóricas en vivo ----
   const teoricas = useMemo(() => {
@@ -405,8 +425,14 @@ function PiEditor({
           <label className="label">Operador</label>
           <select className="input" value={r.operador} onChange={(e) => set({ operador: e.target.value })}>
             <option value="">—</option>
-            {catalogos.operadores.filter((o) => o.rol === 'produce')
-              .map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
+            {operadoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Supervisor / DT (opcional)</label>
+          <select className="input" value={r.supervisor ?? ''} onChange={(e) => set({ supervisor: e.target.value || null })}>
+            <option value="">—</option>
+            {supervisoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
           </select>
         </div>
         <div className="flex flex-wrap items-end gap-3 text-sm lg:col-span-1">
