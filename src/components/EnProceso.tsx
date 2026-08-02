@@ -27,6 +27,10 @@ export default function EnProceso({
 }) {
   const [abiertoId, setAbiertoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState('');
+  // Si el navegador bloquea el popup al terminar un PT, la tarjeta ya
+  // volvió a la lista (modo foco se cierra) cuando llega la respuesta: el
+  // aviso vive acá arriba, no en RegistroEditor, para no perderse.
+  const [avisoDoc, setAvisoDoc] = useState<string | null>(null);
 
   // Pasa el registro a la otra solapa (Pendientes ↔ En producción)
   async function mover(r: Registro) {
@@ -117,6 +121,7 @@ export default function EnProceso({
             colorPaciente={color}
             onCambio={onCambio}
             onActualizado={onActualizado}
+            onPopupBloqueado={setAvisoDoc}
           />
         </div>
       </div>
@@ -128,6 +133,22 @@ export default function EnProceso({
     <div className="space-y-3">
       <input className="input max-w-md" placeholder="🔍 Buscar por paciente, médico, lote, activo…"
         value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+
+      {avisoDoc && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-l-4 border-l-amber-500 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">
+            ⚠ El navegador bloqueó la pestaña del documento del PT recién terminado.
+          </p>
+          <div className="flex items-center gap-2">
+            <a className="btn-primary" href={avisoDoc} target="_blank" rel="noopener"
+              onClick={() => setAvisoDoc(null)}>
+              📄 Abrir documento
+            </a>
+            <button className="btn-ghost" onClick={() => setAvisoDoc(null)}>✕</button>
+          </div>
+        </div>
+      )}
+
       {registros.length === 0 && !filtro && (
         <div className="card p-8 text-center text-slate-500">
           {enProduccion
@@ -166,16 +187,22 @@ export default function EnProceso({
               </p>
               <div className="flex items-center justify-between gap-2 pt-1">
                 <p className="text-xs font-semibold text-profundo">Abrir en pantalla completa →</p>
-                <button
-                  className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
-                    enProduccion
-                      ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      : 'bg-tussok text-profundo hover:opacity-90'
-                  }`}
-                  title={enProduccion ? 'Sacar de producción (vuelve a Pendientes)' : 'Pasar a la solapa En producción'}
-                  onClick={(e) => { e.stopPropagation(); mover(r); }}>
-                  {enProduccion ? '↩ A pendientes' : '🖨️ A producción'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <a className="btn-ghost text-xs" href={`/registro/${r.id}/print`}
+                    target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}>
+                    📄 Documento
+                  </a>
+                  <button
+                    className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
+                      enProduccion
+                        ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        : 'bg-tussok text-profundo hover:opacity-90'
+                    }`}
+                    title={enProduccion ? 'Sacar de producción (vuelve a Pendientes)' : 'Pasar a la solapa En producción'}
+                    onClick={(e) => { e.stopPropagation(); mover(r); }}>
+                    {enProduccion ? '↩ A pendientes' : '🖨️ A producción'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -1,4 +1,16 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.11 (02-ago-2026) — abrir el documento al terminar un PT
+
+1. **Al marcar un PT como TERMINADO, su documento se abre solo en una
+   pestaña nueva** (`/registro/[id]/print`), sin tener que ir a buscarlo a
+   Terminados. Si Chrome bloquea el popup, no rompe nada: aparece un aviso
+   arriba de la lista con un botón «📄 Abrir documento» para abrirlo a
+   mano. El resto del flujo de terminar (validación, lote, recarga de la
+   lista) sigue igual — mismo comportamiento que B-11 aplicó para PI.
+2. **Botón «📄 Documento» en cada tarjeta de PT en proceso** (solapas En
+   producción y Pendientes), junto al botón de mover de solapa, para abrir
+   el documento sin tener que entrar en pantalla completa.
+
 ## v2.0.10 (02-ago-2026) — abrir el documento al terminar un PI
 
 1. **Al marcar un PI como TERMINADO, su documento se abre solo en una

@@ -24,12 +24,14 @@ export default function RegistroEditor({
   colorPaciente,
   onCambio,
   onActualizado,
+  onPopupBloqueado,
 }: {
   registro: Registro;
   catalogos: Catalogos;
   colorPaciente: Color;
   onCambio: () => void;
   onActualizado: (r: Registro) => void;
+  onPopupBloqueado?: (url: string) => void;
 }) {
   // ---------------- Estado + persistencia híbrida (local + nube) ----------------
   const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
@@ -171,6 +173,9 @@ export default function RegistroEditor({
       localStorage.removeItem(DRAFT_KEY(r.id));
       // El número de lote lo asignó el servidor recién ahí — se refleja acá.
       set({ loteNumero: data.loteNumero, estado: data.estado });
+      const docUrl = `/registro/${r.id}/print`;
+      const ventana = window.open(docUrl, '_blank');
+      if (!ventana) onPopupBloqueado?.(docUrl);
       onCambio();
     } else if (res.status === 409) {
       setErrores([data.error ?? 'Ese número de lote ya existe']);
