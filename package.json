@@ -18,12 +18,14 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "unpdf": "^0.12.1",
+    "ws": "^8.21.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.20",
     "dotenv": "^16.4.5",
     "drizzle-kit": "^0.28.1",
