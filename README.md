@@ -1,4 +1,27 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.31 (03-ago-2026) — Tiempo de producción en Estadística, proxy de eficacia (B-19.5)
+
+1. **Investigación previa (obligatoria antes de tocar nada)**: se pidió una
+   métrica de "eficacia real" (receta → entrega al paciente). El esquema NO
+   tiene ningún timestamp de entrega: `estado` de `registros` solo vale
+   `'en_proceso'` o `'terminado'`, y no hay campo `entregadoAt` ni concepto
+   de entrega en ningún lado del código (grep de "entreg/retir/despach/
+   dispensa" sin resultados). Se consultó con Tomi antes de seguir — se
+   optó por el proxy sin tocar el esquema, dejando el campo real de
+   entrega como pendiente de backlog.
+2. **Nueva sección "⏱️ Tiempo de producción"** en 📈 Estadística: mide
+   entrada de la receta al sistema (`createdAt`) → fin de producción
+   (`fechaHoraFin`, tipeado a mano por el operador, obligatorio para
+   poder terminar un registro). Etiquetado explícito en la UI de que
+   **no** es la entrega real — es un proxy, y de qué campos sale.
+3. Muestra promedio/mínimo/máximo del período (mismo selector Mes/Rango
+   libre que el resto de la solapa) y una distribución en 5 franjas
+   (< 1 día, 1–3, 3–7, 7–14, 14+), en tabla y en gráfico (dona, mismo
+   patrón que 🧪 Activos usados de B-19.4). Registros sin `fechaHoraFin`
+   válido se excluyen del cálculo y se avisa la cantidad excluida.
+4. No se tocó ningún bloque existente de la solapa (KPIs, Producción,
+   Pacientes, Ranking, Evolución quedan idénticos).
+
 ## v2.0.30 (03-ago-2026) — Overflow real de las donas de Estadística, verificado con captura visual (B-19.4.2)
 
 1. **B-19.4.1 verificó solo por API y no alcanzó**: los números eran

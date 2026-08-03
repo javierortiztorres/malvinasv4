@@ -51,6 +51,34 @@ function addDiasISO(iso: string, dias: number): string {
   return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
 }
 
+// "Tiempo de producción" (B-19.5): proxy de eficacia, NO entrega real al
+// paciente — ese dato no existe en el esquema (no hay estado ni timestamp
+// de "entregado"). Mide createdAt (entrada de la receta al sistema, la
+// pone el Lector al crear el registro) → fechaHoraFin (fin de producción,
+// tipeado a mano por el operador, obligatorio para poder "terminar" — ver
+// validation.ts). null si fechaHoraFin falta o es anterior a createdAt
+// (dato viejo/inconsistente): se excluye del cálculo en vez de romperlo.
+function horasEntre(createdAt: Date | string, fechaHoraFin: string): number | null {
+  if (!fechaHoraFin) return null;
+  const inicio = new Date(createdAt).getTime();
+  const fin = new Date(fechaHoraFin).getTime();
+  if (!Number.isFinite(inicio) || !Number.isFinite(fin) || fin < inicio) return null;
+  return (fin - inicio) / 3600000;
+}
+function formatoDuracion(horas: number): string {
+  return horas < 24 ? `${horas.toFixed(1)} h` : `${(horas / 24).toFixed(1)} d`;
+}
+const BUCKETS_TIEMPO: { nombre: string; max: number }[] = [
+  { nombre: '< 1 día', max: 24 },
+  { nombre: '1–3 días', max: 72 },
+  { nombre: '3–7 días', max: 168 },
+  { nombre: '7–14 días', max: 336 },
+  { nombre: '14+ días', max: Infinity },
+];
+function bucketNombre(horas: number): string {
+  return BUCKETS_TIEMPO.find((b) => horas <= b.max)!.nombre;
+}
+
 function normalizarNombre(s: string): string {
   return s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -443,6 +471,7 @@ export default function Estadistica({
   const [vistaProduccion, setVistaProduccion] = useState<'tabla' | 'grafico'>('tabla');
   const [vistaPacientes, setVistaPacientes] = useState<'tabla' | 'grafico'>('tabla');
   const [vistaRanking, setVistaRanking] = useState<'tabla' | 'grafico'>('tabla');
+  const [vistaTiempo, setVistaTiempo] = useState<'tabla' | 'grafico'>('tabla');
 
   // ---------------- Rango efectivo del período elegido ----------------
   const { dentro, prevDentro, tituloPeriodo } = useMemo(() => {
@@ -539,6 +568,25 @@ export default function Estadistica({
     }
     return { actual: calcular(piPeriodo), previo: calcular(piPrevio) };
   }, [piPeriodo, piPrevio]);
+
+  // ---------------- Tiempo de producción (proxy de eficacia, B-19.5) ----------------
+  const statsTiempo = useMemo(() => {
+    function calcular(lista: Registro[]) {
+      const horas = lista
+        .map((r) => horasEntre(r.createdAt, r.fechaHoraFin))
+        .filter((h): h is number => h != null);
+      const n = horas.length;
+      const promedio = n > 0 ? horas.reduce((s, h) => s + h, 0) / n : 0;
+      const min = n > 0 ? Math.min(...horas) : 0;
+      const max = n > 0 ? Math.max(...horas) : 0;
+      const buckets = BUCKETS_TIEMPO.map((b) => ({
+        nombre: b.nombre,
+        valor: horas.filter((h) => bucketNombre(h) === b.nombre).length,
+      }));
+      return { n, promedio, min, max, buckets, excluidos: lista.length - n };
+    }
+    return { actual: calcular(ptPeriodo), previo: calcular(ptPrevio) };
+  }, [ptPeriodo, ptPrevio]);
 
   // ---------------- Evolución mes a mes ----------------
   const mesesEvolucion = useMemo(() => {
@@ -759,6 +807,64 @@ export default function Estadistica({
               destacarPrimero
             />
           </div>
+        )}
+      </section>
+
+      {/* ================= Tiempo de producción (proxy, B-19.5) ================= */}
+      <section className="border-t border-linea pt-6">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h2 className="section-title mb-0">⏱️ Tiempo de producción</h2>
+          <SelectorVista vista={vistaTiempo} onChange={setVistaTiempo} />
+        </div>
+        <p className="mb-3 text-xs text-niebla">
+          Proxy de eficacia: entrada de la receta al sistema (fecha de creación del registro) → fin de
+          producción (fecha y hora de finalización, tipeada por el operador). <strong>No es la entrega
+          real al paciente</strong> — ese dato todavía no se registra en el sistema.
+        </p>
+        {statsTiempo.actual.n === 0 ? (
+          <div className="card p-6 text-center text-niebla">Sin tiempos de producción medibles en {tituloPeriodo}.</div>
+        ) : vistaTiempo === 'tabla' ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Tile
+                label="Promedio"
+                valor={formatoDuracion(statsTiempo.actual.promedio)}
+                cmp={hayPeriodoAnterior && statsTiempo.previo.n > 0 ? delta(statsTiempo.actual.promedio, statsTiempo.previo.promedio) : null}
+              />
+              <Tile label="Mínimo" valor={formatoDuracion(statsTiempo.actual.min)} cmp={null} />
+              <Tile label="Máximo" valor={formatoDuracion(statsTiempo.actual.max)} cmp={null} />
+              <Tile label="Recetas medidas" valor={statsTiempo.actual.n} cmp={null} />
+            </div>
+            <div className="mt-4 max-w-md">
+              <TablaRanking
+                titulo="Distribución de tiempos"
+                filas={statsTiempo.actual.buckets.map((b) => ({ nombre: b.nombre, a: b.valor, b: pct(b.valor, statsTiempo.actual.n) }))}
+                colA="Recetas" colB="%"
+                vacio="Sin datos en este período."
+              />
+            </div>
+          </>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <MedidorDestacado
+              label="Promedio de tiempo de producción"
+              valor={statsTiempo.actual.promedio}
+              anterior={statsTiempo.previo.promedio}
+              hayAnterior={hayPeriodoAnterior && statsTiempo.previo.n > 0}
+              cmp={hayPeriodoAnterior && statsTiempo.previo.n > 0 ? delta(statsTiempo.actual.promedio, statsTiempo.previo.promedio) : null}
+              formato={formatoDuracion}
+            />
+            <GraficoTorta
+              titulo="⏱️ Distribución de tiempos de producción"
+              datos={statsTiempo.actual.buckets}
+              vacio="Sin datos en este período."
+            />
+          </div>
+        )}
+        {statsTiempo.actual.excluidos > 0 && (
+          <p className="mt-2 text-xs text-niebla">
+            + {statsTiempo.actual.excluidos} registro{statsTiempo.actual.excluidos === 1 ? '' : 's'} sin fecha de fin válida, excluido{statsTiempo.actual.excluidos === 1 ? '' : 's'} de este cálculo.
+          </p>
         )}
       </section>
 
