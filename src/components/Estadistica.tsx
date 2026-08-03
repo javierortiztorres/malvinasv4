@@ -66,8 +66,8 @@ function delta(cur: number, prev: number): number | null {
 }
 
 function Delta({ v }: { v: number | null }) {
-  if (v == null) return <span className="text-xs text-slate-400">—</span>;
-  const color = v > 0 ? 'text-emerald-600' : v < 0 ? 'text-red-600' : 'text-slate-400';
+  if (v == null) return <span className="text-xs text-niebla">—</span>;
+  const color = v > 0 ? 'text-emerald-600' : v < 0 ? 'text-red-600' : 'text-niebla';
   const flecha = v > 0 ? '↑' : v < 0 ? '↓' : '·';
   return <span className={`text-xs font-semibold ${color}`}>{flecha} {Math.abs(v)}%</span>;
 }
@@ -76,7 +76,20 @@ function Tile({ label, valor, cmp }: { label: string; valor: string | number; cm
   return (
     <div className="tile gap-0.5 py-3">
       <p className="text-2xl font-black text-profundo">{valor}</p>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-niebla">{label}</p>
+      <Delta v={cmp} />
+    </div>
+  );
+}
+
+// KPI destacado: tarjeta grande para las 3-5 métricas principales del
+// período, con más jerarquía tipográfica que .tile (usado en los bloques
+// de detalle) para que no todos los números pesen igual visualmente.
+function KpiDestacado({ label, valor, cmp }: { label: string; valor: string | number; cmp: number | null }) {
+  return (
+    <div className="card flex flex-col gap-1 p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-niebla">{label}</p>
+      <p className="font-archivo text-4xl font-black text-profundo">{valor}</p>
       <Delta v={cmp} />
     </div>
   );
@@ -93,11 +106,11 @@ function TablaRanking({
     <div className="card overflow-hidden">
       <h3 className="border-b border-slate-100 px-4 py-2 font-archivo text-sm font-bold text-turba">{titulo}</h3>
       {filas.length === 0 ? (
-        <p className="p-4 text-sm text-slate-500">{vacio}</p>
+        <p className="p-4 text-sm text-niebla">{vacio}</p>
       ) : (
         <div className="max-h-72 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase text-niebla">
               <tr><th className="px-4 py-1.5">Nombre</th><th className="text-right">{colA}</th><th className="px-4 text-right">{colB}</th></tr>
             </thead>
             <tbody>
@@ -122,7 +135,7 @@ function Evolucion({ titulo, meses, valores, mesActivo }: { titulo: string; mese
     <div className="card p-4">
       <h3 className="mb-3 font-archivo text-sm font-bold text-turba">{titulo}</h3>
       {valores.every((v) => v === 0) ? (
-        <p className="text-sm text-slate-500">Sin producción en este período.</p>
+        <p className="text-sm text-niebla">Sin producción en este período.</p>
       ) : (
         <div className="flex h-32 items-end gap-1">
           {meses.map((m, i) => {
@@ -137,7 +150,7 @@ function Evolucion({ titulo, meses, valores, mesActivo }: { titulo: string; mese
                     style={{ height: `${h}%` }}
                   />
                 </div>
-                <p className="text-[9px] text-slate-400">{nombreMesCorto(m)}</p>
+                <p className="text-[9px] text-niebla">{nombreMesCorto(m)}</p>
               </div>
             );
           })}
@@ -293,7 +306,7 @@ export default function Estadistica({
   const pPI = statsPI.previo;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* ================= Selector de período ================= */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex overflow-hidden rounded-xl border border-slate-200">
@@ -324,63 +337,86 @@ export default function Estadistica({
       </div>
 
       {!hayPeriodoAnterior && (
-        <p className="text-xs text-slate-400">Sin período anterior con datos: la comparativa muestra “—”.</p>
+        <p className="text-xs text-niebla">Sin período anterior con datos: la comparativa muestra “—”.</p>
       )}
 
-      {/* ================= Cápsulas y jeringas (KPI) ================= */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Tile label="Cápsulas producidas" valor={aPT.capsulas} cmp={hayPeriodoAnterior ? delta(aPT.capsulas, pPT.capsulas) : null} />
-        <Tile label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
-        <Tile label="Jeringas de 10" valor={aPI.jeringas10} cmp={hayPeriodoAnterior ? delta(aPI.jeringas10, pPI.jeringas10) : null} />
-        <Tile label="Jeringas de 60" valor={aPI.jeringas60} cmp={hayPeriodoAnterior ? delta(aPI.jeringas60, pPI.jeringas60) : null} />
-        <Tile label="mL de PI producidos" valor={Number(aPI.ml.toFixed(1))} cmp={hayPeriodoAnterior ? delta(aPI.ml, pPI.ml) : null} />
-      </div>
-      {aPI.otras > 0 && (
-        <p className="text-xs text-slate-400">+ {aPI.otras} jeringa{aPI.otras === 1 ? '' : 's'} de otro volumen (no 10 ni 60 mL).</p>
-      )}
+      {/* ================= KPIs destacados ================= */}
+      <section>
+        <h2 className="section-title">📊 KPIs destacados — {tituloPeriodo}</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <KpiDestacado label="Cápsulas producidas" valor={aPT.capsulas} cmp={hayPeriodoAnterior ? delta(aPT.capsulas, pPT.capsulas) : null} />
+          <KpiDestacado label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
+          <KpiDestacado label="mL de PI producidos" valor={Number(aPI.ml.toFixed(1))} cmp={hayPeriodoAnterior ? delta(aPI.ml, pPI.ml) : null} />
+        </div>
+      </section>
 
-      {/* ================= Top cápsulas estrella ================= */}
-      <div>
-        <h2 className="section-title">⭐ Cápsulas estrella del período</h2>
-        {aPT.formulas.length === 0 ? (
-          <div className="card p-6 text-center text-slate-500">No hay producto terminado en {tituloPeriodo}.</div>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {aPT.formulas.slice(0, 5).map((f, i) => (
-              <div key={f.nombre} className={`card p-3 ${i === 0 ? 'border-2 border-tussok' : ''}`}>
-                <p className="truncate text-sm font-black uppercase" title={f.nombre}>{i === 0 && '⭐ '}{f.nombre}</p>
-                <p className="text-xl font-black text-profundo">{f.capsulas}</p>
-                <p className="text-xs text-slate-500">cáps · {f.lotes} lote{f.lotes === 1 ? '' : 's'} · {pct(f.capsulas, aPT.capsulas)}</p>
-              </div>
-            ))}
-          </div>
+      {/* ================= Producción ================= */}
+      <section className="border-t border-linea pt-6">
+        <h2 className="section-title">📦 Producción</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Tile label="Cápsulas producidas" valor={aPT.capsulas} cmp={hayPeriodoAnterior ? delta(aPT.capsulas, pPT.capsulas) : null} />
+          <Tile label="Jeringas de 10" valor={aPI.jeringas10} cmp={hayPeriodoAnterior ? delta(aPI.jeringas10, pPI.jeringas10) : null} />
+          <Tile label="Jeringas de 60" valor={aPI.jeringas60} cmp={hayPeriodoAnterior ? delta(aPI.jeringas60, pPI.jeringas60) : null} />
+          <Tile label="mL de PI producidos" valor={Number(aPI.ml.toFixed(1))} cmp={hayPeriodoAnterior ? delta(aPI.ml, pPI.ml) : null} />
+        </div>
+        {aPI.otras > 0 && (
+          <p className="mt-2 text-xs text-niebla">+ {aPI.otras} jeringa{aPI.otras === 1 ? '' : 's'} de otro volumen (no 10 ni 60 mL).</p>
         )}
-      </div>
+      </section>
 
-      {/* ================= Rankings ================= */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TablaRanking
-          titulo="🧪 Activos usados"
-          filas={aPT.activos.map((a) => ({ nombre: a.nombre, a: a.capsulas, b: Number(a.mg.toFixed(1)) }))}
-          colA="Cáps" colB="mg totales"
-          vacio="Sin activos en este período."
-        />
-        <TablaRanking
-          titulo="🩺 Médicos derivadores"
-          filas={aPT.medicos.map((m) => ({ nombre: m.nombre, a: m.recetas, b: m.capsulas }))}
-          colA="Recetas" colB="Cáps"
-          vacio="Sin médicos en este período."
-        />
-        <TablaRanking
-          titulo="📋 Diagnósticos"
-          filas={aPT.diagnosticos.map((d) => ({ nombre: d.nombre, a: d.recetas, b: pct(d.recetas, ptPeriodo.length) }))}
-          colA="Recetas" colB="%"
-          vacio="Sin diagnósticos en este período."
-        />
-      </div>
+      {/* ================= Pacientes ================= */}
+      <section className="border-t border-linea pt-6">
+        <h2 className="section-title">🧑‍🤝‍🧑 Pacientes</h2>
+        <div className="max-w-[200px]">
+          <Tile label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
+        </div>
+      </section>
+
+      {/* ================= Ranking ================= */}
+      <section className="space-y-4 border-t border-linea pt-6">
+        <h2 className="section-title">🏆 Ranking del período</h2>
+
+        <div>
+          <h3 className="mb-2 text-sm font-bold text-turba">⭐ Cápsula estrella</h3>
+          {aPT.formulas.length === 0 ? (
+            <div className="card p-6 text-center text-niebla">No hay producto terminado en {tituloPeriodo}.</div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              {aPT.formulas.slice(0, 5).map((f, i) => (
+                <div key={f.nombre} className={`card p-3 ${i === 0 ? 'border-2 border-tussok' : ''}`}>
+                  <p className="truncate text-sm font-black uppercase" title={f.nombre}>{i === 0 && '⭐ '}{f.nombre}</p>
+                  <p className="text-xl font-black text-profundo">{f.capsulas}</p>
+                  <p className="text-xs text-niebla">cáps · {f.lotes} lote{f.lotes === 1 ? '' : 's'} · {pct(f.capsulas, aPT.capsulas)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <TablaRanking
+            titulo="🧪 Activos usados"
+            filas={aPT.activos.map((a) => ({ nombre: a.nombre, a: a.capsulas, b: Number(a.mg.toFixed(1)) }))}
+            colA="Cáps" colB="mg totales"
+            vacio="Sin activos en este período."
+          />
+          <TablaRanking
+            titulo="🩺 Médicos derivadores"
+            filas={aPT.medicos.map((m) => ({ nombre: m.nombre, a: m.recetas, b: m.capsulas }))}
+            colA="Recetas" colB="Cáps"
+            vacio="Sin médicos en este período."
+          />
+          <TablaRanking
+            titulo="📋 Diagnósticos"
+            filas={aPT.diagnosticos.map((d) => ({ nombre: d.nombre, a: d.recetas, b: pct(d.recetas, ptPeriodo.length) }))}
+            colA="Recetas" colB="%"
+            vacio="Sin diagnósticos en este período."
+          />
+        </div>
+      </section>
 
       {/* ================= Evolución ================= */}
-      <div>
+      <section className="border-t border-linea pt-6">
         <h2 className="section-title">📈 Evolución mes a mes</h2>
         {truncadoEvolucion && (
           <p className="mb-2 text-xs text-amber-600">⚠ Rango muy amplio: se muestran los últimos 36 meses.</p>
@@ -389,7 +425,7 @@ export default function Estadistica({
           <Evolucion titulo="Cápsulas producidas" meses={mesesEvolucion} valores={capsulasPorMes} mesActivo={mesActivoEvolucion} />
           <Evolucion titulo="Jeringas de PI producidas" meses={mesesEvolucion} valores={jeringasPorMes} mesActivo={mesActivoEvolucion} />
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -1,4 +1,24 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.26 (03-ago-2026) — Rediseño visual de la solapa Estadística (B-19.2)
+
+1. **Solo diseño**: no se tocó ningún cálculo, query ni dato de la solapa
+   "📈 Estadística" (B-19) — se reorganizó cómo se muestra lo que ya existía
+   en `Estadistica.tsx`.
+2. **KPIs destacados arriba de todo**: cápsulas producidas, pacientes
+   atendidos y mL de PI producidos ahora tienen su propia sección con
+   tarjetas grandes (número en `font-archivo` 4xl + etiqueta chica), en vez
+   de pesar igual que el resto de los números.
+3. **Bloques temáticos con encabezado**: 📦 Producción (cápsulas, jeringas
+   de 10/60, mL), 🧑‍🤝‍🧑 Pacientes, 🏆 Ranking (cápsula estrella + activos +
+   médicos derivadores + diagnósticos, ahora en 3 columnas en desktop) y
+   📈 Evolución mes a mes, separados por un borde sutil (`border-linea`).
+4. **Paleta consistente**: los textos de apoyo/caption que usaban grises
+   genéricos de Tailwind (`slate-400`/`slate-500`) ahora usan **Niebla**
+   (`text-niebla`), el color de la identidad MALVINAS pensado justo para
+   eso.
+5. **Responsive verificado**: sin overflow horizontal en mobile (375px);
+   las tarjetas grandes se apilan en una columna angosta.
+
 ## v2.0.25 (03-ago-2026) — Solapa "📈 Estadística": números completos del admin (B-19)
 
 1. **Nueva solapa "📈 Estadística"** (entre Terminados y Gestión), con
