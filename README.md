@@ -1,4 +1,14 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.18 (03-ago-2026) — planilla de pesadas: espacio real para fecha y hora en Inicio/Fin
+
+1. **Líneas de escritura demasiado cortas** (B-12.4): en `/pesadas/print`,
+   "Inicio: _____ · Fin: _____" (B-12) no dejaba lugar para que el operador
+   anotara a mano fecha y hora completas. Ahora cada sección muestra
+   "Inicio (fecha y hora): ____________" y "Fin (fecha y hora): ____________"
+   en dos filas separadas, cada una con una línea de ~48 mm impresos donde
+   entra cómodo algo como "03/08/2026 14:30". Malaxado (B-13.1) y
+   Jeringas/Volumen (B-12.1) quedan sin cambios.
+
 ## v2.0.17 (02-ago-2026) — planilla de pesadas: campo manual de malaxado
 
 1. **Paso previo al B-13 en la planilla** (B-13.1): cada sección de PI en

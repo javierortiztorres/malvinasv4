@@ -93,8 +93,16 @@ export default async function PlanillaPesadas() {
               </table>
 
               <p className="mt-2">
-                <b>Inicio:</b> {fechaHoraAR(r.fechaHoraInicio) || '______'} ·{' '}
-                <b>Fin:</b> {fechaHoraAR(r.fechaHoraFin) || '______'}
+                <b>Inicio (fecha y hora):</b>{' '}
+                {fechaHoraAR(r.fechaHoraInicio) || (
+                  <span className="inline-block w-[48mm] border-b border-black align-bottom">&nbsp;</span>
+                )}
+              </p>
+              <p className="mt-1">
+                <b>Fin (fecha y hora):</b>{' '}
+                {fechaHoraAR(r.fechaHoraFin) || (
+                  <span className="inline-block w-[48mm] border-b border-black align-bottom">&nbsp;</span>
+                )}
               </p>
               <p className="mt-1">
                 <b>Malaxado:</b> ☐ Tinta · ☐ Polvo · ☐ Ambos ·{' '}
