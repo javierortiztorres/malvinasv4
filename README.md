@@ -1,4 +1,26 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.27 (03-ago-2026) — Gráficos en la solapa Estadística (B-19.3)
+
+1. **No es una fuente de datos nueva**: cada gráfico grafica exactamente los
+   mismos valores que ya calculaba/mostraba la tabla o tarjeta de al lado
+   (`aPT`/`pPT`/`aPI`/`pPI` de B-19/B-19.2) — cero cálculos nuevos.
+2. **Toggle "Tabla / Gráfico"** en 📦 Producción, 🧑‍🤝‍🧑 Pacientes y
+   🏆 Ranking (mismo estilo que el selector Mes/Rango), default en Tabla:
+   la vista original sigue disponible tal cual, el gráfico complementa, no
+   reemplaza. 📈 Evolución ya tenía sus barras desde B-19.
+3. **Producción y Pacientes**: barras "este período vs. anterior" — la
+   misma comparativa que ya mostraba la flechita de `<Delta>`, ahora
+   también en forma visual.
+4. **Ranking**: barras horizontales por cápsula estrella, activo, médico y
+   diagnóstico, mismo orden y mismo valor que ordena cada tabla (top 8 por
+   gráfico para que no se haga interminable en mobile — la tabla sigue
+   mostrando todo).
+5. **Sin librería nueva**: mismo patrón de barras con Tailwind que ya usaba
+   Evolución (Profundo/Tussok/Niebla), se revisó `package.json` y no hacía
+   falta agregar nada.
+6. **Los períodos aplican igual**: al venir de los mismos `useMemo` que la
+   tabla, cambiar de mes o de rango libre actualiza tabla y gráfico juntos.
+
 ## v2.0.26 (03-ago-2026) — Rediseño visual de la solapa Estadística (B-19.2)
 
 1. **Solo diseño**: no se tocó ningún cálculo, query ni dato de la solapa

@@ -160,6 +160,100 @@ function Evolucion({ titulo, meses, valores, mesActivo }: { titulo: string; mese
   );
 }
 
+// Fila de barra horizontal: una sola magnitud, misma paleta que Evolucion
+// (Profundo/Tussok/Niebla, sin librería de gráficos — B-19.3).
+function BarraHorizontal({
+  label, valor, max, formato, color = 'bg-profundo', destacado = false,
+}: {
+  label: string; valor: number; max: number; formato?: (v: number) => string;
+  color?: string; destacado?: boolean;
+}) {
+  const ancho = max > 0 ? Math.max(2, Math.round((valor / max) * 100)) : 0;
+  const texto = formato ? formato(valor) : String(valor);
+  return (
+    <div className="flex items-center gap-2" title={`${label}: ${texto}`}>
+      <p className="w-24 shrink-0 truncate text-xs text-turba sm:w-32">{label}</p>
+      <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={`h-full rounded-full ${destacado ? 'bg-tussok' : color}`}
+          style={{ width: `${ancho}%` }}
+        />
+      </div>
+      <p className="min-w-[3rem] shrink-0 text-right text-xs font-bold text-profundo">{texto}</p>
+    </div>
+  );
+}
+
+// Gráfico "este período vs anterior": misma comparativa que ya muestra
+// <Delta>, en forma de barras (Producción, Pacientes — B-19.3).
+function GraficoComparativo({
+  metricas, hayAnterior,
+}: {
+  metricas: { label: string; actual: number; anterior: number; formato?: (v: number) => string }[];
+  hayAnterior: boolean;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {metricas.map((m) => {
+        const max = Math.max(m.actual, hayAnterior ? m.anterior : 0, 1);
+        return (
+          <div key={m.label}>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-niebla">{m.label}</p>
+            <div className="space-y-1.5">
+              <BarraHorizontal label="Este período" valor={m.actual} max={max} formato={m.formato} destacado />
+              {hayAnterior && (
+                <BarraHorizontal label="Anterior" valor={m.anterior} max={max} formato={m.formato} color="bg-niebla" />
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Ranking en barras: mismo orden/valor que ya arma cada TablaRanking
+// (top 8 para que no se haga interminable en mobile — B-19.3).
+function GraficoRanking({
+  titulo, filas, formato, vacio,
+}: {
+  titulo: string; filas: { nombre: string; valor: number }[]; formato?: (v: number) => string; vacio: string;
+}) {
+  const top = filas.slice(0, 8);
+  const max = Math.max(...top.map((f) => f.valor), 1);
+  return (
+    <div className="card p-4">
+      <h4 className="mb-2 font-archivo text-sm font-bold text-turba">{titulo}</h4>
+      {top.length === 0 ? (
+        <p className="text-sm text-niebla">{vacio}</p>
+      ) : (
+        <div className="space-y-1.5">
+          {top.map((f, i) => (
+            <BarraHorizontal key={f.nombre} label={f.nombre} valor={f.valor} max={max} formato={formato} destacado={i === 0} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Selector Tabla/Gráfico: misma vista, otra forma — nunca reemplaza la
+// tabla/tarjeta original (B-19.3).
+function SelectorVista({ vista, onChange }: { vista: 'tabla' | 'grafico'; onChange: (v: 'tabla' | 'grafico') => void }) {
+  return (
+    <div className="flex overflow-hidden rounded-lg border border-slate-200 text-xs">
+      {(['tabla', 'grafico'] as const).map((v) => (
+        <button key={v} onClick={() => onChange(v)}
+          className={`px-2.5 py-1 font-semibold capitalize ${
+            vista === v ? 'bg-profundo text-hueso' : 'bg-white text-turba hover:bg-slate-50'
+          }`}>
+          {v === 'tabla' ? 'Tabla' : 'Gráfico'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Estadistica({
   registros,
   registrosPi,
@@ -171,6 +265,9 @@ export default function Estadistica({
   const [mes, setMes] = useState(() => hoyISO().slice(0, 7));
   const [desde, setDesde] = useState(() => `${hoyISO().slice(0, 7)}-01`);
   const [hasta, setHasta] = useState(() => hoyISO());
+  const [vistaProduccion, setVistaProduccion] = useState<'tabla' | 'grafico'>('tabla');
+  const [vistaPacientes, setVistaPacientes] = useState<'tabla' | 'grafico'>('tabla');
+  const [vistaRanking, setVistaRanking] = useState<'tabla' | 'grafico'>('tabla');
 
   // ---------------- Rango efectivo del período elegido ----------------
   const { dentro, prevDentro, tituloPeriodo } = useMemo(() => {
@@ -352,13 +449,30 @@ export default function Estadistica({
 
       {/* ================= Producción ================= */}
       <section className="border-t border-linea pt-6">
-        <h2 className="section-title">📦 Producción</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Tile label="Cápsulas producidas" valor={aPT.capsulas} cmp={hayPeriodoAnterior ? delta(aPT.capsulas, pPT.capsulas) : null} />
-          <Tile label="Jeringas de 10" valor={aPI.jeringas10} cmp={hayPeriodoAnterior ? delta(aPI.jeringas10, pPI.jeringas10) : null} />
-          <Tile label="Jeringas de 60" valor={aPI.jeringas60} cmp={hayPeriodoAnterior ? delta(aPI.jeringas60, pPI.jeringas60) : null} />
-          <Tile label="mL de PI producidos" valor={Number(aPI.ml.toFixed(1))} cmp={hayPeriodoAnterior ? delta(aPI.ml, pPI.ml) : null} />
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="section-title mb-0">📦 Producción</h2>
+          <SelectorVista vista={vistaProduccion} onChange={setVistaProduccion} />
         </div>
+        {vistaProduccion === 'tabla' ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Tile label="Cápsulas producidas" valor={aPT.capsulas} cmp={hayPeriodoAnterior ? delta(aPT.capsulas, pPT.capsulas) : null} />
+            <Tile label="Jeringas de 10" valor={aPI.jeringas10} cmp={hayPeriodoAnterior ? delta(aPI.jeringas10, pPI.jeringas10) : null} />
+            <Tile label="Jeringas de 60" valor={aPI.jeringas60} cmp={hayPeriodoAnterior ? delta(aPI.jeringas60, pPI.jeringas60) : null} />
+            <Tile label="mL de PI producidos" valor={Number(aPI.ml.toFixed(1))} cmp={hayPeriodoAnterior ? delta(aPI.ml, pPI.ml) : null} />
+          </div>
+        ) : (
+          <div className="card p-4">
+            <GraficoComparativo
+              hayAnterior={hayPeriodoAnterior}
+              metricas={[
+                { label: 'Cápsulas producidas', actual: aPT.capsulas, anterior: pPT.capsulas },
+                { label: 'Jeringas de 10', actual: aPI.jeringas10, anterior: pPI.jeringas10 },
+                { label: 'Jeringas de 60', actual: aPI.jeringas60, anterior: pPI.jeringas60 },
+                { label: 'mL de PI producidos', actual: Number(aPI.ml.toFixed(1)), anterior: Number(pPI.ml.toFixed(1)) },
+              ]}
+            />
+          </div>
+        )}
         {aPI.otras > 0 && (
           <p className="mt-2 text-xs text-niebla">+ {aPI.otras} jeringa{aPI.otras === 1 ? '' : 's'} de otro volumen (no 10 ni 60 mL).</p>
         )}
@@ -366,21 +480,36 @@ export default function Estadistica({
 
       {/* ================= Pacientes ================= */}
       <section className="border-t border-linea pt-6">
-        <h2 className="section-title">🧑‍🤝‍🧑 Pacientes</h2>
-        <div className="max-w-[200px]">
-          <Tile label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="section-title mb-0">🧑‍🤝‍🧑 Pacientes</h2>
+          <SelectorVista vista={vistaPacientes} onChange={setVistaPacientes} />
         </div>
+        {vistaPacientes === 'tabla' ? (
+          <div className="max-w-[200px]">
+            <Tile label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
+          </div>
+        ) : (
+          <div className="card max-w-sm p-4">
+            <GraficoComparativo
+              hayAnterior={hayPeriodoAnterior}
+              metricas={[{ label: 'Pacientes atendidos', actual: aPT.pacientes, anterior: pPT.pacientes }]}
+            />
+          </div>
+        )}
       </section>
 
       {/* ================= Ranking ================= */}
       <section className="space-y-4 border-t border-linea pt-6">
-        <h2 className="section-title">🏆 Ranking del período</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="section-title mb-0">🏆 Ranking del período</h2>
+          <SelectorVista vista={vistaRanking} onChange={setVistaRanking} />
+        </div>
 
         <div>
           <h3 className="mb-2 text-sm font-bold text-turba">⭐ Cápsula estrella</h3>
           {aPT.formulas.length === 0 ? (
             <div className="card p-6 text-center text-niebla">No hay producto terminado en {tituloPeriodo}.</div>
-          ) : (
+          ) : vistaRanking === 'tabla' ? (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
               {aPT.formulas.slice(0, 5).map((f, i) => (
                 <div key={f.nombre} className={`card p-3 ${i === 0 ? 'border-2 border-tussok' : ''}`}>
@@ -390,29 +519,56 @@ export default function Estadistica({
                 </div>
               ))}
             </div>
+          ) : (
+            <GraficoRanking
+              titulo="⭐ Cápsula estrella — cápsulas por fórmula"
+              filas={aPT.formulas.map((f) => ({ nombre: f.nombre, valor: f.capsulas }))}
+              vacio="No hay producto terminado en este período."
+            />
           )}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <TablaRanking
-            titulo="🧪 Activos usados"
-            filas={aPT.activos.map((a) => ({ nombre: a.nombre, a: a.capsulas, b: Number(a.mg.toFixed(1)) }))}
-            colA="Cáps" colB="mg totales"
-            vacio="Sin activos en este período."
-          />
-          <TablaRanking
-            titulo="🩺 Médicos derivadores"
-            filas={aPT.medicos.map((m) => ({ nombre: m.nombre, a: m.recetas, b: m.capsulas }))}
-            colA="Recetas" colB="Cáps"
-            vacio="Sin médicos en este período."
-          />
-          <TablaRanking
-            titulo="📋 Diagnósticos"
-            filas={aPT.diagnosticos.map((d) => ({ nombre: d.nombre, a: d.recetas, b: pct(d.recetas, ptPeriodo.length) }))}
-            colA="Recetas" colB="%"
-            vacio="Sin diagnósticos en este período."
-          />
-        </div>
+        {vistaRanking === 'tabla' ? (
+          <div className="grid gap-4 lg:grid-cols-3">
+            <TablaRanking
+              titulo="🧪 Activos usados"
+              filas={aPT.activos.map((a) => ({ nombre: a.nombre, a: a.capsulas, b: Number(a.mg.toFixed(1)) }))}
+              colA="Cáps" colB="mg totales"
+              vacio="Sin activos en este período."
+            />
+            <TablaRanking
+              titulo="🩺 Médicos derivadores"
+              filas={aPT.medicos.map((m) => ({ nombre: m.nombre, a: m.recetas, b: m.capsulas }))}
+              colA="Recetas" colB="Cáps"
+              vacio="Sin médicos en este período."
+            />
+            <TablaRanking
+              titulo="📋 Diagnósticos"
+              filas={aPT.diagnosticos.map((d) => ({ nombre: d.nombre, a: d.recetas, b: pct(d.recetas, ptPeriodo.length) }))}
+              colA="Recetas" colB="%"
+              vacio="Sin diagnósticos en este período."
+            />
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-3">
+            <GraficoRanking
+              titulo="🧪 Activos usados (mg totales)"
+              filas={aPT.activos.map((a) => ({ nombre: a.nombre, valor: Number(a.mg.toFixed(1)) }))}
+              formato={(v) => `${v} mg`}
+              vacio="Sin activos en este período."
+            />
+            <GraficoRanking
+              titulo="🩺 Médicos derivadores (recetas)"
+              filas={aPT.medicos.map((m) => ({ nombre: m.nombre, valor: m.recetas }))}
+              vacio="Sin médicos en este período."
+            />
+            <GraficoRanking
+              titulo="📋 Diagnósticos (recetas)"
+              filas={aPT.diagnosticos.map((d) => ({ nombre: d.nombre, valor: d.recetas }))}
+              vacio="Sin diagnósticos en este período."
+            />
+          </div>
+        )}
       </section>
 
       {/* ================= Evolución ================= */}
