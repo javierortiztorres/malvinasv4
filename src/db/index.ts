@@ -11,7 +11,12 @@ import * as schema from './schema';
 // conexiones muertas que la siguiente invocación reutilizaba
 // ("Connection terminated unexpectedly"). Volver acá exactamente al driver
 // de antes de B-08: mismo export, mismo schema, misma variable de entorno.
-const sql = neon(process.env.DATABASE_URL!);
+// cache: 'no-store' (B-12.3): el driver hace la consulta con fetch() y
+// Next.js cachea fetch() por defecto en Server Components — force-dynamic
+// en la página no alcanza a evitarlo para este fetch de terceros. Sin esto,
+// páginas como /pesadas/print podían servir un snapshot viejo de la tabla
+// (verificado en prod: un PI recién creado no aparecía en la planilla).
+const sql = neon(process.env.DATABASE_URL!, { fetchOptions: { cache: 'no-store' } });
 export const db = drizzle(sql, { schema });
 
 neonConfig.webSocketConstructor = ws;

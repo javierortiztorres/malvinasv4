@@ -1,4 +1,22 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.15 (02-ago-2026) — planilla de pesadas: PI nuevos no aparecían (fetch cacheado)
+
+1. **Causa raíz encontrada y verificada en prod** (B-12.3): `/pesadas/print`
+   es dinámica (`force-dynamic`) y su HTML se regeneraba en cada pedido
+   (sin caché de CDN ni de navegador, confirmado con headers reales de
+   Vercel), pero la consulta a la base que hace el driver `neon-http`
+   usa `fetch()` por dentro — y Next.js cachea `fetch()` en Server
+   Components por defecto. `force-dynamic` no alcanzaba a desactivar esa
+   caché para el fetch interno del driver, así que la planilla podía
+   servir una foto vieja de la tabla `registros_pi` aunque la página en
+   sí fuera fresca. Reproducido creando un PI de prueba: aparecía al
+   instante en `/api/registros-pi` pero no en `/pesadas/print` durante
+   varios minutos.
+2. **Fix**: `neon(DATABASE_URL, { fetchOptions: { cache: 'no-store' } })`
+   en `src/db/index.ts` — desactiva la caché de `fetch()` para todas las
+   consultas del driver (no solo la planilla), es la forma documentada
+   de evitar este problema con Neon + Next.js App Router.
+
 ## v2.0.14 (02-ago-2026) — planilla de pesadas: mismo filtro que la solapa + jeringas obtenidas
 
 1. **Filtro de `/pesadas/print` corregido** (B-12.1): la planilla ahora usa
