@@ -97,6 +97,10 @@ export default async function PlanillaPesadas() {
                 <b>Fin:</b> {fechaHoraAR(r.fechaHoraFin) || '______'}
               </p>
               <p className="mt-1">
+                <b>Malaxado:</b> ☐ Tinta · ☐ Polvo · ☐ Ambos ·{' '}
+                <b>Tiempo:</b> ______________ min
+              </p>
+              <p className="mt-1">
                 <b>Jeringas obtenidas:</b> ________ ·{' '}
                 <b>Volumen:</b> ☐ 10 mL · ☐ 60 mL
               </p>

@@ -1,4 +1,14 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.17 (02-ago-2026) — planilla de pesadas: campo manual de malaxado
+
+1. **Paso previo al B-13 en la planilla** (B-13.1): cada sección de PI en
+   `/pesadas/print` suma una línea "Malaxado: ☐ Tinta ☐ Polvo ☐ Ambos ·
+   Tiempo: ____ min", ubicada junto a Inicio/Fin (antes de los campos de
+   envasado de B-12.1), para que el operador anote a mano durante la
+   elaboración lo que después se tipea en el editor de PI. Siempre en
+   blanco: la planilla no lee `malaxadoTipo`/`malaxadoTiempoMin`, ese dato
+   ya vive en el documento legal de PI.
+
 ## v2.0.16 (02-ago-2026) — malaxado (tipo y tiempo) en registro y documento de PI
 
 1. **Nuevo dato en el proceso de PI** (B-13): tipo de malaxado (Tinta / Polvo
