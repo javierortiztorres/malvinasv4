@@ -1,4 +1,27 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.30 (03-ago-2026) — Overflow real de las donas de Estadística, verificado con captura visual (B-19.4.2)
+
+1. **B-19.4.1 verificó solo por API y no alcanzó**: los números eran
+   correctos pero el texto central de la dona ("72450 mg" en 🧪 Activos
+   usados) se veía tapado por el anillo de color en producción. Esta vez
+   se verificó con capturas de pantalla reales (Playwright, devDependency
+   nueva) en 1280/768/375 px, contra los datos reales de producción
+   (mismo total de 72450 mg), no valores simulados.
+2. **Centro de la dona con fuente fija**: `text-base` no se achicaba
+   nunca, así que un total de 5+ dígitos + unidad no entraba en el hueco
+   (que es un tamaño fijo en px, no responde al viewport). Ahora el
+   número va en su propia línea con tamaño según cantidad de dígitos, y
+   la unidad (si la hay, ej. "mg") en una línea aparte más chica —
+   confirmado visualmente que entra en las 3 anchos, incluso probando con
+   un total 100 veces mayor al real.
+3. **Bug nuevo encontrado al revisar el patrón completo (no solo el
+   síntoma reportado)**: la leyenda de las donas no truncaba nombres
+   largos (le faltaba `min-w-0` al ítem flex) — un diagnóstico largo se
+   salía de la tarjeta en vez de cortarse con "…". Corregido en el mismo
+   lugar.
+4. **Sin tocar lo que ya andaba bien**: 📈 Evolución mes a mes y el
+   medidor propio de 🧑‍🤝‍🧑 Pacientes (B-19.4.1) no se modificaron.
+
 ## v2.0.29 (03-ago-2026) — Fix de 2 bugs de Estadística encontrados en producción (B-19.4.1)
 
 1. **Números que se desbordaban con datos reales grandes**: en 📦

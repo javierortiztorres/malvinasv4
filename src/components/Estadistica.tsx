@@ -291,6 +291,23 @@ function GraficoRanking({
   );
 }
 
+// Separa "72450 mg" en número + unidad para el centro de la dona: el hueco
+// es chico y fijo (no responde al viewport), así que el número necesita su
+// propia línea y su propio tamaño según la cantidad de dígitos — mostrar
+// todo junto en text-base fijo se salía del hueco con activos de varias
+// tintas sumadas (caso real: 72450 mg, B-19.4.2).
+function partesTotalDona(texto: string): { numero: string; sufijo: string } {
+  const m = texto.match(/^(-?[\d.,]+)\s*(.*)$/);
+  if (!m || !m[2]) return { numero: texto, sufijo: '' };
+  return { numero: m[1], sufijo: m[2] };
+}
+function tamanoNumeroDona(largo: number): string {
+  if (largo <= 3) return 'text-xl';
+  if (largo <= 5) return 'text-lg';
+  if (largo <= 7) return 'text-sm';
+  return 'text-xs';
+}
+
 // Torta/dona: para series que son PARTES DE UN TOTAL (jeringas por volumen,
 // activos, diagnósticos) — a diferencia de BarraHorizontal/GraficoRanking,
 // que comparan magnitudes sueltas entre sí. Sin truncar (a diferencia del
@@ -309,6 +326,8 @@ function GraficoTorta({
   const slices = datos.filter((d) => d.valor > 0);
   const total = slices.reduce((s, d) => s + d.valor, 0);
   const colores = paletaTorta(slices.length, destacarPrimero);
+  const totalTexto = formato ? formato(total) : String(total);
+  const { numero, sufijo } = partesTotalDona(totalTexto);
 
   return (
     <div className="card p-4">
@@ -331,7 +350,7 @@ function GraficoTorta({
                       cx="21" cy="21" r="15.91549430918952"
                       fill="none"
                       stroke={colores[i]}
-                      strokeWidth="6"
+                      strokeWidth="5"
                       strokeDasharray={`${porcentaje} ${100 - porcentaje}`}
                       transform={`rotate(${rotacion} 21 21)`}
                     >
@@ -341,16 +360,17 @@ function GraficoTorta({
                 });
               })()}
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-base font-black text-profundo">{formato ? formato(total) : total}</p>
-              <p className="text-[8px] uppercase tracking-wide text-niebla">total</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-2 text-center leading-tight">
+              <p className={`break-all font-black text-profundo ${tamanoNumeroDona(numero.length)}`}>{numero}</p>
+              {sufijo && <p className="text-[9px] font-bold uppercase leading-tight text-niebla">{sufijo}</p>}
+              <p className="text-[7px] uppercase tracking-wide text-niebla/70">total</p>
             </div>
           </div>
-          <ul className="w-full space-y-1 text-xs">
+          <ul className="w-full min-w-0 space-y-1 text-xs">
             {slices.map((d, i) => (
-              <li key={d.nombre} className="flex items-center gap-2">
+              <li key={d.nombre} className="flex min-w-0 items-center gap-2">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: colores[i] }} />
-                <span className="flex-1 truncate text-turba" title={d.nombre}>{d.nombre}</span>
+                <span className="min-w-0 flex-1 truncate text-turba" title={d.nombre}>{d.nombre}</span>
                 <span className="shrink-0 font-bold text-profundo">{formato ? formato(d.valor) : d.valor}</span>
                 <span className="w-9 shrink-0 text-right text-niebla">{pct(d.valor, total)}</span>
               </li>
