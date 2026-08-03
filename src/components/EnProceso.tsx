@@ -52,12 +52,14 @@ export default function EnProceso({
     }
   }
 
-  const visibles = registros.filter((r) =>
-    coincideFiltro(
-      filtro,
-      r.paciente, r.medico, r.tituloFormula, r.indicacion,
-      formatoLote(r.lotePrefijo, r.loteNumero),
-      (r.formula ?? []).map((a) => a.activo).join(' ')
+  const visibles = ordenarPorDeadline(
+    registros.filter((r) =>
+      coincideFiltro(
+        filtro,
+        r.paciente, r.medico, r.tituloFormula, r.indicacion,
+        formatoLote(r.lotePrefijo, r.loteNumero),
+        (r.formula ?? []).map((a) => a.activo).join(' ')
+      )
     )
   );
 
@@ -205,6 +207,28 @@ export default function EnProceso({
     </div>
     </div>
   );
+}
+
+// Orden de las tarjetas: vencidas arriba de todo, después por proximidad
+// de deadline, sin deadline al final. Desempate estable: lote más viejo
+// primero (loteNumero) y, si no hay o empata, createdAt (siempre presente).
+function ordenarPorDeadline(regs: Registro[]): Registro[] {
+  return [...regs].sort((a, b) => {
+    const da = diasHasta(a.deadline);
+    const db = diasHasta(b.deadline);
+    if (da === null && db === null) return ordenSecundario(a, b);
+    if (da === null) return 1;
+    if (db === null) return -1;
+    if (da !== db) return da - db;
+    return ordenSecundario(a, b);
+  });
+}
+
+function ordenSecundario(a: Registro, b: Registro): number {
+  if (a.loteNumero != null && b.loteNumero != null && a.loteNumero !== b.loteNumero) {
+    return a.loteNumero - b.loteNumero;
+  }
+  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 }
 
 // Semáforo de fecha límite de entrega: rojo ≤3 días (o vencida),

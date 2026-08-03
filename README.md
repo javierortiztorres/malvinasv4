@@ -1,4 +1,25 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.22 (03-ago-2026) — orden automático por deadline en En Proceso (B-15)
+
+1. **Tarjetas ordenadas solas por urgencia**: en Pendientes y En producción
+   las tarjetas ya no siguen el orden de carga; ahora se ordenan por
+   deadline — vencidas arriba de todo, después las más próximas, y las que
+   no tienen deadline cargado al final. Empates (o falta de deadline en
+   ambas): primero el lote más viejo (`loteNumero`), y si no hay o también
+   empata, la más antigua por fecha de creación (`createdAt`). El orden se
+   recalcula en cada render, así se reacomoda solo al editar un deadline o
+   mover una tarjeta entre solapas. Semáforo, modo foco y el botón
+   Pendientes↔En producción no cambiaron.
+2. **Asserts de `diasHasta` deterministas**: en `scripts/test-engine.ts` el
+   helper de fechas de esos tests armaba la fecha esperada con
+   `toISOString()` (UTC), mientras `diasHasta` compara contra `hoyISO()`
+   (huso Argentina, UTC-3) — entre las 00:00 y 03:00 UTC ambas fechas
+   quedaban desincronizadas y los asserts fallaban según la hora del día en
+   que se corrían. Se corrigió solo el helper del test para usar el mismo
+   huso horario; `diasHasta` no cambió su comportamiento.
+3. Nuevo script `npm run test:engine` (`package.json`), espejando
+   `test:parser`, para poder correr `scripts/test-engine.ts` siempre.
+
 ## v2.0.21 (03-ago-2026) — el % de concentración va en NOMBRE DEL PRODUCTO del doc de PI (B-14.1)
 
 1. **Corrección de B-14**: en el documento de PI (`/registro-pi/[id]/print`)

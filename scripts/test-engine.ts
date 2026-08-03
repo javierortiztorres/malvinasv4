@@ -165,9 +165,12 @@ check('filtro vacío: muestra todo', coincideFiltro('', 'x') === true);
 
 
 // ---------- v2.0.6: deadline ----------
+// Mismo huso que hoyISO() (Argentina, UTC-3): usar toISOString() (UTC) acá
+// desincroniza la fecha esperada de la real entre las 00:00 y 03:00 UTC,
+// haciendo fallar estos asserts según la hora en que se corran (B-15).
 const iso = (dias: number) => {
   const d = new Date(Date.now() + dias * 86400000);
-  return d.toISOString().slice(0, 10);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Cordoba' });
 };
 check('diasHasta: hoy → 0', diasHasta(iso(0)) === 0);
 check('diasHasta: +5 días → 5 (amarillo)', diasHasta(iso(5)) === 5);
