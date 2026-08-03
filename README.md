@@ -1,4 +1,17 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.19 (03-ago-2026) — modales de tintas y rótulo: cierre solo explícito
+
+1. **Click/arrastre en el fondo ya no cierra los modales** (B-22): en
+   Gestión de tintas (`Admin.tsx`) y en el rótulo de Terminados
+   (`Terminados.tsx`), el fondo oscuro dejó de tener manejadores de
+   mousedown/mouseup — ahora esos modales se cierran únicamente con la
+   cruz ✕, el botón "Cancelar" o la tecla Escape (el hook
+   `useCerrarModal` sigue aportando solo el cierre por Escape). Ningún
+   otro modal del sistema se tocó.
+2. **Botón "Cancelar" agregado al rótulo**: el modal de rótulo en
+   Terminados no tenía forma explícita de cancelar además de la ✕; ahora
+   suma un botón "Cancelar" junto a "📋 Copiar para la rotuladora".
+
 ## v2.0.18 (03-ago-2026) — planilla de pesadas: espacio real para fecha y hora en Inicio/Fin
 
 1. **Líneas de escritura demasiado cortas** (B-12.4): en `/pesadas/print`,

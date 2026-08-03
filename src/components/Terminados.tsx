@@ -59,7 +59,8 @@ export default function Terminados({
 }) {
   const [rotuloDe, setRotuloDe] = useState<Registro | null>(null);
   const [filtro, setFiltro] = useState('');
-  const backdrop = useCerrarModal(() => setRotuloDe(null), rotuloDe !== null);
+  // Solo Escape cierra desde el hook: el click/arrastre en el fondo NUNCA cierra (B-22).
+  useCerrarModal(() => setRotuloDe(null), rotuloDe !== null);
 
   const ptVisibles = [...registros]
     .sort(claveLotePT)
@@ -176,8 +177,7 @@ export default function Terminados({
 
       {/* -------- Modal rótulo -------- */}
       {rotuloDe && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 print:p-12"
-          {...backdrop}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 print:p-12">
           <div className="card w-full max-w-lg space-y-3 p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Rótulo — {rotuloDe.paciente}</h3>
@@ -191,9 +191,12 @@ export default function Terminados({
             </div>
             <textarea className="input min-h-[320px] font-mono text-xs" readOnly
               value={generarRotulo(rotuloDe, sucursal)} />
-            <button className="btn-primary w-full" onClick={() => copiar(generarRotulo(rotuloDe, sucursal))}>
-              {copiado ? '✔ Copiado' : '📋 Copiar para la rotuladora'}
-            </button>
+            <div className="flex gap-2">
+              <button className="btn-ghost" onClick={() => setRotuloDe(null)}>Cancelar</button>
+              <button className="btn-primary flex-1" onClick={() => copiar(generarRotulo(rotuloDe, sucursal))}>
+                {copiado ? '✔ Copiado' : '📋 Copiar para la rotuladora'}
+              </button>
+            </div>
           </div>
         </div>
       )}
