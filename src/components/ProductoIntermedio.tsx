@@ -435,6 +435,32 @@ function PiEditor({
             onChange={(e) => set({ proceso: { ...r.proceso, tiempoMezclado: e.target.value } })} />
         </div>
         <div>
+          <label className="label">Malaxado</label>
+          <select className="input" value={r.proceso.malaxadoTipo ?? ''}
+            onChange={(e) => set({
+              proceso: {
+                ...r.proceso,
+                malaxadoTipo: (e.target.value || undefined) as 'tinta' | 'polvo' | 'ambos' | undefined,
+              },
+            })}>
+            <option value="">(sin dato)</option>
+            <option value="tinta">Tinta</option>
+            <option value="polvo">Polvo</option>
+            <option value="ambos">Ambos</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Tiempo malaxado (min)</label>
+          <input className="input" type="number"
+            value={r.proceso.malaxadoTiempoMin ?? ''}
+            onChange={(e) => set({
+              proceso: {
+                ...r.proceso,
+                malaxadoTiempoMin: e.target.value === '' ? undefined : Number(e.target.value),
+              },
+            })} />
+        </div>
+        <div>
           <label className="label">Inicio producción</label>
           <input className="input" type="datetime-local" value={r.fechaHoraInicio}
             onChange={(e) => set({ fechaHoraInicio: e.target.value })} />

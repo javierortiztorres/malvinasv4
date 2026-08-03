@@ -11,6 +11,20 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
   const [r] = await db.select().from(registrosPi).where(eq(registrosPi.id, Number(params.id)));
   if (!r) return <p className="p-8">Registro no encontrado.</p>;
 
+  // Malaxado: campo nuevo dentro del jsonb `proceso` (opcional) — los PI
+  // históricos no lo tienen, la fila queda en blanco para completar a mano.
+  const MALAXADO_LABELS: Record<string, string> = { tinta: 'Tinta', polvo: 'Polvo', ambos: 'Tinta y polvo' };
+  const malaxadoTipoLabel = r.proceso.malaxadoTipo ? MALAXADO_LABELS[r.proceso.malaxadoTipo] : null;
+  const malaxadoMin = r.proceso.malaxadoTiempoMin;
+  const malaxadoValor =
+    malaxadoTipoLabel != null && malaxadoMin != null
+      ? `${malaxadoTipoLabel} — ${malaxadoMin} min`
+      : malaxadoTipoLabel != null
+        ? malaxadoTipoLabel
+        : malaxadoMin != null
+          ? `${malaxadoMin} min`
+          : '';
+
   return (
     <div className="doc-impresion mx-auto max-w-[820px] bg-white p-10 text-[13px] leading-relaxed text-black">
       <BotonImprimir />
@@ -102,6 +116,12 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
                 <td className="border border-black p-1">{unidad === '' ? '-' : unidad}</td>
               </tr>
             ))}
+            <tr>
+              <td className="border border-black p-1 text-left font-bold">MALAXADO</td>
+              <td className="border border-black p-1" colSpan={2}>
+                {malaxadoValor || <>&nbsp;</>}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

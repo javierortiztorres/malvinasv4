@@ -62,6 +62,13 @@ export type DatosProceso = {
   otros: string;
 };
 
+// Proceso de un lote de PI: además de DatosProceso, el malaxado (qué se
+// malaxa y cuánto tiempo) es específico de PI — no existe en PT.
+export type DatosProcesoPi = DatosProceso & {
+  malaxadoTipo?: 'tinta' | 'polvo' | 'ambos';
+  malaxadoTiempoMin?: number;
+};
+
 export type Controles = {
   peso: boolean;
   visual: boolean;
@@ -203,7 +210,7 @@ export const registrosPi = pgTable('registros_pi', {
   materiasPrimas: jsonb('materias_primas').$type<MateriaPrima[]>().notNull().default([]),
 
   proceso: jsonb('proceso')
-    .$type<DatosProceso>()
+    .$type<DatosProcesoPi>()
     .notNull()
     .default({ temperatura: '70', tiempoMezclado: '5', tiempoReposo: '', otros: '' }),
   controles: jsonb('controles')

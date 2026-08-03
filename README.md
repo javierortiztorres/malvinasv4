@@ -1,4 +1,16 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.16 (02-ago-2026) — malaxado (tipo y tiempo) en registro y documento de PI
+
+1. **Nuevo dato en el proceso de PI** (B-13): tipo de malaxado (Tinta / Polvo
+   / Ambos) y tiempo en minutos, cargados dentro del jsonb `proceso` de
+   `registros_pi` (`DatosProcesoPi` en `src/db/schema.ts`, sin migración —
+   ambos campos son opcionales). Se guardan por el mismo autosave del resto
+   del proceso.
+2. **Documento de PI**: fila "MALAXADO" nueva en DATOS DEL PROCESO, con
+   formato "Tinta — 15 min" (o "Polvo"/"Tinta y polvo" según corresponda).
+   "0" minutos se muestra como "0 min" (no desaparece). En los PI históricos,
+   sin el campo cargado, la fila queda en blanco para completar a mano.
+
 ## v2.0.15 (02-ago-2026) — planilla de pesadas: PI nuevos no aparecían (fetch cacheado)
 
 1. **Causa raíz encontrada y verificada en prod** (B-12.3): `/pesadas/print`
