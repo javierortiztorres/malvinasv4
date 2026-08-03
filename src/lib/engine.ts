@@ -20,7 +20,7 @@
 //   queda "demasiado vacía". NUNCA se sugiere concentrar.
 // ================================================================
 
-import type { CapaTinta, Tinta } from '@/db/schema';
+import type { CapaTinta, Registro, Tinta } from '@/db/schema';
 
 export const CAPACIDAD_TRABAJO_ML = 0.95;
 export const CAPACIDAD_CUERPO_ML = 0.9;
@@ -405,6 +405,85 @@ export function poeDesdeLote(lote: string | null | undefined): string {
   if (!lote) return '';
   const i = lote.indexOf('/');
   return i > 0 ? lote.slice(0, i).trim() : '';
+}
+
+// ---------- Estadística: extrusión y activo por cápsula (B-19.6) ----------
+// extrusionMl (guardado por capa, calculado para el documento) YA es el
+// volumen POR CÁPSULA con la división aplicada — no existe en el esquema
+// un campo de "cantidad de extrusiones" (conteo de eventos), se investigó
+// antes de tocar nada. Los registros sin ese dato guardado (recetas viejas
+// de antes de que se empezara a guardar, o capas sin datos suficientes
+// para calcularlo) se EXCLUYEN del promedio, nunca se cuentan como 0.
+
+export type EstadisticaExtrusion = {
+  promedioPorReceta: number; // mL totales del registro ÷ recetas con dato
+  promedioPorCapsula: number; // mL totales ÷ cápsulas totales (de esas recetas)
+  nRecetas: number; // recetas con dato, incluidas en el promedio
+  excluidos: number; // recetas del período sin dato de extrusión guardado
+};
+
+export function calcularExtrusionPeriodo(lista: Registro[]): EstadisticaExtrusion {
+  const items = lista
+    .map((r) => {
+      const capasConDato = (r.capas ?? []).filter((c) => c.extrusionMl != null);
+      if (capasConDato.length === 0 || !r.capsulasTotales) return null;
+      const porCapsula = capasConDato.reduce((s, c) => s + (c.extrusionMl ?? 0), 0);
+      return { totalMl: porCapsula * r.capsulasTotales, capsulas: r.capsulasTotales };
+    })
+    .filter((x): x is { totalMl: number; capsulas: number } => x != null);
+
+  const totalMl = items.reduce((s, x) => s + x.totalMl, 0);
+  const totalCapsulas = items.reduce((s, x) => s + x.capsulas, 0);
+  const nRecetas = items.length;
+  return {
+    promedioPorReceta: nRecetas > 0 ? totalMl / nRecetas : 0,
+    promedioPorCapsula: totalCapsulas > 0 ? totalMl / totalCapsulas : 0,
+    nRecetas,
+    excluidos: lista.length - nRecetas,
+  };
+}
+
+// Activo (g) por cápsula de UN registro: tinta(g) = volumen(mL) × IP;
+// activo(g) = tinta(g) × concentración (regla de oro del dominio, sumada
+// sobre todas las capas de la cápsula). Usa el extrusionMl YA GUARDADO por
+// capa en vez de recalcular desde la dosis, para respetar ediciones
+// manuales del operador sobre el volumen.
+export function activoPorCapsulaG(r: Registro): number | null {
+  const validas = (r.capas ?? []).filter(
+    (c) => c.extrusionMl != null && c.ip != null && c.concentracion != null
+  );
+  if (validas.length === 0) return null;
+  return validas.reduce((s, c) => s + c.extrusionMl! * c.ip! * c.concentracion!, 0);
+}
+
+export type RegistroActivoExtremo = {
+  registroId: number;
+  tituloFormula: string;
+  paciente: string;
+  g: number;
+};
+
+export type EstadisticaActivo = {
+  n: number; // recetas con dato, incluidas en el promedio
+  promedio: number;
+  max: RegistroActivoExtremo | null;
+  min: RegistroActivoExtremo | null;
+  excluidos: number; // recetas del período sin dato para calcularlo
+};
+
+export function calcularActivoPeriodo(lista: Registro[]): EstadisticaActivo {
+  const items: RegistroActivoExtremo[] = lista
+    .map((r) => {
+      const g = activoPorCapsulaG(r);
+      return g == null ? null : { registroId: r.id, tituloFormula: r.tituloFormula, paciente: r.paciente, g };
+    })
+    .filter((x): x is RegistroActivoExtremo => x != null);
+
+  const n = items.length;
+  const promedio = n > 0 ? items.reduce((s, x) => s + x.g, 0) / n : 0;
+  const max = n > 0 ? items.reduce((a, b) => (b.g > a.g ? b : a)) : null;
+  const min = n > 0 ? items.reduce((a, b) => (b.g < a.g ? b : a)) : null;
+  return { n, promedio, max, min, excluidos: lista.length - n };
 }
 
 // ---------- Formato ----------

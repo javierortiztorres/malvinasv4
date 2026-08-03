@@ -1,4 +1,32 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.32 (03-ago-2026) — Extrusión y activo por cápsula en Estadística (B-19.6)
+
+1. **Investigación previa (obligatoria antes de tocar nada)**: se pidió un
+   promedio de "cantidad de extrusiones" por receta/cápsula. El esquema NO
+   tiene ningún campo de CONTEO de extrusiones — `extrusionMl` (capa de
+   `registros`) es el VOLUMEN (mL) por cápsula, ya calculado y guardado
+   para el documento. Se consultó con Tomi antes de asumir nada: se
+   entregan los promedios de volumen (mL) con el dato existente, y además
+   —a pedido explícito, reemplazando el conteo— un promedio de **activo
+   (g) por cápsula** con la receta de máximo y de mínimo. El conteo de
+   eventos de extrusión (que sí requeriría un campo nuevo) queda pendiente
+   de backlog.
+2. **Nueva sección "💉 Extrusión y activo por cápsula"** en 📈 Estadística:
+   "Extrusión prom. por receta" y "por cápsula" (mL), "Activo prom. por
+   cápsula" (g, activo = extrusión × IP × concentración — regla de oro del
+   dominio) y las tarjetas de receta con máximo y mínimo activo por
+   cápsula del período. Mismo selector Mes/Rango libre que el resto de la
+   solapa, mismo estilo Tabla/Gráfico.
+3. **Recetas sin el dato guardado se EXCLUYEN del promedio, nunca se
+   cuentan como 0** (mismo criterio que "Tiempo de producción" de B-19.5),
+   con aviso de cuántas se excluyeron. Lógica nueva en `engine.ts`
+   (`calcularExtrusionPeriodo`, `activoPorCapsulaG`, `calcularActivoPeriodo`)
+   con tests de contraste en `scripts/test-engine.ts`.
+4. Verificado visualmente con Playwright en 1280/768/375 px, con datos de
+   magnitud realista (cientos de cápsulas, docenas de recetas), sin
+   overflow ni corte de texto. No se tocó ningún bloque existente de la
+   solapa.
+
 ## v2.0.31 (03-ago-2026) — Tiempo de producción en Estadística, proxy de eficacia (B-19.5)
 
 1. **Investigación previa (obligatoria antes de tocar nada)**: se pidió una

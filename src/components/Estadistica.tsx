@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import type { Registro, RegistroPi } from '@/db/schema';
 import { hoyISO, fechaProduccion } from '@/lib/utils';
-import { limpiarNombreTinta } from '@/lib/engine';
+import { limpiarNombreTinta, fmtMl, fmtG, calcularExtrusionPeriodo, calcularActivoPeriodo } from '@/lib/engine';
 
 // =====================================================================
 // 📊 ESTADÍSTICA — números completos del admin, SOLO "producido"
@@ -440,6 +440,24 @@ function MedidorDestacado({
   );
 }
 
+// Tarjeta destacada para la receta con el valor máximo/mínimo de una
+// métrica (activo por cápsula, B-19.6) — mismo estilo que la tarjeta de
+// "⭐ Cápsula estrella" del ranking, con acento Tussok para el máximo.
+function CardExtremo({
+  titulo, nombre, paciente, valor, acento,
+}: {
+  titulo: string; nombre: string; paciente: string; valor: string; acento: boolean;
+}) {
+  return (
+    <div className={`card p-3 ${acento ? 'border-2 border-tussok' : ''}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-niebla">{titulo}</p>
+      <p className="truncate text-sm font-black uppercase text-turba" title={nombre}>{nombre}</p>
+      {paciente && <p className="truncate text-xs text-niebla" title={paciente}>Paciente: {paciente}</p>}
+      <p className="text-xl font-black text-profundo">{valor}</p>
+    </div>
+  );
+}
+
 // Selector Tabla/Gráfico: misma vista, otra forma — nunca reemplaza la
 // tabla/tarjeta original (B-19.3).
 function SelectorVista({ vista, onChange }: { vista: 'tabla' | 'grafico'; onChange: (v: 'tabla' | 'grafico') => void }) {
@@ -472,6 +490,7 @@ export default function Estadistica({
   const [vistaPacientes, setVistaPacientes] = useState<'tabla' | 'grafico'>('tabla');
   const [vistaRanking, setVistaRanking] = useState<'tabla' | 'grafico'>('tabla');
   const [vistaTiempo, setVistaTiempo] = useState<'tabla' | 'grafico'>('tabla');
+  const [vistaExtrusion, setVistaExtrusion] = useState<'tabla' | 'grafico'>('tabla');
 
   // ---------------- Rango efectivo del período elegido ----------------
   const { dentro, prevDentro, tituloPeriodo } = useMemo(() => {
@@ -587,6 +606,13 @@ export default function Estadistica({
     }
     return { actual: calcular(ptPeriodo), previo: calcular(ptPrevio) };
   }, [ptPeriodo, ptPrevio]);
+
+  // ---------------- Extrusión y activo por cápsula (B-19.6) ----------------
+  const statsExtrusion = useMemo(
+    () => ({ actual: calcularExtrusionPeriodo(ptPeriodo), previo: calcularExtrusionPeriodo(ptPrevio) }),
+    [ptPeriodo, ptPrevio]
+  );
+  const statsActivo = useMemo(() => calcularActivoPeriodo(ptPeriodo), [ptPeriodo]);
 
   // ---------------- Evolución mes a mes ----------------
   const mesesEvolucion = useMemo(() => {
@@ -807,6 +833,93 @@ export default function Estadistica({
               destacarPrimero
             />
           </div>
+        )}
+      </section>
+
+      {/* ================= Extrusión y activo por cápsula (B-19.6) ================= */}
+      <section className="border-t border-linea pt-6">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h2 className="section-title mb-0">💉 Extrusión y activo por cápsula</h2>
+          <SelectorVista vista={vistaExtrusion} onChange={setVistaExtrusion} />
+        </div>
+        <p className="mb-3 text-xs text-niebla">
+          Volumen de tinta extruido y masa de activo entregada por cápsula, calculados a partir de la
+          extrusión (mL) ya guardada por capa. Recetas sin ese dato guardado (por ejemplo, anteriores a
+          que se empezara a registrar) se excluyen del promedio — no se cuentan como 0.
+        </p>
+        {statsExtrusion.actual.nRecetas === 0 && statsActivo.n === 0 ? (
+          <div className="card p-6 text-center text-niebla">Sin datos de extrusión/activo medibles en {tituloPeriodo}.</div>
+        ) : (
+          <>
+            {vistaExtrusion === 'tabla' ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Tile
+                  label="Extrusión prom. por receta"
+                  valor={fmtMl(statsExtrusion.actual.promedioPorReceta, 2)}
+                  cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorReceta, statsExtrusion.previo.promedioPorReceta) : null}
+                />
+                <Tile
+                  label="Extrusión prom. por cápsula"
+                  valor={fmtMl(statsExtrusion.actual.promedioPorCapsula, 3)}
+                  cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapsula, statsExtrusion.previo.promedioPorCapsula) : null}
+                />
+                <Tile label="Activo prom. por cápsula" valor={fmtG(statsActivo.promedio, 3)} cmp={null} />
+                <Tile label="Recetas con dato" valor={statsExtrusion.actual.nRecetas} cmp={null} />
+              </div>
+            ) : (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <MedidorDestacado
+                  label="Extrusión prom. por cápsula"
+                  valor={statsExtrusion.actual.promedioPorCapsula}
+                  anterior={statsExtrusion.previo.promedioPorCapsula}
+                  hayAnterior={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0}
+                  cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapsula, statsExtrusion.previo.promedioPorCapsula) : null}
+                  formato={(v) => fmtMl(v, 3)}
+                />
+                <MedidorDestacado
+                  label="Activo prom. por cápsula"
+                  valor={statsActivo.promedio}
+                  anterior={0}
+                  hayAnterior={false}
+                  cmp={null}
+                  formato={(v) => fmtG(v, 3)}
+                />
+              </div>
+            )}
+
+            {(statsActivo.max || statsActivo.min) && (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {statsActivo.max && (
+                  <CardExtremo
+                    titulo="🔺 Máximo activo por cápsula"
+                    nombre={statsActivo.max.tituloFormula.trim() || 'Sin fórmula'}
+                    paciente={statsActivo.max.paciente}
+                    valor={fmtG(statsActivo.max.g, 3)}
+                    acento
+                  />
+                )}
+                {statsActivo.min && statsActivo.min.registroId !== statsActivo.max?.registroId && (
+                  <CardExtremo
+                    titulo="🔻 Mínimo activo por cápsula"
+                    nombre={statsActivo.min.tituloFormula.trim() || 'Sin fórmula'}
+                    paciente={statsActivo.min.paciente}
+                    valor={fmtG(statsActivo.min.g, 3)}
+                    acento={false}
+                  />
+                )}
+              </div>
+            )}
+          </>
+        )}
+        {statsExtrusion.actual.excluidos > 0 && (
+          <p className="mt-2 text-xs text-niebla">
+            + {statsExtrusion.actual.excluidos} receta{statsExtrusion.actual.excluidos === 1 ? '' : 's'} sin dato de extrusión guardado, excluida{statsExtrusion.actual.excluidos === 1 ? '' : 's'} del promedio de extrusión.
+          </p>
+        )}
+        {statsActivo.excluidos > 0 && statsActivo.excluidos !== statsExtrusion.actual.excluidos && (
+          <p className="mt-1 text-xs text-niebla">
+            + {statsActivo.excluidos} receta{statsActivo.excluidos === 1 ? '' : 's'} sin dato para calcular el activo por cápsula, excluida{statsActivo.excluidos === 1 ? '' : 's'} de ese promedio.
+          </p>
         )}
       </section>
 
