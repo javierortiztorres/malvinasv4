@@ -1,7 +1,6 @@
 import { db } from '@/db';
 import { registrosPi } from '@/db/schema';
-import { fechaHoraAR, formatoLotePI, hoyISO, esPiPendiente } from '@/lib/utils';
-import { fmtPct } from '@/lib/engine';
+import { fechaHoraAR, formatoLotePI, hoyISO, esPiPendiente, fmtPctOpcional } from '@/lib/utils';
 import BotonImprimir from '@/components/BotonImprimir';
 
 export const dynamic = 'force-dynamic';
@@ -49,7 +48,7 @@ export default async function PlanillaPesadas() {
                 <p><b>Producto:</b> {r.nombreProducto || '-'}</p>
                 <p>
                   <b>Tinta:</b> {r.tintaNombre || '-'}
-                  {r.concentracion != null ? ` · ${fmtPct(r.concentracion)}` : ''}
+                  {fmtPctOpcional(r.concentracion) ? ` · ${fmtPctOpcional(r.concentracion)}` : ''}
                 </p>
                 <p><b>POE:</b> {r.poe || '-'}</p>
                 <p>

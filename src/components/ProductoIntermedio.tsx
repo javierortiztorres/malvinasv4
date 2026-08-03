@@ -4,7 +4,7 @@ import type { RegistroPi, MateriaPrima, Tinta } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import {
   hoyISO, sumarMeses, formatoLotePI, coincideFiltro, operadoresPorRol,
-  ROL_OPERADOR_PRODUCE, ROL_OPERADOR_REVISA,
+  ROL_OPERADOR_PRODUCE, ROL_OPERADOR_REVISA, fmtPctOpcional,
 } from '@/lib/utils';
 import { MESES_VENCIMIENTO } from '@/lib/config';
 import { pesadasPI, fmtG, fmtPct, limpiarNombreTinta } from '@/lib/engine';
@@ -138,13 +138,18 @@ export default function ProductoIntermedio({
                   <button className="flex-1 text-left"
                     onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
                     <div>
-                      {/* Nombre limpio del activo (sin "para X mg", apodos ni %) */}
+                      {/* Nombre limpio del activo (sin "para X mg", apodos ni %); el % de
+                          concentración se muestra acá al lado (solo pantalla, no en el nombre) */}
                       <p className="text-xl font-black uppercase leading-none">
                         {limpiarNombreTinta(r.tintaNombre) || 'SIN TINTA'}
+                        {fmtPctOpcional(r.concentracion) && (
+                          <span className="ml-2 text-base font-bold text-slate-500">
+                            · {fmtPctOpcional(r.concentracion)}
+                          </span>
+                        )}
                       </p>
                       <p className="mt-1 text-sm font-medium text-slate-600">
                         Lote <b>{formatoLotePI(r.poe, r.loteNumero)}</b>
-                        {r.concentracion ? ` · ${fmtPct(r.concentracion)}` : ''}
                         {r.cantidadProductoG ? ` · ${r.cantidadProductoG} g` : ''}
                         {r.jeringas ? ` · ${r.jeringas} jeringas` : ''}
                       </p>

@@ -1,4 +1,20 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.20 (03-ago-2026) — % de concentración junto al nombre del PI (B-14)
+
+1. **% automático en pantalla**: en la solapa Producto Intermedio (tarjetas
+   en proceso) y en la lista de PI de Terminados, el nombre del PI ahora
+   muestra su concentración al lado (ej. "Minoxidil · 5%"). También se
+   prolijó la planilla de pesadas (`/pesadas/print`) para usar el mismo
+   formato. Un PI sin concentración cargada se ve igual que antes (nunca
+   "0%" ni "—"). Es solo presentación: `nombre_producto` no cambia en
+   ningún flujo, y el % sigue sin volver al nombre (decisión de v2.0.7).
+2. **% en el documento de PI**: la fórmula cuali-cuantitativa
+   (`/registro-pi/[id]/print`) suma una línea "CONCENTRACIÓN: X%"; el
+   campo "NOMBRE DEL PRODUCTO" del documento sigue sin %.
+3. Nuevo helper único `fmtPctOpcional` (`src/lib/utils.ts`, envuelve el
+   `fmtPct` de `engine.ts`) para no repetir el guard null/0 en cada
+   componente.
+
 ## v2.0.19 (03-ago-2026) — modales de tintas y rótulo: cierre solo explícito
 
 1. **Click/arrastre en el fondo ya no cierra los modales** (B-22): en

@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { registrosPi } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { FARMACIA } from '@/lib/config';
-import { fechaAR, fechaHoraAR, formatoLotePI } from '@/lib/utils';
+import { fechaAR, fechaHoraAR, formatoLotePI, fmtPctOpcional } from '@/lib/utils';
 import BotonImprimir from '@/components/BotonImprimir';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +48,9 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
 
       <div className="mt-4">
         <p className="font-bold">FÓRMULA CUALI-CUANTITATIVA:</p>
+        {fmtPctOpcional(r.concentracion) && (
+          <p><b>CONCENTRACIÓN:</b> {fmtPctOpcional(r.concentracion)}</p>
+        )}
         <ul className="ml-6 list-disc">
           {r.materiasPrimas.map((m, i) => (
             <li key={i}>{m.nombre} ……………………… {m.cantidadTeorica} g</li>

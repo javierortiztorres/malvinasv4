@@ -1,5 +1,6 @@
 import type { ActivoFormula, RegistroPi } from '@/db/schema';
 import { PREFIJO_LOTE_PI } from './config';
+import { fmtPct } from './engine';
 
 // ---- Fechas ----
 // Fecha del día en Argentina (Córdoba, UTC-3), no la del servidor (Vercel corre en UTC).
@@ -41,6 +42,15 @@ export function fechaHoraAR(v: string): string {
   if (!v) return '';
   const [f, h] = v.split('T');
   return h ? `${fechaAR(f)} - ${h}` : fechaAR(f);
+}
+
+// % listo para mostrar junto al nombre de un PI (ej. "Minoxidil · 5%"):
+// null si no hay dato, para que el llamador lo omita sin mostrar "0%"/"—".
+// Único punto que formatea este % "opcional" — no reimplementar el guard
+// null/0 en cada componente.
+export function fmtPctOpcional(c: number | null | undefined): string | null {
+  if (c == null || typeof c !== 'number' || !Number.isFinite(c) || c === 0) return null;
+  return fmtPct(c);
 }
 
 // Búsqueda sin distinción de mayúsculas ni tildes, contra varios campos

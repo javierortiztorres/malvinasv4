@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import type { Registro, RegistroPi } from '@/db/schema';
 import { colorDeGrupo } from '@/lib/colors';
-import { formatoLote, formatoLotePI, fechaAR, coincideFiltro } from '@/lib/utils';
-import { limpiarNombreTinta, fmtPct } from '@/lib/engine';
+import { formatoLote, formatoLotePI, fechaAR, coincideFiltro, fmtPctOpcional } from '@/lib/utils';
+import { limpiarNombreTinta } from '@/lib/engine';
 import { generarRotulo } from '@/lib/rotulo';
 import { SUCURSALES } from '@/lib/config';
 import { useCerrarModal } from '@/hooks/useCerrarModal';
@@ -158,9 +158,16 @@ export default function Terminados({
             {piVisibles.map((r) => (
               <div key={r.id} className="card flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-profundo p-4">
                 <div>
-                  <p className="text-lg font-black uppercase leading-tight">{limpiarNombreTinta(r.tintaNombre)}</p>
+                  <p className="text-lg font-black uppercase leading-tight">
+                    {limpiarNombreTinta(r.tintaNombre)}
+                    {fmtPctOpcional(r.concentracion) && (
+                      <span className="ml-2 text-sm font-bold text-slate-500">
+                        · {fmtPctOpcional(r.concentracion)}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-sm text-slate-600">
-                    Lote <b>{formatoLotePI(r.poe, r.loteNumero)}</b>{r.concentracion ? <> · {fmtPct(r.concentracion)}</> : null} · {r.cantidadProductoG} g ·
+                    Lote <b>{formatoLotePI(r.poe, r.loteNumero)}</b> · {r.cantidadProductoG} g ·
                     {' '}{r.jeringas} jeringas de {r.volumenJeringaMl} ml ·
                     Elab {fechaAR(r.fechaElab)} · Vto {fechaAR(r.fechaVto)}
                   </p>
