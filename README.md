@@ -1,4 +1,20 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.23 (03-ago-2026) — orden y buscador de PI terminados + sin resultados (B-16)
+
+1. **Buscador de PI corregido**: en Terminados, la lista de Producto
+   intermedio ahora tiene su propio buscador (antes compartía el de arriba
+   con Producto terminado, que nunca matchea contra `tintaNombre`). El nuevo
+   buscador filtra por tinta, producto o lote (case-insensitive, coincidencia
+   parcial) contra los datos crudos, no contra el % decorativo agregado en
+   B-14. El buscador de Producto terminado sigue exactamente igual.
+2. **Caso "sin resultados" en PI**: si la búsqueda no matchea ningún PI,
+   aparece "Ningún lote de PI coincide con la búsqueda." en vez de una lista
+   vacía muda, replicando el patrón que ya tenía Producto terminado.
+3. **Orden de PI terminados**: se mantiene el criterio ya vigente desde B-24
+   (fecha de terminación descendente — `fechaHoraFin` → `fechaElab` →
+   `createdAt` como fallback en cascada, todos son `text`/`Date` parseables)
+   y ahora se conserva también mientras se busca.
+
 ## v2.0.22 (03-ago-2026) — orden automático por deadline en En Proceso (B-15)
 
 1. **Tarjetas ordenadas solas por urgencia**: en Pendientes y En producción

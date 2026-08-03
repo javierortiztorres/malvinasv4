@@ -59,6 +59,7 @@ export default function Terminados({
 }) {
   const [rotuloDe, setRotuloDe] = useState<Registro | null>(null);
   const [filtro, setFiltro] = useState('');
+  const [filtroPi, setFiltroPi] = useState('');
   // Solo Escape cierra desde el hook: el click/arrastre en el fondo NUNCA cierra (B-22).
   useCerrarModal(() => setRotuloDe(null), rotuloDe !== null);
 
@@ -75,7 +76,7 @@ export default function Terminados({
   const piVisibles = [...registrosPi]
     .sort((a, b) => claveTerminacion(b) - claveTerminacion(a))
     .filter((r) =>
-      coincideFiltro(filtro, r.nombreProducto, r.operador, r.poe,
+      coincideFiltro(filtroPi, r.tintaNombre, r.nombreProducto, r.operador, r.poe,
         formatoLotePI(r.poe, r.loteNumero), r.fechaElab && fechaAR(r.fechaElab))
     );
   const salteadosPT = loteosSalteados(registros);
@@ -150,9 +151,13 @@ export default function Terminados({
 
       {/* -------- Producto intermedio -------- */}
       <div>
-        <h2 className="section-title">🧪 Producto intermedio{filtro && ` · ${piVisibles.length} de ${registrosPi.length}`}</h2>
+        <h2 className="section-title">🧪 Producto intermedio{filtroPi && ` · ${piVisibles.length} de ${registrosPi.length}`}</h2>
+        <input className="input mb-3 max-w-md" placeholder="🔍 Buscar por tinta, producto o lote…"
+          value={filtroPi} onChange={(e) => setFiltroPi(e.target.value)} />
         {registrosPi.length === 0 ? (
           <div className="card p-8 text-center text-slate-500">Todavía no hay lotes de producto intermedio.</div>
+        ) : piVisibles.length === 0 ? (
+          <div className="card p-8 text-center text-slate-500">Ningún lote de PI coincide con la búsqueda.</div>
         ) : (
           <div className="space-y-3">
             {piVisibles.map((r) => (
