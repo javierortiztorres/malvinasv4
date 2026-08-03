@@ -1,4 +1,21 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.29 (03-ago-2026) — Fix de 2 bugs de Estadística encontrados en producción (B-19.4.1)
+
+1. **Números que se desbordaban con datos reales grandes**: en 📦
+   Producción y en los KPIs destacados, valores de 4+ dígitos (ej. 1299
+   cápsulas, 3800 mL — confirmado contra datos reales de producción, no
+   solo simulados) se salían del ancho de su tarjeta. El tamaño de fuente
+   de `Tile` y `KpiDestacado` ahora usa `clamp()` en vez de un tamaño
+   fijo, con `break-words` como resguardo si aun así no entra.
+2. **🧑‍🤝‍🧑 Pacientes sin visualización propia**: al tener una sola
+   serie (pacientes atendidos, sin varias categorías como los demás
+   bloques), su pestaña "Gráfico" quedaba con muy poca diferencia visual
+   respecto de "Tabla". Ahora tiene un medidor destacado propio (número
+   grande + barra de progreso vs. período anterior) — mismos datos que la
+   tabla, cero cálculos nuevos.
+3. **Sin tocar lo que ya andaba bien**: 📈 Evolución mes a mes (líneas) no
+   se modificó.
+
 ## v2.0.28 (03-ago-2026) — Variedad de tipos de gráfico en Estadística (B-19.4)
 
 1. **No es una fuente de datos nueva**: mismo `aPT`/`pPT`/`aPI`/`pPI` de

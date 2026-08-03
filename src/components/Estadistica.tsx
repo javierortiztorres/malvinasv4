@@ -105,10 +105,14 @@ function Delta({ v }: { v: number | null }) {
   return <span className={`text-xs font-semibold ${color}`}>{flecha} {Math.abs(v)}%</span>;
 }
 
+// Tamaño de fuente en clamp() (no fijo): con datos reales grandes (1299
+// cápsulas, 3800 mL) un text-2xl fijo se salía del ancho de la tarjeta en
+// grillas angostas — el número ahora encoge en pantallas chicas y puede
+// pasar a una segunda línea (break-words) en vez de desbordar (B-19.4.1).
 function Tile({ label, valor, cmp }: { label: string; valor: string | number; cmp: number | null }) {
   return (
     <div className="tile gap-0.5 py-3">
-      <p className="text-2xl font-black text-profundo">{valor}</p>
+      <p className="w-full break-words text-center text-[clamp(1.05rem,5vw,1.5rem)] font-black leading-tight text-profundo">{valor}</p>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-niebla">{label}</p>
       <Delta v={cmp} />
     </div>
@@ -122,7 +126,7 @@ function KpiDestacado({ label, valor, cmp }: { label: string; valor: string | nu
   return (
     <div className="card flex flex-col gap-1 p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-niebla">{label}</p>
-      <p className="font-archivo text-4xl font-black text-profundo">{valor}</p>
+      <p className="break-words font-archivo text-[clamp(1.5rem,6vw,2.25rem)] font-black leading-tight text-profundo">{valor}</p>
       <Delta v={cmp} />
     </div>
   );
@@ -354,6 +358,36 @@ function GraficoTorta({
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+// Medidor destacado: para un bloque de UNA sola serie/valor (Pacientes),
+// donde no hay varias categorías para dona/ranking. Mismo % que ya usa
+// BarraHorizontal (valor sobre el máximo entre actual y anterior), pero
+// como pieza central grande en vez de una fila chica — así la pestaña
+// "Gráfico" se ve claramente distinta de la tarjeta de "Tabla" incluso
+// sin período anterior para comparar (B-19.4.1).
+function MedidorDestacado({
+  label, valor, anterior, hayAnterior, cmp, formato,
+}: {
+  label: string; valor: number; anterior: number; hayAnterior: boolean;
+  cmp: number | null; formato?: (v: number) => string;
+}) {
+  const max = Math.max(valor, hayAnterior ? anterior : 0, 1);
+  const ancho = Math.max(2, Math.round((valor / max) * 100));
+  const texto = formato ? formato(valor) : String(valor);
+  return (
+    <div className="card p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-niebla">{label}</p>
+      <p className="break-words font-archivo text-[clamp(1.75rem,8vw,2.75rem)] font-black leading-tight text-profundo">{texto}</p>
+      <div className="mt-3 h-4 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-full rounded-full bg-tussok transition-all" style={{ width: `${ancho}%` }} />
+      </div>
+      {hayAnterior && (
+        <p className="mt-1.5 text-xs text-niebla">vs. {formato ? formato(anterior) : anterior} en el período anterior</p>
+      )}
+      <div className="mt-1"><Delta v={cmp} /></div>
     </div>
   );
 }
@@ -621,10 +655,13 @@ export default function Estadistica({
             <Tile label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
           </div>
         ) : (
-          <div className="card max-w-sm p-4">
-            <GraficoComparativo
+          <div className="max-w-sm">
+            <MedidorDestacado
+              label="Pacientes atendidos"
+              valor={aPT.pacientes}
+              anterior={pPT.pacientes}
               hayAnterior={hayPeriodoAnterior}
-              metricas={[{ label: 'Pacientes atendidos', actual: aPT.pacientes, anterior: pPT.pacientes }]}
+              cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null}
             />
           </div>
         )}
