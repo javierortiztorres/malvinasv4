@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import type { Registro, RegistroPi, MateriaPrima } from '@/db/schema';
+import type { Registro, MateriaPrima } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import { hoyISO, sumarMeses, formatoLote, formatoLotePI, fechaAR } from '@/lib/utils';
 import { MESES_VENCIMIENTO } from '@/lib/config';
@@ -18,7 +18,7 @@ import {
 // solos. El botón "Hacer" crea el registro de PI armado DESDE EL ACTIVO:
 // activo = necesidad × 1.45 (merma 45%), total = activo ÷ concentración,
 // excipientes por porcentaje. Es reversible con «↩ Deshacer».
-// Abajo: estadística mensual de PI producido (gramos, jeringas, lotes).
+// La estadística de producción vive en la solapa 📈 Estadística (B-19).
 // =====================================================================
 
 const VOLUMEN_JERINGA_ML = 10;
@@ -51,24 +51,13 @@ type GrupoNecesidad = {
 
 type Incompleto = { paciente: string; formula: string; motivo: string };
 
-const MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-
-function nombreMes(key: string): string {
-  const [y, m] = key.split('-').map(Number);
-  if (!m) return key;
-  return `${MESES_ES[m - 1]} ${y}`;
-}
-
 export default function Necesidades({
   registros,
-  registrosPi,
   catalogos,
   onCambio,
   onIrPI,
 }: {
   registros: Registro[]; // SOLO en proceso (Pendientes + En producción)
-  registrosPi: RegistroPi[]; // TODOS (para la estadística mensual)
   catalogos: Catalogos;
   onCambio: () => void;
   onIrPI: () => void;
@@ -215,37 +204,6 @@ export default function Necesidades({
     }
   }
 
-  // ---------------- Estadística mensual de PI ----------------
-  const meses = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of registrosPi) {
-      const f = r.fechaElab || (r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '');
-      if (f) set.add(f.slice(0, 7));
-    }
-    set.add(hoyISO().slice(0, 7));
-    return Array.from(set).sort().reverse();
-  }, [registrosPi]);
-
-  const [mes, setMes] = useState(() => hoyISO().slice(0, 7));
-
-  const statsMes = useMemo(() => {
-    const mapa = new Map<string, { nombre: string; gramos: number; activo: number; jeringas: number; lotes: number; enProceso: number }>();
-    for (const r of registrosPi) {
-      const f = r.fechaElab || (r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '');
-      if (!f || f.slice(0, 7) !== mes) continue;
-      const nombre = limpiarNombreTinta(r.tintaNombre || r.nombreProducto) || 'SIN NOMBRE';
-      const key = nombre.toUpperCase();
-      const s = mapa.get(key) ?? { nombre, gramos: 0, activo: 0, jeringas: 0, lotes: 0, enProceso: 0 };
-      s.gramos += r.cantidadProductoG ?? 0;
-      s.activo += (r.cantidadProductoG ?? 0) * (r.concentracion ?? 0);
-      s.jeringas += r.jeringas ?? 0;
-      s.lotes += 1;
-      if (r.estado === 'en_proceso') s.enProceso += 1;
-      mapa.set(key, s);
-    }
-    return Array.from(mapa.values()).sort((a, b) => b.gramos - a.gramos);
-  }, [registrosPi, mes]);
-
   return (
     <div className="space-y-6">
       {/* ================= Necesidades en vivo ================= */}
@@ -354,57 +312,6 @@ export default function Necesidades({
                 </div>
               );
             })}
-          </div>
-        )}
-      </div>
-
-      {/* ================= Estadística mensual de PI ================= */}
-      <div>
-        <h2 className="section-title">📅 Producto intermedio producido por mes</h2>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {meses.map((m) => (
-            <button key={m} onClick={() => setMes(m)}
-              className={`rounded-full border px-3 py-1 text-sm font-semibold capitalize transition-colors ${
-                mes === m ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}>
-              {nombreMes(m)}
-            </button>
-          ))}
-        </div>
-        {statsMes.length === 0 ? (
-          <div className="card p-8 text-center text-slate-500">
-            No se registró producción de PI en {nombreMes(mes)}.
-          </div>
-        ) : (
-          <div className="card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                  <th className="px-4 py-2">Producto intermedio</th>
-                  <th className="text-right">Activo (g)</th>
-                  <th className="text-right">Tinta (g)</th>
-                  <th className="text-right">Jeringas</th>
-                  <th className="px-4 text-right">Lotes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {statsMes.map((s, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-bold uppercase">{s.nombre}</td>
-                    <td className="text-right font-semibold">{fmtG(s.activo)}</td>
-                    <td className="text-right">{fmtG(s.gramos)}</td>
-                    <td className="text-right">{s.jeringas}</td>
-                    <td className="px-4 text-right">
-                      {s.lotes}
-                      {s.enProceso > 0 && <span className="ml-1 text-xs text-amber-600">({s.enProceso} en proceso)</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
-              Cuenta todos los lotes de PI con fecha de elaboración en {nombreMes(mes)}, terminados y en proceso.
-            </p>
           </div>
         )}
       </div>

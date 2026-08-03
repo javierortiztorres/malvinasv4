@@ -37,6 +37,15 @@ export function diasHasta(iso: string): number | null {
   return Math.round((a - b) / 86400000);
 }
 
+// Fecha (ISO, "YYYY-MM-DD") en la que se considera PRODUCIDO un registro,
+// para reportes/estadística. Mismo orden de precedencia que ya usa Terminados
+// para ordenar por terminación (fechaHoraFin → fechaElab → createdAt):
+// updatedAt NO es confiable acá (sin $onUpdate en el esquema).
+export function fechaProduccion(r: { fechaHoraFin: string; fechaElab: string; createdAt: Date | string }): string {
+  const iso = r.fechaHoraFin || r.fechaElab || (r.createdAt ? new Date(r.createdAt).toISOString() : '');
+  return iso ? iso.slice(0, 10) : '';
+}
+
 // datetime-local: 2026-07-15T09:20 → 15/07/26 - 09:20
 export function fechaHoraAR(v: string): string {
   if (!v) return '';

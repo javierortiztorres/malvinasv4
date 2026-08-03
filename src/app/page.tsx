@@ -10,6 +10,7 @@ import EnProceso from '@/components/EnProceso';
 import ProductoIntermedio from '@/components/ProductoIntermedio';
 import Terminados from '@/components/Terminados';
 import Necesidades from '@/components/Necesidades';
+import Estadistica from '@/components/Estadistica';
 import Admin from '@/components/Admin';
 
 export type Catalogos = {
@@ -28,6 +29,7 @@ const TABS = [
   { id: 'pi', label: '🧪 Producto Intermedio' },
   { id: 'neces', label: '📊 Necesidades' },
   { id: 'terminados', label: '✅ Terminados' },
+  { id: 'estadistica', label: '📈 Estadística' },
   { id: 'gestion', label: '🗂️ Gestión' },
 ] as const;
 
@@ -160,11 +162,14 @@ export default function Home() {
           onActualizado={actualizarRegistroPi} />
       )}
       {tab === 'neces' && catalogos && (
-        <Necesidades registros={ptProceso} registrosPi={registrosPi} catalogos={catalogos}
+        <Necesidades registros={ptProceso} catalogos={catalogos}
           onCambio={recargar} onIrPI={() => setTab('pi')} />
       )}
       {tab === 'terminados' && (
         <Terminados registros={ptTerm} registrosPi={piTerm} onCambio={recargar} />
+      )}
+      {tab === 'estadistica' && (
+        <Estadistica registros={ptTerm} registrosPi={piTerm} />
       )}
       {tab === 'gestion' && catalogos && <Admin catalogos={catalogos} onCambio={recargar} />}
       {!catalogos && <p className="text-slate-500">Cargando…</p>}

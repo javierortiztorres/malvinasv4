@@ -1,4 +1,39 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.25 (03-ago-2026) — Solapa "📈 Estadística": números completos del admin (B-19)
+
+1. **Nueva solapa "📈 Estadística"** (entre Terminados y Gestión), con
+   selector de período: **Mes** (default el mes actual, navegable con
+   ← Anterior / Mes actual / Siguiente →) o **Rango libre** desde/hasta.
+   Todo se recalcula al cambiar el período, en el cliente, con los
+   registros PT y PI que `page.tsx` ya carga (sin API nueva). El "día de
+   producción" de un registro usa el mismo criterio que ya ordenaba
+   Terminados (`fechaHoraFin → fechaElab → createdAt`, nueva
+   `fechaProduccion()` en `utils.ts`): `updatedAt` no es confiable porque
+   el esquema no tiene `$onUpdate`.
+2. **Todo con la etiqueta "producido/producidas"** — la palabra "vendido"
+   no aparece acá; eso se suma recién con el cotizador (Fase 3).
+3. **Métricas de producto terminado**: cápsulas producidas, pacientes
+   atendidos (únicos), ranking de **activos usados** (mg totales
+   dispensados + cápsulas que llevan cada uno, calculado desde las capas),
+   **top 5 "cápsulas estrella"** por fórmula (destacada la primera), y
+   ranking de **médicos derivadores** y de **diagnósticos tal cual están
+   guardados** (texto libre, con bucket "Sin diagnóstico" — este dato,
+   cargado por el Lector de recetas, nunca se había mostrado en la app).
+4. **Métricas de producto intermedio**: jeringas de 10 mL, de 60 mL y mL
+   totales producidos en el período (con aviso aparte si hay jeringas de
+   otro volumen, para no ocultar datos).
+5. **Evolución mes a mes** (últimos 12 meses en modo Mes, o los meses del
+   rango elegido) de cápsulas y jeringas: barras simples con Tailwind, un
+   solo color de marca por gráfico y el mes activo resaltado en Tussok —
+   no se agregó ninguna librería de gráficos.
+6. **Comparativa** contra el período anterior equivalente (mes previo, o
+   un rango de igual longitud inmediatamente anterior): +/-% por métrica;
+   si el período anterior no tiene datos, se muestra "—" sin romper nada.
+7. **Mudanza**: el bloque "Estadística mensual de PI" que vivía dentro de
+   Necesidades se eliminó de ahí (ahora cubierto por esta solapa nueva);
+   el resto de Necesidades (Hacer/Deshacer, cálculos de necesidad de
+   tinta) queda exactamente igual.
+
 ## v2.0.24 (03-ago-2026) — Agenda: pantalla principal con calendario de deadlines (B-25)
 
 1. **Nueva solapa "🗓️ Agenda", primera y pantalla inicial**: reemplaza el
