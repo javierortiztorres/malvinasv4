@@ -59,6 +59,39 @@ function pct(n: number, total: number): string {
   return total > 0 ? `${Math.round((n / total) * 100)}%` : '—';
 }
 
+// Paleta MALVINAS en hex para los gráficos de torta/dona (SVG necesita
+// color real por segmento, no clases Tailwind). Tussok queda reservado
+// como acento del segmento destacado, igual que ya lo usa BarraHorizontal
+// y GraficoRanking para el ítem top (B-19.4).
+const COLOR_PROFUNDO = '#0E3A4D';
+const COLOR_NIEBLA = '#9DAFB6';
+const COLOR_TURBA = '#14181B';
+const COLOR_TUSSOK = '#C1913A';
+const COLOR_HUESO = '#F4F0E6';
+
+function mezclarColor(hex: string, hacia: string, factor: number): string {
+  const a = hex.match(/\w\w/g)!.map((h) => parseInt(h, 16));
+  const b = hacia.match(/\w\w/g)!.map((h) => parseInt(h, 16));
+  return `#${a.map((v, i) => Math.round(v + (b[i] - v) * factor).toString(16).padStart(2, '0')).join('')}`;
+}
+
+// n colores dentro de la paleta MALVINAS: si hay más categorías que tonos
+// base, genera variantes (mezcladas hacia Hueso/Turba) en vez de salirse
+// de la paleta — pedido explícito de B-19.4 para series con >5 categorías.
+function paletaTorta(n: number, destacarPrimero: boolean): string[] {
+  const base = [COLOR_PROFUNDO, COLOR_NIEBLA, COLOR_TURBA];
+  const colores: string[] = [];
+  if (destacarPrimero) colores.push(COLOR_TUSSOK);
+  let i = 0, vuelta = 0;
+  while (colores.length < n) {
+    const tono = base[i % base.length];
+    colores.push(vuelta === 0 ? tono : mezclarColor(tono, vuelta % 2 === 1 ? COLOR_HUESO : COLOR_TURBA, Math.min(0.25 * Math.ceil(vuelta / 2), 0.7)));
+    i++;
+    if (i % base.length === 0) vuelta++;
+  }
+  return colores;
+}
+
 // Delta contra el período anterior: null = sin base para comparar → "—".
 function delta(cur: number, prev: number): number | null {
   if (prev === 0) return null;
@@ -129,32 +162,49 @@ function TablaRanking({
   );
 }
 
+// Línea, no barras: es una serie en el tiempo (evolución mes a mes), no
+// magnitudes sueltas para comparar una al lado de la otra (B-19.4).
 function Evolucion({ titulo, meses, valores, mesActivo }: { titulo: string; meses: string[]; valores: number[]; mesActivo: string }) {
   const max = Math.max(...valores, 1);
+  const xPct = (i: number) => (meses.length > 1 ? (i / (meses.length - 1)) * 100 : 50);
+  const yPct = (v: number) => 92 - (v / max) * 84;
+  const puntos = valores.map((v, i) => `${xPct(i)},${yPct(v)}`).join(' ');
+  const area = `${xPct(0)},100 ${puntos} ${xPct(valores.length - 1)},100`;
   return (
     <div className="card p-4">
       <h3 className="mb-3 font-archivo text-sm font-bold text-turba">{titulo}</h3>
       {valores.every((v) => v === 0) ? (
         <p className="text-sm text-niebla">Sin producción en este período.</p>
       ) : (
-        <div className="flex h-32 items-end gap-1">
-          {meses.map((m, i) => {
-            const v = valores[i];
-            const h = Math.max(2, Math.round((v / max) * 100));
-            const activo = m === mesActivo;
-            return (
-              <div key={m} className="flex flex-1 flex-col items-center gap-1" title={`${nombreMes(m)}: ${v}`}>
-                <div className="flex h-24 w-full items-end">
-                  <div
-                    className={`w-full rounded-t ${activo ? 'bg-tussok' : 'bg-profundo/80'}`}
-                    style={{ height: `${h}%` }}
-                  />
-                </div>
-                <p className="text-[9px] text-niebla">{nombreMesCorto(m)}</p>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <div className="relative h-32 w-full">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
+              <polygon points={area} fill={COLOR_PROFUNDO} fillOpacity="0.08" stroke="none" />
+              <polyline
+                points={puntos}
+                fill="none"
+                stroke={COLOR_PROFUNDO}
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            {meses.map((m, i) => m === mesActivo && (
+              <div
+                key={m}
+                className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-tussok ring-2 ring-white"
+                style={{ left: `${xPct(i)}%`, top: `${yPct(valores[i])}%` }}
+                title={`${nombreMes(m)}: ${valores[i]}`}
+              />
+            ))}
+          </div>
+          <div className="mt-1 flex gap-1">
+            {meses.map((m) => (
+              <p key={m} className="flex-1 text-center text-[9px] text-niebla">{nombreMesCorto(m)}</p>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -231,6 +281,77 @@ function GraficoRanking({
           {top.map((f, i) => (
             <BarraHorizontal key={f.nombre} label={f.nombre} valor={f.valor} max={max} formato={formato} destacado={i === 0} />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Torta/dona: para series que son PARTES DE UN TOTAL (jeringas por volumen,
+// activos, diagnósticos) — a diferencia de BarraHorizontal/GraficoRanking,
+// que comparan magnitudes sueltas entre sí. Sin truncar (a diferencia del
+// top-8 de GraficoRanking): el total del centro tiene que coincidir siempre
+// con el total de la tabla, así que se muestran todas las categorías
+// (B-19.4).
+function GraficoTorta({
+  titulo, datos, formato, vacio, destacarPrimero = false,
+}: {
+  titulo: string;
+  datos: { nombre: string; valor: number }[];
+  formato?: (v: number) => string;
+  vacio: string;
+  destacarPrimero?: boolean;
+}) {
+  const slices = datos.filter((d) => d.valor > 0);
+  const total = slices.reduce((s, d) => s + d.valor, 0);
+  const colores = paletaTorta(slices.length, destacarPrimero);
+
+  return (
+    <div className="card p-4">
+      <h4 className="mb-2 font-archivo text-sm font-bold text-turba">{titulo}</h4>
+      {total === 0 ? (
+        <p className="text-sm text-niebla">{vacio}</p>
+      ) : (
+        <div className="flex flex-col items-center gap-4 sm:flex-row">
+          <div className="relative h-32 w-32 shrink-0">
+            <svg viewBox="0 0 42 42" className="h-full w-full">
+              {(() => {
+                let acumulado = 0;
+                return slices.map((d, i) => {
+                  const porcentaje = (d.valor / total) * 100;
+                  const rotacion = (acumulado / 100) * 360 - 90;
+                  acumulado += porcentaje;
+                  return (
+                    <circle
+                      key={d.nombre}
+                      cx="21" cy="21" r="15.91549430918952"
+                      fill="none"
+                      stroke={colores[i]}
+                      strokeWidth="6"
+                      strokeDasharray={`${porcentaje} ${100 - porcentaje}`}
+                      transform={`rotate(${rotacion} 21 21)`}
+                    >
+                      <title>{`${d.nombre}: ${formato ? formato(d.valor) : d.valor} (${pct(d.valor, total)})`}</title>
+                    </circle>
+                  );
+                });
+              })()}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-base font-black text-profundo">{formato ? formato(total) : total}</p>
+              <p className="text-[8px] uppercase tracking-wide text-niebla">total</p>
+            </div>
+          </div>
+          <ul className="w-full space-y-1 text-xs">
+            {slices.map((d, i) => (
+              <li key={d.nombre} className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: colores[i] }} />
+                <span className="flex-1 truncate text-turba" title={d.nombre}>{d.nombre}</span>
+                <span className="shrink-0 font-bold text-profundo">{formato ? formato(d.valor) : d.valor}</span>
+                <span className="w-9 shrink-0 text-right text-niebla">{pct(d.valor, total)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
@@ -461,15 +582,26 @@ export default function Estadistica({
             <Tile label="mL de PI producidos" valor={Number(aPI.ml.toFixed(1))} cmp={hayPeriodoAnterior ? delta(aPI.ml, pPI.ml) : null} />
           </div>
         ) : (
-          <div className="card p-4">
-            <GraficoComparativo
-              hayAnterior={hayPeriodoAnterior}
-              metricas={[
-                { label: 'Cápsulas producidas', actual: aPT.capsulas, anterior: pPT.capsulas },
-                { label: 'Jeringas de 10', actual: aPI.jeringas10, anterior: pPI.jeringas10 },
-                { label: 'Jeringas de 60', actual: aPI.jeringas60, anterior: pPI.jeringas60 },
-                { label: 'mL de PI producidos', actual: Number(aPI.ml.toFixed(1)), anterior: Number(pPI.ml.toFixed(1)) },
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="card p-4 lg:col-span-2">
+              <GraficoComparativo
+                hayAnterior={hayPeriodoAnterior}
+                metricas={[
+                  { label: 'Cápsulas producidas', actual: aPT.capsulas, anterior: pPT.capsulas },
+                  { label: 'Jeringas de 10', actual: aPI.jeringas10, anterior: pPI.jeringas10 },
+                  { label: 'Jeringas de 60', actual: aPI.jeringas60, anterior: pPI.jeringas60 },
+                  { label: 'mL de PI producidos', actual: Number(aPI.ml.toFixed(1)), anterior: Number(pPI.ml.toFixed(1)) },
+                ]}
+              />
+            </div>
+            <GraficoTorta
+              titulo="🧪 Jeringas por volumen — distribución"
+              datos={[
+                { nombre: 'Jeringas de 10 mL', valor: aPI.jeringas10 },
+                { nombre: 'Jeringas de 60 mL', valor: aPI.jeringas60 },
+                ...(aPI.otras > 0 ? [{ nombre: 'Otro volumen', valor: aPI.otras }] : []),
               ]}
+              vacio="Sin jeringas en este período."
             />
           </div>
         )}
@@ -551,21 +683,23 @@ export default function Estadistica({
           </div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-3">
-            <GraficoRanking
-              titulo="🧪 Activos usados (mg totales)"
-              filas={aPT.activos.map((a) => ({ nombre: a.nombre, valor: Number(a.mg.toFixed(1)) }))}
+            <GraficoTorta
+              titulo="🧪 Activos usados — distribución (mg totales)"
+              datos={aPT.activos.map((a) => ({ nombre: a.nombre, valor: Number(a.mg.toFixed(1)) }))}
               formato={(v) => `${v} mg`}
               vacio="Sin activos en este período."
+              destacarPrimero
             />
             <GraficoRanking
               titulo="🩺 Médicos derivadores (recetas)"
               filas={aPT.medicos.map((m) => ({ nombre: m.nombre, valor: m.recetas }))}
               vacio="Sin médicos en este período."
             />
-            <GraficoRanking
-              titulo="📋 Diagnósticos (recetas)"
-              filas={aPT.diagnosticos.map((d) => ({ nombre: d.nombre, valor: d.recetas }))}
+            <GraficoTorta
+              titulo="📋 Diagnósticos más frecuentes (recetas)"
+              datos={aPT.diagnosticos.map((d) => ({ nombre: d.nombre, valor: d.recetas }))}
               vacio="Sin diagnósticos en este período."
+              destacarPrimero
             />
           </div>
         )}

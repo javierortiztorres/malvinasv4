@@ -1,4 +1,29 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.28 (03-ago-2026) — Variedad de tipos de gráfico en Estadística (B-19.4)
+
+1. **No es una fuente de datos nueva**: mismo `aPT`/`pPT`/`aPI`/`pPI` de
+   B-19.3 — cero cálculos nuevos, solo cambió el TIPO de visualización.
+2. **Torta/dona para proporciones de un total**: 🧪 Jeringas por volumen
+   (10 mL vs. 60 mL) en 📦 Producción, y 🧪 Activos usados / 📋
+   Diagnósticos más frecuentes en 🏆 Ranking — con leyenda (nombre, valor
+   y %) y total al centro, sin librería nueva (SVG a mano, mismo patrón
+   sin dependencias de B-19.3).
+3. **Línea para evolución en el tiempo**: 📈 Evolución mes a mes (cápsulas
+   y jeringas de PI) pasa de barras verticales a una línea con área
+   suave, con el mes activo marcado en Tussok — mismos datos y mismo
+   rango de meses que antes.
+4. **Rankings siguen en barras horizontales**: ⭐ Cápsula estrella y 🩺
+   Médicos derivadores no cambiaron — son comparaciones entre ítems, no
+   partes de un total.
+5. **Paleta MALVINAS sin salirse de los 5 tonos**: los segmentos de
+   torta/dona usan Profundo/Niebla/Turba, con Tussok reservado como
+   acento del segmento destacado (ítem #1). Con más de 3-4 categorías se
+   generan variantes tonales (mezcladas hacia Hueso/Turba) en vez de
+   agregar colores fuera de la paleta.
+6. **Sin truncar categorías**: a diferencia del top-8 de los rankings en
+   barra, la torta/dona muestra todas las categorías con valor > 0 — así
+   el total del centro siempre coincide con el total de la tabla.
+
 ## v2.0.27 (03-ago-2026) — Gráficos en la solapa Estadística (B-19.3)
 
 1. **No es una fuente de datos nueva**: cada gráfico grafica exactamente los
