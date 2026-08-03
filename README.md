@@ -1,4 +1,14 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.21 (03-ago-2026) — el % de concentración va en NOMBRE DEL PRODUCTO del doc de PI (B-14.1)
+
+1. **Corrección de B-14**: en el documento de PI (`/registro-pi/[id]/print`)
+   el % de concentración ya no aparece en una línea "CONCENTRACIÓN: X%" bajo
+   la fórmula cuali-cuantitativa; ahora se concatena al final de la línea
+   "NOMBRE DEL PRODUCTO" (ej. "TINTA DE B6 PIRIDOXINA 35%"), usando el mismo
+   helper `fmtPctOpcional`. Un PI sin concentración cargada queda igual que
+   antes. La pantalla (tarjetas de PI, Terminados, planilla de pesadas) no
+   se tocó; `nombre_producto` en la base sigue sin modificarse.
+
 ## v2.0.20 (03-ago-2026) — % de concentración junto al nombre del PI (B-14)
 
 1. **% automático en pantalla**: en la solapa Producto Intermedio (tarjetas

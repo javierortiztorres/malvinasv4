@@ -13,6 +13,9 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
 
   // Malaxado: campo nuevo dentro del jsonb `proceso` (opcional) — los PI
   // históricos no lo tienen, la fila queda en blanco para completar a mano.
+  const pctConcentracion = fmtPctOpcional(r.concentracion);
+  const nombreProductoConPct = pctConcentracion ? `${r.nombreProducto} ${pctConcentracion}` : r.nombreProducto;
+
   const MALAXADO_LABELS: Record<string, string> = { tinta: 'Tinta', polvo: 'Polvo', ambos: 'Tinta y polvo' };
   const malaxadoTipoLabel = r.proceso.malaxadoTipo ? MALAXADO_LABELS[r.proceso.malaxadoTipo] : null;
   const malaxadoMin = r.proceso.malaxadoTiempoMin;
@@ -35,7 +38,7 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
       </header>
 
       <div className="space-y-1">
-        <p><b>NOMBRE DEL PRODUCTO:</b> {r.nombreProducto}</p>
+        <p><b>NOMBRE DEL PRODUCTO:</b> {nombreProductoConPct}</p>
         <p><b>LOTE:</b> {formatoLotePI(r.poe, r.loteNumero)}</p>
         <p><b>CANTIDAD DE UNIDADES INDIVIDUALES A PRODUCIR:</b> {r.jeringas} jeringas plásticas de {r.volumenJeringaMl} ml</p>
         <p><b>MASA O VOLUMEN DE LAS UNIDADES INDIVIDUALES:</b> {r.volumenJeringaMl} ml</p>
@@ -48,9 +51,6 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
 
       <div className="mt-4">
         <p className="font-bold">FÓRMULA CUALI-CUANTITATIVA:</p>
-        {fmtPctOpcional(r.concentracion) && (
-          <p><b>CONCENTRACIÓN:</b> {fmtPctOpcional(r.concentracion)}</p>
-        )}
         <ul className="ml-6 list-disc">
           {r.materiasPrimas.map((m, i) => (
             <li key={i}>{m.nombre} ……………………… {m.cantidadTeorica} g</li>
