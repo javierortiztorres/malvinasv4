@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Registro, RegistroPi, Tinta } from '@/db/schema';
 import { APP } from '@/lib/config';
-import { esPiPendiente } from '@/lib/utils';
+import { diasHasta, esPiPendiente } from '@/lib/utils';
 import MarcaMalvinas from '@/components/MarcaMalvinas';
+import Agenda from '@/components/Agenda';
 import LectorRecetas from '@/components/LectorRecetas';
 import EnProceso from '@/components/EnProceso';
 import ProductoIntermedio from '@/components/ProductoIntermedio';
@@ -20,6 +21,7 @@ export type Catalogos = {
 };
 
 const TABS = [
+  { id: 'agenda', label: '🗓️ Agenda' },
   { id: 'lector', label: '📄 Lector de recetas' },
   { id: 'prod', label: '🖨️ En producción' },
   { id: 'pt', label: '📋 Pendientes' },
@@ -30,11 +32,15 @@ const TABS = [
 ] as const;
 
 export default function Home() {
-  const [tab, setTab] = useState<string>('prod');
+  const [tab, setTab] = useState<string>('agenda');
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [registrosPi, setRegistrosPi] = useState<RegistroPi[]>([]);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [online, setOnline] = useState(true);
+  // Foco pedido desde la Agenda (click en un evento): se aplica una vez
+  // dentro de la instancia de EnProceso correspondiente (prod o pt) y se
+  // limpia enseguida para no re-disparar el foco al volver a esa solapa.
+  const [focoId, setFocoId] = useState<number | null>(null);
 
   const recargar = useCallback(async () => {
     try {
@@ -80,6 +86,12 @@ export default function Home() {
   const piProceso = registrosPi.filter(esPiPendiente);
   const ptTerm = registros.filter((r) => r.estado === 'terminado');
   const piTerm = registrosPi.filter((r) => r.estado === 'terminado');
+  const vencidasCount = ptProceso.filter((r) => r.deadline && (diasHasta(r.deadline) ?? 0) < 0).length;
+
+  function irARegistro(r: Registro) {
+    setTab(r.enProduccion ? 'prod' : 'pt');
+    setFocoId(r.id);
+  }
 
   return (
     <main className="mx-auto max-w-[1500px] p-4">
@@ -100,7 +112,12 @@ export default function Home() {
 
       <nav className="mb-5 flex flex-wrap gap-2">
         {TABS.map((t) => {
-          const count = t.id === 'prod' ? enProduccion.length : t.id === 'pt' ? pendientes.length : t.id === 'pi' ? piProceso.length : 0;
+          const count =
+            t.id === 'prod' ? enProduccion.length
+            : t.id === 'pt' ? pendientes.length
+            : t.id === 'pi' ? piProceso.length
+            : t.id === 'agenda' ? vencidasCount
+            : 0;
           return (
             <button
               key={t.id}
@@ -122,16 +139,21 @@ export default function Home() {
         })}
       </nav>
 
+      {tab === 'agenda' && catalogos && (
+        <Agenda registros={ptProceso} onIrARegistro={irARegistro} onIrATab={setTab} />
+      )}
       {tab === 'lector' && catalogos && (
         <LectorRecetas catalogos={catalogos} onCreados={() => { recargar(); setTab('pt'); }} />
       )}
       {tab === 'prod' && catalogos && (
         <EnProceso registros={enProduccion} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistro} enProduccion />
+          onActualizado={actualizarRegistro} enProduccion
+          focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
       )}
       {tab === 'pt' && catalogos && (
         <EnProceso registros={pendientes} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistro} enProduccion={false} />
+          onActualizado={actualizarRegistro} enProduccion={false}
+          focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
       )}
       {tab === 'pi' && catalogos && (
         <ProductoIntermedio registros={piProceso} catalogos={catalogos} onCambio={recargar}

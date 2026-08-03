@@ -1,4 +1,32 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.24 (03-ago-2026) — Agenda: pantalla principal con calendario de deadlines (B-25)
+
+1. **Nueva solapa "🗓️ Agenda", primera y pantalla inicial**: reemplaza el
+   Google Calendar en el que se llevaba a mano "qué receta sale qué día".
+   Dos vistas conmutables — **Semana** (columnas Lunes a Domingo, estilo
+   agenda) y **Mes** (grilla de 6 semanas) — con navegación anterior/
+   siguiente, botón "Hoy" y el día de hoy resaltado. Todo con las
+   utilidades de fecha existentes (`hoyISO`, `diasHasta`, `fechaAR`,
+   `sumarMeses`), sin librerías nuevas.
+2. **Eventos**: cada registro PT `en_proceso` con `deadline` cargado
+   aparece una vez en su fecha, con el paciente y el primer activo de la
+   fórmula. Color según el mismo semáforo de urgencia de Pendientes/En
+   producción (rojo ≤3 días o vencida, ámbar ≤5, gris el resto). Varios
+   eventos el mismo día se apilan en la celda con scroll propio.
+3. **Avisos**: "N recetas vencidas" (lleva a la más urgente, enfocada en
+   En producción o Pendientes según corresponda) y "N sin fecha" (lleva a
+   la solapa correspondiente); ninguno aparece si el conteo es 0. Los
+   registros sin `deadline` no se inventan una fecha: quedan solo en este
+   contador.
+4. **Click en un evento**: cambia a la solapa En producción o Pendientes
+   (según `enProduccion`) y abre esa tarjeta en modo foco — se reusó el
+   mecanismo existente de `EnProceso` (antes 100% estado interno) sumando
+   dos props opcionales (`focoInicialId`/`onFocoConsumido`) para que el
+   padre pueda pedir el foco desde afuera sin duplicar esa UI.
+5. Las demás solapas y su comportamiento no cambiaron (orden por
+   deadline, semáforo, modo foco, buscador); solo se agregó la Agenda y
+   pasó a ser la solapa inicial.
+
 ## v2.0.23 (03-ago-2026) — orden y buscador de PI terminados + sin resultados (B-16)
 
 1. **Buscador de PI corregido**: en Terminados, la lista de Producto

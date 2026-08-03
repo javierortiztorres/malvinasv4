@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Registro } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import { colorDeGrupo } from '@/lib/colors';
@@ -18,15 +18,28 @@ export default function EnProceso({
   onCambio,
   onActualizado,
   enProduccion,
+  focoInicialId,
+  onFocoConsumido,
 }: {
   registros: Registro[];
   catalogos: Catalogos;
   onCambio: () => void;
   onActualizado: (r: Registro) => void;
   enProduccion: boolean;
+  // Foco pedido desde afuera (ej. click en un evento de la Agenda): se
+  // aplica una sola vez y se avisa al padre para que no se re-dispare.
+  focoInicialId?: number | null;
+  onFocoConsumido?: () => void;
 }) {
   const [abiertoId, setAbiertoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState('');
+
+  useEffect(() => {
+    if (focoInicialId == null) return;
+    if (!registros.some((r) => r.id === focoInicialId)) return;
+    setAbiertoId(focoInicialId);
+    onFocoConsumido?.();
+  }, [focoInicialId, registros, onFocoConsumido]);
   // Si el navegador bloquea el popup al terminar un PT, la tarjeta ya
   // volvió a la lista (modo foco se cierra) cuando llega la respuesta: el
   // aviso vive acá arriba, no en RegistroEditor, para no perderse.
