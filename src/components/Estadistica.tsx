@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import type { Registro, RegistroPi } from '@/db/schema';
 import { hoyISO, fechaProduccion, sumarMeses } from '@/lib/utils';
-import { limpiarNombreTinta, fmtMl, calcularExtrusionPeriodo, calcularModaExtrusionPeriodo, calcularCapasPromedioPeriodo } from '@/lib/engine';
+import { limpiarNombreTinta, fmtMl, calcularExtrusionPeriodo, calcularModaExtrusionPeriodo, calcularCapasPromedioPeriodo, calcularVolumenCapsulaPeriodo } from '@/lib/engine';
 
 // =====================================================================
 // 📊 ESTADÍSTICA — números completos del admin, SOLO "producido"
@@ -648,6 +648,12 @@ export default function Estadistica({
     [ptPeriodo, ptPrevio]
   );
 
+  // ---------------- Volumen promedio de cápsula (B-19.10) ----------------
+  const statsVolumenCapsula = useMemo(
+    () => ({ actual: calcularVolumenCapsulaPeriodo(ptPeriodo), previo: calcularVolumenCapsulaPeriodo(ptPrevio) }),
+    [ptPeriodo, ptPrevio]
+  );
+
   // ---------------- Evolución mes a mes ----------------
   const mesesEvolucion = useMemo(() => {
     let claves: string[];
@@ -737,12 +743,17 @@ export default function Estadistica({
           <SelectorVista vista={vistaProduccion} onChange={setVistaProduccion} />
         </div>
         {vistaProduccion === 'tabla' ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Tile label="Cápsulas producidas" valor={aPT.capsulas} cmp={hayPeriodoAnterior ? delta(aPT.capsulas, pPT.capsulas) : null} />
             <Tile
               label="Cápsulas por receta (prom.)"
               valor={aPT.recetas > 0 ? aPT.promedioCapsulasPorReceta.toFixed(1) : '—'}
               cmp={hayPeriodoAnterior && pPT.recetas > 0 ? delta(aPT.promedioCapsulasPorReceta, pPT.promedioCapsulasPorReceta) : null}
+            />
+            <Tile
+              label="Volumen prom. cápsula"
+              valor={fmtMl(statsVolumenCapsula.actual.promedio, 2)}
+              cmp={hayPeriodoAnterior && statsVolumenCapsula.previo.n > 0 ? delta(statsVolumenCapsula.actual.promedio, statsVolumenCapsula.previo.promedio) : null}
             />
             <Tile label="Jeringas de 10" valor={aPI.jeringas10} cmp={hayPeriodoAnterior ? delta(aPI.jeringas10, pPI.jeringas10) : null} />
             <Tile label="Jeringas de 60" valor={aPI.jeringas60} cmp={hayPeriodoAnterior ? delta(aPI.jeringas60, pPI.jeringas60) : null} />
@@ -756,6 +767,7 @@ export default function Estadistica({
                 metricas={[
                   { label: 'Cápsulas producidas', actual: aPT.capsulas, anterior: pPT.capsulas },
                   { label: 'Cápsulas por receta (prom.)', actual: Number(aPT.promedioCapsulasPorReceta.toFixed(1)), anterior: Number(pPT.promedioCapsulasPorReceta.toFixed(1)) },
+                  { label: 'Volumen prom. cápsula', actual: Number(statsVolumenCapsula.actual.promedio.toFixed(2)), anterior: Number(statsVolumenCapsula.previo.promedio.toFixed(2)) },
                   { label: 'Jeringas de 10', actual: aPI.jeringas10, anterior: pPI.jeringas10 },
                   { label: 'Jeringas de 60', actual: aPI.jeringas60, anterior: pPI.jeringas60 },
                   { label: 'mL de PI producidos', actual: Number(aPI.ml.toFixed(1)), anterior: Number(pPI.ml.toFixed(1)) },

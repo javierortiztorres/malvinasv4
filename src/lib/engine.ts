@@ -523,6 +523,38 @@ export function calcularCapasPromedioPeriodo(lista: Registro[]): EstadisticaCapa
   return { promedio, n, excluidos: lista.length - n };
 }
 
+// ---------- Estadística: volumen promedio de cápsula (B-19.10) ----------
+// No existe en el esquema (ni en el motor) una tabla de tamaño de cápsula
+// (00/0/1/2…) → mL: todas las cápsulas usan la misma cápsula física fija
+// (CAPACIDAD_CUERPO_ML + CAPACIDAD_TAPA_ML). El "volumen de una cápsula" de
+// una receta es la suma de extrusionMl de sus capas (mismo cálculo que
+// volumenTotal en calcularCapsula) — no hay ambigüedad de "qué capa usar"
+// porque una cápsula con varias capas contiene todas ellas a la vez.
+// Mismo criterio de inclusión que capas por cápsula (B-19.7): promedio
+// simple entre recetas con dato, sin ponderar por capsulasTotales (una
+// receta de 100 cápsulas no debe pesar 100 veces más que una de 1 al
+// promediar el volumen de UNA cápsula).
+
+export type EstadisticaVolumenCapsula = {
+  promedio: number; // mL promedio del volumen de una cápsula, entre recetas con dato
+  n: number; // recetas con dato, incluidas en el promedio
+  excluidos: number; // recetas del período sin dato de extrusión guardado
+};
+
+export function calcularVolumenCapsulaPeriodo(lista: Registro[]): EstadisticaVolumenCapsula {
+  const items = lista
+    .map((r) => {
+      const capasConDato = (r.capas ?? []).filter((c) => c.extrusionMl != null);
+      if (capasConDato.length === 0) return null;
+      return capasConDato.reduce((s, c) => s + (c.extrusionMl ?? 0), 0);
+    })
+    .filter((x): x is number => x != null);
+
+  const n = items.length;
+  const promedio = n > 0 ? items.reduce((s, x) => s + x, 0) / n : 0;
+  return { promedio, n, excluidos: lista.length - n };
+}
+
 // ---------- Formato ----------
 export function fmtMl(v: number | null | undefined, dec = 3): string {
   if (v == null || isNaN(v)) return '—';
