@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import type { Registro, RegistroPi } from '@/db/schema';
-import { hoyISO, fechaProduccion } from '@/lib/utils';
+import { hoyISO, fechaProduccion, sumarMeses } from '@/lib/utils';
 import { limpiarNombreTinta, fmtMl, calcularExtrusionPeriodo, calcularModaExtrusionPeriodo, calcularCapasPromedioPeriodo } from '@/lib/engine';
 
 // =====================================================================
@@ -505,7 +505,6 @@ export default function Estadistica({
     function calcular(lista: Registro[]) {
       let capsulas = 0;
       const pacientes = new Set<string>();
-      const recetasPorPaciente = new Map<string, number>();
       const activos = new Map<string, { nombre: string; mg: number; capsulas: number }>();
       const formulas = new Map<string, { nombre: string; capsulas: number; lotes: number }>();
       const medicos = new Map<string, { nombre: string; recetas: number; capsulas: number }>();
@@ -517,7 +516,6 @@ export default function Estadistica({
         if (r.paciente.trim()) {
           const clavePaciente = normalizarNombre(r.paciente);
           pacientes.add(clavePaciente);
-          recetasPorPaciente.set(clavePaciente, (recetasPorPaciente.get(clavePaciente) ?? 0) + 1);
         }
 
         const nombresVistos = new Set<string>();
@@ -554,11 +552,6 @@ export default function Estadistica({
         // (capsulasTotales ?? 0, sin excluir recetas sin dato guardado).
         promedioCapsulasPorReceta: lista.length > 0 ? capsulas / lista.length : 0,
         pacientes: pacientes.size,
-        // Recetas repetidas por paciente (B-19.7): pacientes con más de una
-        // receta EN EL PERÍODO elegido — no en todo el histórico, para que
-        // respete el mismo filtro de período que el resto de Estadística y
-        // se recalcule al navegar entre meses/rangos, como toda esta sección.
-        pacientesConRecetaRepetida: Array.from(recetasPorPaciente.values()).filter((n) => n > 1).length,
         activos: Array.from(activos.values()).sort((a, b) => b.mg - a.mg),
         formulas: Array.from(formulas.values()).sort((a, b) => b.capsulas - a.capsulas),
         medicos: Array.from(medicos.values()).sort((a, b) => b.recetas - a.recetas),
@@ -567,6 +560,37 @@ export default function Estadistica({
     }
     return { actual: calcular(ptPeriodo), previo: calcular(ptPrevio) };
   }, [ptPeriodo, ptPrevio]);
+
+  // ---------------- Segmentación de pacientes (B-19.15) ----------------
+  // Nuevos / recurrentes / no volvieron más: sobre TODO el historial de
+  // pacientes con receta (registros ya viene filtrado a "solo terminados"
+  // desde el padre), SIN el filtro de período — es una foto del estado
+  // actual de toda la base, no de este mes/rango. "Días de tratamiento"
+  // reusa el campo dias ya guardado en cada receta (parser.ts o carga
+  // manual) — no se recalcula acá. Ancla temporal: fechaProduccion (ya es
+  // la fecha canónica de "cuándo es este registro" en todo este archivo),
+  // no fechaReceta (texto libre sin formato garantizado).
+  const statsSegmentacion = useMemo(() => {
+    const porPaciente = new Map<string, Registro[]>();
+    for (const r of registros) {
+      if (!r.paciente.trim()) continue;
+      const clave = normalizarNombre(r.paciente);
+      const lista = porPaciente.get(clave) ?? [];
+      lista.push(r);
+      porPaciente.set(clave, lista);
+    }
+    const hoy = hoyISO();
+    let nuevos = 0, recurrentes = 0, noVolvieron = 0;
+    for (const recetas of Array.from(porPaciente.values())) {
+      const ultima = [...recetas].sort((a, b) => fechaProduccion(a).localeCompare(fechaProduccion(b))).at(-1)!;
+      const finTratamiento = addDiasISO(fechaProduccion(ultima), ultima.dias ?? 0);
+      const finVentana = sumarMeses(finTratamiento, 1);
+      if (finVentana < hoy) noVolvieron++;
+      else if (recetas.length === 1) nuevos++;
+      else recurrentes++;
+    }
+    return { total: porPaciente.size, nuevos, recurrentes, noVolvieron };
+  }, [registros]);
 
   // ---------------- Métricas PI: jeringas, mL ----------------
   const statsPI = useMemo(() => {
@@ -759,16 +783,14 @@ export default function Estadistica({
           <SelectorVista vista={vistaPacientes} onChange={setVistaPacientes} />
         </div>
         {vistaPacientes === 'tabla' ? (
-          <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Tile label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
-            <Tile
-              label="Con receta repetida"
-              valor={aPT.pacientesConRecetaRepetida}
-              cmp={hayPeriodoAnterior ? delta(aPT.pacientesConRecetaRepetida, pPT.pacientesConRecetaRepetida) : null}
-            />
+            <Tile label="Nuevos" valor={statsSegmentacion.nuevos} cmp={null} />
+            <Tile label="Recurrentes" valor={statsSegmentacion.recurrentes} cmp={null} />
+            <Tile label="No volvieron más" valor={statsSegmentacion.noVolvieron} cmp={null} />
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MedidorDestacado
               label="Pacientes atendidos"
               valor={aPT.pacientes}
@@ -776,13 +798,9 @@ export default function Estadistica({
               hayAnterior={hayPeriodoAnterior}
               cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null}
             />
-            <MedidorDestacado
-              label="Con receta repetida"
-              valor={aPT.pacientesConRecetaRepetida}
-              anterior={pPT.pacientesConRecetaRepetida}
-              hayAnterior={hayPeriodoAnterior}
-              cmp={hayPeriodoAnterior ? delta(aPT.pacientesConRecetaRepetida, pPT.pacientesConRecetaRepetida) : null}
-            />
+            <MedidorDestacado label="Nuevos" valor={statsSegmentacion.nuevos} anterior={0} hayAnterior={false} cmp={null} />
+            <MedidorDestacado label="Recurrentes" valor={statsSegmentacion.recurrentes} anterior={0} hayAnterior={false} cmp={null} />
+            <MedidorDestacado label="No volvieron más" valor={statsSegmentacion.noVolvieron} anterior={0} hayAnterior={false} cmp={null} />
           </div>
         )}
       </section>
