@@ -83,6 +83,19 @@ function normalizarNombre(s: string): string {
   return s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+// B-19.12: solo forma del texto (espacios), sin tocar may\u00fasculas/tildes \u2014
+// usado como etiqueta legible de cada variante en "Diagn\u00f3sticos (detalle)".
+function colapsarEspacios(s: string): string {
+  return s.trim().replace(/\s+/g, ' ');
+}
+
+// B-19.12: clave de agrupaci\u00f3n de diagn\u00f3sticos \u2014 min\u00fasculas, sin tildes,
+// espacios colapsados. Solo normaliza FORMA: no fusiona variantes cl\u00ednicas
+// distintas (eso es la Vista B, que agrupa adem\u00e1s por primera palabra).
+function normalizarDiagnostico(s: string): string {
+  return colapsarEspacios(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function pct(n: number, total: number): string {
   return total > 0 ? `${Math.round((n / total) * 100)}%` : '—';
 }
@@ -189,6 +202,36 @@ function TablaRanking({
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  );
+}
+
+// B-19.12: lista de una sola columna "nombre: cantidad" para las vistas de
+// diagnósticos normalizados — sin las dos columnas de TablaRanking, que no
+// aplican acá (un solo número por línea).
+function ListaConteo({
+  titulo, filas, totalDistintos, vacio,
+}: {
+  titulo: string; filas: { nombre: string; cantidad: number }[]; totalDistintos: number; vacio: string;
+}) {
+  return (
+    <div className="card overflow-hidden">
+      <h3 className="border-b border-slate-100 px-4 py-2 font-archivo text-sm font-bold text-turba">{titulo}</h3>
+      {filas.length === 0 ? (
+        <p className="p-4 text-sm text-niebla">{vacio}</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 text-sm">
+          {filas.map((f) => (
+            <li key={f.nombre} className="flex items-center justify-between gap-3 px-4 py-1.5">
+              <span className="min-w-0 truncate font-semibold" title={f.nombre}>{f.nombre}</span>
+              <span className="shrink-0 text-niebla">{f.cantidad}</span>
+            </li>
+          ))}
+          {totalDistintos > filas.length && (
+            <li className="px-4 py-1.5 text-xs text-niebla">+{totalDistintos - filas.length} más</li>
+          )}
+        </ul>
       )}
     </div>
   );
@@ -561,6 +604,42 @@ export default function Estadistica({
     return { actual: calcular(ptPeriodo), previo: calcular(ptPrevio) };
   }, [ptPeriodo, ptPrevio]);
 
+  // ---------------- Diagnósticos normalizados (B-19.12) ----------------
+  // Vista A ("detalle"): agrupa por coincidencia EXACTA del texto ya
+  // normalizado (forma, no clínica) — cada variante clínica queda separada.
+  // Vista B ("agrupados"): toma esas mismas variantes y las suma además por
+  // RAÍZ = primera palabra del texto normalizado. Ambas sobre el período
+  // filtrado activo (ptPeriodo), excluyendo diagnóstico vacío.
+  const diagnosticosVistas = useMemo(() => {
+    type Item = { nombre: string; cantidad: number };
+    const detalle = new Map<string, Item>();
+    for (const r of ptPeriodo) {
+      const clave = normalizarDiagnostico(r.diagnostico);
+      if (!clave) continue;
+      const item = detalle.get(clave) ?? { nombre: colapsarEspacios(r.diagnostico), cantidad: 0 };
+      item.cantidad += 1;
+      detalle.set(clave, item);
+    }
+    const detalleOrdenado = Array.from(detalle.values()).sort((a, b) => b.cantidad - a.cantidad);
+    const clavesOrdenadas = Array.from(detalle.entries()).sort((a, b) => b[1].cantidad - a[1].cantidad);
+
+    const agrupado = new Map<string, Item>();
+    for (const [clave, item] of clavesOrdenadas) {
+      const raiz = clave.split(' ')[0];
+      const g = agrupado.get(raiz) ?? { nombre: item.nombre.split(' ')[0], cantidad: 0 };
+      g.cantidad += item.cantidad;
+      agrupado.set(raiz, g);
+    }
+    const agrupadoOrdenado = Array.from(agrupado.values()).sort((a, b) => b.cantidad - a.cantidad);
+
+    return {
+      detalle: detalleOrdenado.slice(0, 8),
+      detalleTotal: detalleOrdenado.length,
+      agrupado: agrupadoOrdenado.slice(0, 8),
+      agrupadoTotal: agrupadoOrdenado.length,
+    };
+  }, [ptPeriodo]);
+
   // ---------------- Segmentación de pacientes (B-19.15, ajustada en B-19.15.1) ----------------
   // "No volvieron más": sobre TODO el historial de pacientes con receta
   // (registros ya viene filtrado a "solo terminados" desde el padre), SIN
@@ -890,6 +969,25 @@ export default function Estadistica({
             />
           </div>
         )}
+      </section>
+
+      {/* ================= Diagnósticos normalizados (B-19.12) ================= */}
+      <section className="space-y-4 border-t border-linea pt-6">
+        <h2 className="section-title mb-0">🔎 Diagnósticos normalizados</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ListaConteo
+            titulo="Diagnósticos (detalle)"
+            filas={diagnosticosVistas.detalle}
+            totalDistintos={diagnosticosVistas.detalleTotal}
+            vacio="Sin diagnósticos en este período."
+          />
+          <ListaConteo
+            titulo="Diagnósticos (agrupados)"
+            filas={diagnosticosVistas.agrupado}
+            totalDistintos={diagnosticosVistas.agrupadoTotal}
+            vacio="Sin diagnósticos en este período."
+          />
+        </div>
       </section>
 
       {/* ================= Extrusión, capas y diversidad de activos (B-19.6 / B-19.6.1 / B-19.7) ================= */}
