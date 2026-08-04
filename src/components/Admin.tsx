@@ -3,6 +3,8 @@ import { useMemo, useState, useEffect } from 'react';
 import type { Catalogos } from '@/app/page';
 import type { Tinta, ExcipienteTinta, ParametrosImpresion } from '@/db/schema';
 import { fmtPct } from '@/lib/engine';
+import { ROLES_OPERADOR } from '@/lib/utils';
+import { useCerrarModal } from '@/hooks/useCerrarModal';
 
 // =================== GESTIÓN ===================
 // Principio I+D: TODO lo de una tinta es editable acá —
@@ -75,7 +77,7 @@ export default function Admin({ catalogos, onCambio }: { catalogos: Catalogos; o
                     {(t.excipientes ?? []).map((e) => `${e.nombre} ${Number((e.fraccion * 100).toFixed(2))}%`).join(' · ') || '—'}
                   </td>
                   <td className="whitespace-nowrap">
-                    <button className="mr-2 text-slate-400 hover:text-teal-700" onClick={() => setEditando(t)}>✎</button>
+                    <button className="mr-2 text-slate-400 hover:text-profundo" onClick={() => setEditando(t)}>✎</button>
                     <button className="text-red-500" onClick={() => borrarTinta(t.id)}>✕</button>
                   </td>
                 </tr>
@@ -94,7 +96,7 @@ export default function Admin({ catalogos, onCambio }: { catalogos: Catalogos; o
           onCambio={onCambio} />
         <CatalogoSimple titulo="Operadores y supervisores" tabla="operadores" items={catalogos.operadores}
           campos={[{ key: 'nombre', label: 'Nombre' }, { key: 'rol', label: 'produce | revisa' }]}
-          onCambio={onCambio} />
+          rolesCanonicos={ROLES_OPERADOR} onCambio={onCambio} />
       </div>
 
       {/* ---------- Configuración ---------- */}
@@ -103,6 +105,7 @@ export default function Admin({ catalogos, onCambio }: { catalogos: Catalogos; o
       {editando && (
         <TintaModal
           tinta={editando === 'nueva' ? null : editando}
+          tintas={catalogos.tintas}
           excipientesCatalogo={catalogos.excipientes.map((e) => e.nombre)}
           onCerrar={() => setEditando(null)}
           onGuardado={() => { setEditando(null); onCambio(); }}
@@ -119,11 +122,13 @@ const PARAMS_DEFAULT: ParametrosImpresion = {
 
 function TintaModal({
   tinta,
+  tintas,
   excipientesCatalogo,
   onCerrar,
   onGuardado,
 }: {
   tinta: Tinta | null;
+  tintas: Tinta[];
   excipientesCatalogo: string[];
   onCerrar: () => void;
   onGuardado: () => void;
@@ -143,6 +148,8 @@ function TintaModal({
     poe: tinta?.poe ?? '',
   });
   const [error, setError] = useState('');
+  // Solo Escape cierra desde el hook: el click/arrastre en el fondo NUNCA cierra (B-22).
+  useCerrarModal(onCerrar);
 
   // SEMÁNTICA v2.0.4: los % de excipientes son sobre el TOTAL de la tinta.
   // Activo (concentración) + excipientes = 100%.
@@ -172,6 +179,13 @@ function TintaModal({
     if (!fraccionesOk) {
       setError(`Activo + excipientes deben sumar 100%: con ${Number(t.concentracion.toFixed(4))}% de activo, los excipientes tienen que sumar ${Number((objetivoExc * 100).toFixed(4))}%`);
       return;
+    }
+    setError('');
+    // Aviso NO bloqueante: cada tinta debería tener su propio POE.
+    const poe = t.poe.trim();
+    if (poe) {
+      const otra = tintas.find((x) => x.poe === poe && x.activo && x.id !== tinta?.id);
+      if (otra) alert(`Ojo: ese POE ya lo usa ${otra.nombre} — cada tinta debería tener su propio POE.`);
     }
     const body = {
       tabla: 'tintas',
@@ -203,7 +217,7 @@ function TintaModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="card max-h-[92vh] w-full max-w-2xl space-y-4 overflow-auto p-5"
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
@@ -321,7 +335,7 @@ function TintaModal({
               + Agregar excipiente
             </button>
             {t.excipientes.length > 0 && !fraccionesOk && (
-              <button className="btn-ghost text-xs text-teal-700" title="Completa el último excipiente con lo que falta para llegar a 100% (c.s.p.)"
+              <button className="btn-ghost text-xs text-profundo" title="Completa el último excipiente con lo que falta para llegar a 100% (c.s.p.)"
                 onClick={completarRestante}>
                 ⚖ Completar restante en el último ({Number((Math.max(0, objetivoExc - t.excipientes.slice(0, -1).reduce((s, e) => s + (e.fraccion || 0), 0)) * 100).toFixed(4))}%)
               </button>
@@ -357,15 +371,21 @@ function TintaModal({
 
 // =================== Catálogos simples ===================
 function CatalogoSimple({
-  titulo, tabla, items, campos, onCambio,
+  titulo, tabla, items, campos, onCambio, rolesCanonicos,
 }: {
   titulo: string;
   tabla: string;
   items: any[];
   campos: { key: string; label: string }[];
   onCambio: () => void;
+  // Si se pasa, el campo 'rol' se edita con un <select> de estas opciones
+  // en vez de prompt() de texto libre (hoy solo lo usa el catálogo de
+  // operadores).
+  rolesCanonicos?: string[];
 }) {
   const [nuevo, setNuevo] = useState<Record<string, string>>({});
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editValores, setEditValores] = useState<Record<string, string>>({});
 
   async function agregar() {
     if (!nuevo.nombre?.trim()) return;
@@ -383,7 +403,7 @@ function CatalogoSimple({
     onCambio();
   }
 
-  async function editar(item: any) {
+  async function editarConPrompt(item: any) {
     const datos: Record<string, string> = {};
     for (const c of campos) {
       const v = prompt(`${c.label}:`, item[c.key] ?? '');
@@ -404,6 +424,31 @@ function CatalogoSimple({
     onCambio();
   }
 
+  function empezarEdicion(item: any) {
+    if (!rolesCanonicos) { editarConPrompt(item); return; }
+    setEditId(item.id);
+    setEditValores(Object.fromEntries(campos.map((c) => [c.key, item[c.key] ?? ''])));
+  }
+
+  async function guardarEdicion() {
+    if (editId == null) return;
+    const datos: Record<string, string> = {};
+    for (const c of campos) datos[c.key] = (editValores[c.key] ?? '').trim();
+    if (!datos.nombre) return;
+    const res = await fetch('/api/catalogos', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tabla, id: editId, ...datos }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? 'No se pudo editar');
+      return;
+    }
+    setEditId(null);
+    onCambio();
+  }
+
   async function borrar(id: number) {
     if (!confirm('¿Eliminar este ítem?')) return;
     await fetch('/api/catalogos', {
@@ -420,15 +465,38 @@ function CatalogoSimple({
       <ul className="mb-3 max-h-56 space-y-1 overflow-auto text-sm">
         {items.map((item) => (
           <li key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-1">
-            <span>
-              {item.nombre}
-              {item.matricula && <span className="text-slate-400"> · MP {item.matricula}</span>}
-              {item.rol && <span className="text-slate-400"> · {item.rol}</span>}
-            </span>
-            <span className="flex gap-2">
-              <button className="text-slate-400 hover:text-teal-700" onClick={() => editar(item)}>✎</button>
-              <button className="text-red-500" onClick={() => borrar(item.id)}>✕</button>
-            </span>
+            {editId === item.id ? (
+              <div className="flex flex-1 flex-wrap items-center gap-1.5">
+                {campos.map((c) =>
+                  c.key === 'rol' ? (
+                    <select key={c.key} className="input" value={editValores.rol ?? ''}
+                      onChange={(e) => setEditValores((v) => ({ ...v, rol: e.target.value }))}>
+                      {editValores.rol && !rolesCanonicos!.includes(editValores.rol) && (
+                        <option value={editValores.rol}>{editValores.rol}</option>
+                      )}
+                      {rolesCanonicos!.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  ) : (
+                    <input key={c.key} className="input" placeholder={c.label} value={editValores[c.key] ?? ''}
+                      onChange={(e) => setEditValores((v) => ({ ...v, [c.key]: e.target.value }))} />
+                  )
+                )}
+                <button className="text-emerald-600" onClick={guardarEdicion}>✓</button>
+                <button className="text-slate-400" onClick={() => setEditId(null)}>✕</button>
+              </div>
+            ) : (
+              <>
+                <span>
+                  {item.nombre}
+                  {item.matricula && <span className="text-slate-400"> · MP {item.matricula}</span>}
+                  {item.rol && <span className="text-slate-400"> · {item.rol}</span>}
+                </span>
+                <span className="flex gap-2">
+                  <button className="text-slate-400 hover:text-profundo" onClick={() => empezarEdicion(item)}>✎</button>
+                  <button className="text-red-500" onClick={() => borrar(item.id)}>✕</button>
+                </span>
+              </>
+            )}
           </li>
         ))}
       </ul>

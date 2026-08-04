@@ -33,7 +33,7 @@ export default async function PrintRegistro({ params }: { params: { id: string }
       : 'Cada cápsula contiene';
 
   return (
-    <div className="mx-auto max-w-[820px] bg-white p-10 text-[13px] leading-relaxed text-black">
+    <div className="doc-impresion mx-auto max-w-[820px] bg-white p-10 text-[13px] leading-relaxed text-black">
       <BotonImprimir />
 
       <header className="mb-6 text-center">
@@ -200,7 +200,7 @@ export default async function PrintRegistro({ params }: { params: { id: string }
 
       <p className="mt-4"><b>FECHA DE VENCIMIENTO ESTIMADA:</b> {fechaAR(r.fechaVto)}</p>
 
-      <div className="mt-10 grid grid-cols-2 gap-8">
+      <div className="mt-10 grid grid-cols-2 gap-8 break-inside-avoid">
         <div>
           <div className="border-t border-black pt-1">
             <p className="font-bold">FIRMA DEL OPERADOR</p>

@@ -1,10 +1,11 @@
 // Test del motor v2.0.3: ubicación automática cuerpo/tapa y conversión
 // de dosis por tinta. Correr con: npx tsx scripts/test-engine.ts
-import type { Tinta } from '../src/db/schema';
+import type { Tinta, Registro, CapaTinta } from '../src/db/schema';
 import {
   autoUbicarCapas, capaDesdeTinta, dosisEnMgParaTinta, tintasParaActivo,
   calcularCapsula, pesadasPI, poeDesdeLote, limpiarNombreTinta,
   activoConMerma, MERMA_PI,
+  calcularExtrusionPeriodo, calcularCapasPromedioPeriodo,
 } from '../src/lib/engine';
 import { fechaAR, fechaHoraAR, coincideFiltro, diasHasta } from '../src/lib/utils';
 
@@ -165,9 +166,12 @@ check('filtro vacío: muestra todo', coincideFiltro('', 'x') === true);
 
 
 // ---------- v2.0.6: deadline ----------
+// Mismo huso que hoyISO() (Argentina, UTC-3): usar toISOString() (UTC) acá
+// desincroniza la fecha esperada de la real entre las 00:00 y 03:00 UTC,
+// haciendo fallar estos asserts según la hora en que se corran (B-15).
 const iso = (dias: number) => {
   const d = new Date(Date.now() + dias * 86400000);
-  return d.toISOString().slice(0, 10);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Cordoba' });
 };
 check('diasHasta: hoy → 0', diasHasta(iso(0)) === 0);
 check('diasHasta: +5 días → 5 (amarillo)', diasHasta(iso(5)) === 5);
@@ -192,6 +196,57 @@ check('merma: 19,5 g → 28,28 g (ceil a 2 dec)', activoConMerma(19.5) === 28.28
 check('merma: 15 g → 21,75 g (sin +0,01 fantasma)', activoConMerma(15) === 21.75, `=${activoConMerma(15)}`);
 // La necesidad de activo sale de la tinta: 39 g de tinta al 50% = 19,5 g de activo
 check('necesidades: activo = tinta × concentración', Math.abs(39 * 0.5 - 19.5) < 1e-9);
+
+// ---------- v2.0.32/2.0.33: extrusión y capas por cápsula en Estadística (B-19.6 / B-19.6.1 / B-19.7) ----------
+const BASE_REGISTRO: Registro = {
+  id: 1, estado: 'terminado', grupoPaciente: '', tituloFormula: 'Fórmula base',
+  paciente: 'Paciente base', dni: '', medico: '', matricula: '', fechaReceta: '',
+  nroReceta: '', diagnostico: '', indicacion: '',
+  formula: [], capsulasPorToma: 1, capsulasPorTomaManual: false, excipientes: [],
+  dias: null, capsulasTotales: 100, capsulasPorEnvase: null, envases: null,
+  tipoEnvase: '', producto: '', enProduccion: false, deadline: '', masaVolumen: '',
+  lotePrefijo: 'PT001', loteNumero: 1,
+  capas: [], proceso: { temperatura: '', tiempoMezclado: '', tiempoReposo: '', otros: '' },
+  controles: { peso: true, visual: true, otroControl: '', vestimenta: true, higiene: true },
+  aprobadas: null, rechazadas: 0,
+  fechaHoraInicio: '', fechaHoraFin: '', operador: '', supervisor: '',
+  fechaElab: '', fechaVto: '',
+  fotos: [], createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
+} as Registro;
+const Reg = (p: Partial<Registro>): Registro => ({ ...BASE_REGISTRO, ...p });
+const CAPA_BASE: CapaTinta = {
+  ref: 1, activoReceta: 'X', dosisMg: 10, unidadOriginal: 'mg', tintaId: null,
+  tinta: 'X', concentracion: 0.5, ip: 1, ubicacion: 'cuerpo', lote: '', poe: '',
+  alerta: '', aManopla: false, extrusionMl: null,
+};
+const Capa = (p: Partial<CapaTinta>): CapaTinta => ({ ...CAPA_BASE, ...p });
+
+// calcularExtrusionPeriodo (B-19.6.2): 2 recetas con dato + 1 sin dato (excluida, no cuenta como 0)
+{
+  const r1 = Reg({ id: 1, capsulasTotales: 100, capas: [Capa({ extrusionMl: 0.2 }), Capa({ ref: 2, extrusionMl: 0.1 })] }); // 2 capas × 100 cáps = 200 capas individuales, 30 mL
+  const r2 = Reg({ id: 2, capsulasTotales: 50, capas: [Capa({ extrusionMl: 0.4 })] }); // 1 capa × 50 cáps = 50 capas individuales, 20 mL
+  const r3 = Reg({ id: 3, capsulasTotales: 80, capas: [Capa({ extrusionMl: null })] }); // sin dato → excluida
+  const r4 = Reg({ id: 4, capsulasTotales: null, capas: [Capa({ extrusionMl: 0.5 })] }); // sin cápsulas → excluida
+  const res = calcularExtrusionPeriodo([r1, r2, r3, r4]);
+  // Contraste manual: total 50 mL / 2 recetas = 25 mL/receta;
+  // 50 mL / 250 capas individuales (200 + 50) = 0.2 mL/capa
+  check('extrusión: promedio por receta = 25 mL (50 mL ÷ 2 recetas)', Math.abs(res.promedioPorReceta - 25) < 1e-9, `=${res.promedioPorReceta}`);
+  check('extrusión: promedio por capa = 0.2 mL (50 mL ÷ 250 capas individuales)', Math.abs(res.promedioPorCapa - 0.2) < 1e-9, `=${res.promedioPorCapa}`);
+  check('extrusión: 2 recetas con dato', res.nRecetas === 2);
+  check('extrusión: 2 excluidas (sin capas con dato / sin cápsulas), no cuentan como 0', res.excluidos === 2);
+}
+
+// calcularCapasPromedioPeriodo (B-19.7): 2 recetas con dato + 1 sin dato (excluida, no cuenta como 0)
+{
+  const r1 = Reg({ id: 1, capas: [Capa({ ref: 1 }), Capa({ ref: 2 }), Capa({ ref: 3 })] }); // 3 capas
+  const r2 = Reg({ id: 2, capas: [Capa({ ref: 1 }), Capa({ ref: 2 })] }); // 2 capas
+  const r3 = Reg({ id: 3, capas: [] }); // sin capas guardadas → excluida
+  const res = calcularCapasPromedioPeriodo([r1, r2, r3]);
+  // Contraste manual: (3 + 2) / 2 recetas con dato = 2,5 capas/cápsula
+  check('capas: promedio = 2,5 ((3+2)/2 recetas con dato)', Math.abs(res.promedio - 2.5) < 1e-9, `=${res.promedio}`);
+  check('capas: 2 recetas con dato', res.n === 2);
+  check('capas: 1 excluida (sin capas guardadas), no cuenta como 0', res.excluidos === 1);
+}
 
 console.log(fallas === 0 ? '\n✅ TODOS LOS TESTS PASAN' : `\n❌ ${fallas} tests fallaron`);
 process.exit(fallas === 0 ? 0 : 1);

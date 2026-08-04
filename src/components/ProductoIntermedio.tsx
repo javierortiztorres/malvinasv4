@@ -1,11 +1,15 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RegistroPi, MateriaPrima, Tinta } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
-import { hoyISO, sumarMeses, formatoLotePI, coincideFiltro } from '@/lib/utils';
+import {
+  hoyISO, sumarMeses, formatoLotePI, coincideFiltro, operadoresPorRol,
+  ROL_OPERADOR_PRODUCE, ROL_OPERADOR_REVISA, fmtPctOpcional,
+} from '@/lib/utils';
 import { MESES_VENCIMIENTO } from '@/lib/config';
 import { pesadasPI, fmtG, fmtPct, limpiarNombreTinta } from '@/lib/engine';
 import { faltantesPI } from '@/lib/validation';
+import { useAutosave } from '@/hooks/useAutosave';
 
 const DRAFT_KEY = (id: number) => `draft-pi-${id}`;
 
@@ -23,6 +27,10 @@ export default function ProductoIntermedio({
   const [abiertos, setAbiertos] = useState<Record<number, boolean>>({});
   const [tintaNueva, setTintaNueva] = useState('');
   const [filtro, setFiltro] = useState('');
+  // Si el navegador bloquea el popup al terminar un PI, la tarjeta ya
+  // desapareció de esta lista (pasó a Terminados) cuando llega la
+  // respuesta: el aviso vive acá arriba, no en PiEditor, para no perderse.
+  const [avisoDoc, setAvisoDoc] = useState<string | null>(null);
 
   const visibles = registros.filter((r) =>
     coincideFiltro(filtro, r.nombreProducto, r.operador, r.poe,
@@ -33,8 +41,11 @@ export default function ProductoIntermedio({
   async function nuevaProduccion() {
     const t = catalogos.tintas.find((x) => String(x.id) === tintaNueva);
     if (!t) return;
+    if (!t.poe) {
+      alert(`Esta tinta no tiene Nº POE cargado. Cargalo una vez en Gestión → ${t.nombre} y volvé a intentar.`);
+      return;
+    }
     setCreando(true);
-    const nl = await fetch(`/api/next-lote-pi?poe=${encodeURIComponent(t.poe)}`).then((r) => r.json());
     const fechaElab = hoyISO();
     const body = {
       estado: 'en_proceso',
@@ -42,7 +53,8 @@ export default function ProductoIntermedio({
       tintaNombre: t.nombre,
       nombreProducto: `TINTA DE ${limpiarNombreTinta(t.nombre).toUpperCase()}`,
       poe: t.poe,
-      loteNumero: nl.proximo,
+      // El número lo asigna el servidor al crear (P### propio de esta tinta).
+      loteNumero: null,
       concentracion: t.concentracion,
       volumenJeringaMl: 10,
       materiasPrimas: [],
@@ -60,6 +72,9 @@ export default function ProductoIntermedio({
     if (res.ok) {
       setTintaNueva('');
       onCambio();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? 'No se pudo crear el registro de PI.');
     }
   }
 
@@ -81,6 +96,9 @@ export default function ProductoIntermedio({
         <button className="btn-primary" onClick={nuevaProduccion} disabled={!tintaNueva || creando}>
           🧪 Nueva producción de PI →
         </button>
+        <a className="btn-ghost" href="/pesadas/print" target="_blank" rel="noopener">
+          ⚖️ Planilla de pesadas
+        </a>
         <p className="w-full text-xs text-slate-500">
           El lote se numera solo (P### por tinta). Si la tinta no está en el catálogo, agregala primero en Gestión.
         </p>
@@ -88,6 +106,21 @@ export default function ProductoIntermedio({
 
       <input className="input max-w-md" placeholder="🔍 Buscar por tinta, lote, operador…"
         value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+
+      {avisoDoc && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-l-4 border-l-amber-500 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">
+            ⚠ El navegador bloqueó la pestaña del documento del PI recién terminado.
+          </p>
+          <div className="flex items-center gap-2">
+            <a className="btn-primary" href={avisoDoc} target="_blank" rel="noopener"
+              onClick={() => setAvisoDoc(null)}>
+              📄 Abrir documento
+            </a>
+            <button className="btn-ghost" onClick={() => setAvisoDoc(null)}>✕</button>
+          </div>
+        </div>
+      )}
 
       {registros.length === 0 ? (
         <div className="card p-10 text-center text-slate-500">
@@ -100,26 +133,36 @@ export default function ProductoIntermedio({
           {visibles.map((r) => {
             const abierto = abiertos[r.id] ?? false;
             return (
-              <div key={r.id} className="card overflow-hidden border-l-4 border-l-teal-600">
-                <button className="block w-full bg-teal-50/60 text-left"
-                  onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
-                  <div className="flex items-center justify-between px-4 py-3">
+              <div key={r.id} className="card overflow-hidden border-l-4 border-l-profundo">
+                <div className="flex items-center justify-between gap-2 bg-hueso/60 px-4 py-3">
+                  <button className="flex-1 text-left"
+                    onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
                     <div>
-                      {/* Nombre limpio del activo (sin "para X mg", apodos ni %) */}
+                      {/* Nombre limpio del activo (sin "para X mg", apodos ni %); el % de
+                          concentración se muestra acá al lado (solo pantalla, no en el nombre) */}
                       <p className="text-xl font-black uppercase leading-none">
                         {limpiarNombreTinta(r.tintaNombre) || 'SIN TINTA'}
+                        {fmtPctOpcional(r.concentracion) && (
+                          <span className="ml-2 text-base font-bold text-slate-500">
+                            · {fmtPctOpcional(r.concentracion)}
+                          </span>
+                        )}
                       </p>
                       <p className="mt-1 text-sm font-medium text-slate-600">
                         Lote <b>{formatoLotePI(r.poe, r.loteNumero)}</b>
-                        {r.concentracion ? ` · ${fmtPct(r.concentracion)}` : ''}
                         {r.cantidadProductoG ? ` · ${r.cantidadProductoG} g` : ''}
                         {r.jeringas ? ` · ${r.jeringas} jeringas` : ''}
                       </p>
                     </div>
-                    <span className="text-2xl">{abierto ? '▾' : '▸'}</span>
-                  </div>
-                </button>
-                {abierto && <PiEditor registro={r} catalogos={catalogos} onCambio={onCambio} onActualizado={onActualizado} />}
+                  </button>
+                  <button className="text-2xl" onClick={() => setAbiertos((a) => ({ ...a, [r.id]: !abierto }))}>
+                    {abierto ? '▾' : '▸'}
+                  </button>
+                </div>
+                {abierto && (
+                  <PiEditor registro={r} catalogos={catalogos} onCambio={onCambio} onActualizado={onActualizado}
+                    onPopupBloqueado={setAvisoDoc} />
+                )}
               </div>
             );
           })}
@@ -147,7 +190,7 @@ function ActivoInput({ r, set }: { r: RegistroPi; set: (p: Partial<RegistroPi>) 
   }
   return (
     <input
-      className="input border-teal-300 font-semibold"
+      className="input border-profundo font-semibold"
       type="number" step="any"
       value={local ?? (derivado ?? '')}
       onFocus={() => setLocal(derivado != null ? String(derivado) : '')}
@@ -169,76 +212,42 @@ function PiEditor({
   catalogos,
   onCambio,
   onActualizado,
+  onPopupBloqueado,
 }: {
   registro: RegistroPi;
   catalogos: Catalogos;
   onCambio: () => void;
   onActualizado: (r: RegistroPi) => void;
+  onPopupBloqueado: (url: string) => void;
 }) {
-  const [r, setR] = useState<RegistroPi>(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) {
-        try {
-          const draft = JSON.parse(raw);
-          if (new Date(draft.updatedAt) > new Date(registro.updatedAt)) return draft;
-        } catch {}
-      }
-    }
-    return registro;
+  const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
+    draftKey: DRAFT_KEY,
+    endpoint: (id) => `/api/registros-pi/${id}`,
+    onActualizado,
   });
-  const [sync, setSync] = useState<'ok' | 'guardando' | 'pendiente'>('ok');
   const [errores, setErrores] = useState<string[] | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
-  const rRef = useRef(r);
-  rRef.current = r;
-
-  const sincronizar = useCallback(async (data: RegistroPi) => {
-    setSync('guardando');
-    try {
-      const res = await fetch(`/api/registros-pi/${data.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error();
-      localStorage.removeItem(DRAFT_KEY(data.id));
-      setSync('ok');
-    } catch {
-      setSync('pendiente');
-    }
-  }, []);
-
-  const set = useCallback(
-    (patch: Partial<RegistroPi>) => {
-      const next = { ...rRef.current, ...patch, updatedAt: new Date() } as RegistroPi;
-      rRef.current = next;
-      setR(next);
-      try {
-        localStorage.setItem(DRAFT_KEY(next.id), JSON.stringify(next));
-      } catch {}
-      clearTimeout(timer.current);
-      timer.current = setTimeout(() => sincronizar(next), 700);
-      // Mantiene la lista del padre al día: al colapsar y reabrir el lote
-      // no se pierden los cambios en pantalla.
-      onActualizado(next);
-    },
-    [sincronizar, onActualizado]
-  );
-
-  useEffect(() => {
-    const reintentar = () => {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) sincronizar(JSON.parse(raw));
-    };
-    window.addEventListener('online', reintentar);
-    return () => window.removeEventListener('online', reintentar);
-  }, [registro.id, sincronizar]);
 
   const tinta: Tinta | undefined = useMemo(
     () => catalogos.tintas.find((t) => t.id === r.tintaId),
     [catalogos.tintas, r.tintaId]
   );
+
+  // Operador/supervisor: lista filtrada por rol (con fallback si el rol
+  // tiene typo en la base), más el valor ya guardado si quedó fuera de la
+  // lista (para no perderlo silenciosamente, sin duplicarlo).
+  const operadoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_PRODUCE);
+    return r.operador && !base.some((o) => o.nombre === r.operador)
+      ? [...base, { id: -1, nombre: r.operador, rol: ROL_OPERADOR_PRODUCE }]
+      : base;
+  }, [catalogos.operadores, r.operador]);
+
+  const supervisoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_REVISA);
+    return r.supervisor && !base.some((o) => o.nombre === r.supervisor)
+      ? [...base, { id: -2, nombre: r.supervisor, rol: ROL_OPERADOR_REVISA }]
+      : base;
+  }, [catalogos.operadores, r.supervisor]);
 
   // ---- Pesadas teóricas en vivo ----
   const teoricas = useMemo(() => {
@@ -280,6 +289,9 @@ function PiEditor({
     });
     if (res.ok) {
       localStorage.removeItem(DRAFT_KEY(r.id));
+      const docUrl = `/registro-pi/${r.id}/print`;
+      const ventana = window.open(docUrl, '_blank');
+      if (!ventana) onPopupBloqueado(docUrl);
       onCambio();
     } else {
       const data = await res.json();
@@ -303,6 +315,16 @@ function PiEditor({
         <span>{estadoSync}</span>
         <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar</button>
       </div>
+      {sesionVencida && (
+        <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+          ⚠ Sesión vencida — recargá la página y volvé a entrar. Tus cambios quedaron guardados localmente.
+        </p>
+      )}
+      {errorStorage && (
+        <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+          ⚠ No se pudo guardar el borrador local (espacio agotado). Cerrá otras pestañas o liberá espacio.
+        </p>
+      )}
 
       {/* Datos del lote */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -328,12 +350,12 @@ function PiEditor({
             onChange={(e) => set({ loteNumero: Number(e.target.value) || null })} />
         </div>
         <div className="flex items-end">
-          <span className="badge w-full justify-center bg-teal-50 py-2 font-mono text-teal-800">
+          <span className="badge w-full justify-center bg-profundo/10 py-2 font-mono text-profundo">
             {formatoLotePI(r.poe, r.loteNumero)}
           </span>
         </div>
         <div>
-          <label className="label text-teal-700">Cant. de PRINCIPIO ACTIVO (g)</label>
+          <label className="label text-profundo">Cant. de PRINCIPIO ACTIVO (g)</label>
           <ActivoInput r={r} set={set} />
           <p className="mt-0.5 text-[10px] text-slate-400">el producto total se calcula solo: activo ÷ concentración</p>
         </div>
@@ -375,7 +397,7 @@ function PiEditor({
             <thead>
               <tr className="text-left text-xs uppercase text-slate-500">
                 <th className="py-1">Nº</th><th>Materia prima</th><th>Pureza</th>
-                <th>Nº lote</th><th>Teórica (g)</th><th className="text-teal-700">Pesada real</th>
+                <th>Nº lote</th><th>Teórica (g)</th><th className="text-profundo">Pesada real</th>
               </tr>
             </thead>
             <tbody>
@@ -384,7 +406,7 @@ function PiEditor({
                   <td className="py-1 pr-2 font-bold">{m.ref}</td>
                   <td className="pr-2">
                     <input className="input" value={m.nombre} onChange={(e) => setMP(i, { nombre: e.target.value })} />
-                    {m.esPI && <p className="text-[10px] font-medium text-teal-700">↳ es un producto intermedio: usar su lote FPI</p>}
+                    {m.esPI && <p className="text-[10px] font-medium text-profundo">↳ es un producto intermedio: usar su lote FPI</p>}
                   </td>
                   <td className="pr-2">
                     <input className="input w-20" value={m.pureza} onChange={(e) => setMP(i, { pureza: e.target.value })} />
@@ -395,7 +417,7 @@ function PiEditor({
                   </td>
                   <td className="pr-2 font-semibold">{m.cantidadTeorica ?? '—'}</td>
                   <td className="pr-2">
-                    <input className="input w-24 border-teal-300" value={m.pesadaReal}
+                    <input className="input w-24 border-profundo" value={m.pesadaReal}
                       onChange={(e) => setMP(i, { pesadaReal: e.target.value })} />
                   </td>
                 </tr>
@@ -416,6 +438,32 @@ function PiEditor({
           <label className="label">T. mezclado (min)</label>
           <input className="input" value={r.proceso.tiempoMezclado}
             onChange={(e) => set({ proceso: { ...r.proceso, tiempoMezclado: e.target.value } })} />
+        </div>
+        <div>
+          <label className="label">Malaxado</label>
+          <select className="input" value={r.proceso.malaxadoTipo ?? ''}
+            onChange={(e) => set({
+              proceso: {
+                ...r.proceso,
+                malaxadoTipo: (e.target.value || undefined) as 'tinta' | 'polvo' | 'ambos' | undefined,
+              },
+            })}>
+            <option value="">(sin dato)</option>
+            <option value="tinta">Tinta</option>
+            <option value="polvo">Polvo</option>
+            <option value="ambos">Ambos</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Tiempo malaxado (min)</label>
+          <input className="input" type="number"
+            value={r.proceso.malaxadoTiempoMin ?? ''}
+            onChange={(e) => set({
+              proceso: {
+                ...r.proceso,
+                malaxadoTiempoMin: e.target.value === '' ? undefined : Number(e.target.value),
+              },
+            })} />
         </div>
         <div>
           <label className="label">Inicio producción</label>
@@ -440,8 +488,14 @@ function PiEditor({
           <label className="label">Operador</label>
           <select className="input" value={r.operador} onChange={(e) => set({ operador: e.target.value })}>
             <option value="">—</option>
-            {catalogos.operadores.filter((o) => o.rol === 'produce')
-              .map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
+            {operadoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Supervisor / DT (opcional)</label>
+          <select className="input" value={r.supervisor ?? ''} onChange={(e) => set({ supervisor: e.target.value || null })}>
+            <option value="">—</option>
+            {supervisoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
           </select>
         </div>
         <div className="flex flex-wrap items-end gap-3 text-sm lg:col-span-1">
