@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import type { Registro, RegistroPi } from '@/db/schema';
 import { hoyISO, fechaProduccion } from '@/lib/utils';
-import { limpiarNombreTinta, fmtMl, calcularExtrusionPeriodo, calcularCapasPromedioPeriodo } from '@/lib/engine';
+import { limpiarNombreTinta, fmtMl, calcularExtrusionPeriodo, calcularModaExtrusionPeriodo, calcularCapasPromedioPeriodo } from '@/lib/engine';
 
 // =====================================================================
 // 📊 ESTADÍSTICA — números completos del admin, SOLO "producido"
@@ -605,6 +605,12 @@ export default function Estadistica({
     [ptPeriodo, ptPrevio]
   );
 
+  // ---------------- Moda de extrusión por capa (B-19.8) ----------------
+  const statsModaExtrusion = useMemo(
+    () => ({ actual: calcularModaExtrusionPeriodo(ptPeriodo), previo: calcularModaExtrusionPeriodo(ptPrevio) }),
+    [ptPeriodo, ptPrevio]
+  );
+
   // ---------------- Capas por cápsula (B-19.7) ----------------
   const statsCapas = useMemo(
     () => ({ actual: calcularCapasPromedioPeriodo(ptPeriodo), previo: calcularCapasPromedioPeriodo(ptPrevio) }),
@@ -856,7 +862,7 @@ export default function Estadistica({
         ) : (
           <>
             {vistaExtrusion === 'tabla' ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <Tile
                   label="Extrusión prom. por receta"
                   valor={fmtMl(statsExtrusion.actual.promedioPorReceta, 2)}
@@ -866,6 +872,11 @@ export default function Estadistica({
                   label="Extrusión promedio por capa"
                   valor={fmtMl(statsExtrusion.actual.promedioPorCapa, 3)}
                   cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapa, statsExtrusion.previo.promedioPorCapa) : null}
+                />
+                <Tile
+                  label="Moda de extrusión por capa"
+                  valor={fmtMl(statsModaExtrusion.actual.moda, 3)}
+                  cmp={hayPeriodoAnterior && statsModaExtrusion.actual.moda != null && statsModaExtrusion.previo.moda != null ? delta(statsModaExtrusion.actual.moda, statsModaExtrusion.previo.moda) : null}
                 />
                 <Tile
                   label="Prom. capas por cápsula"
@@ -880,7 +891,7 @@ export default function Estadistica({
                 <Tile label="Recetas incluidas en el promedio" valor={statsExtrusion.actual.nRecetas} cmp={null} />
               </div>
             ) : (
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid gap-4 lg:grid-cols-4">
                 <MedidorDestacado
                   label="Extrusión promedio por capa"
                   valor={statsExtrusion.actual.promedioPorCapa}
@@ -888,6 +899,14 @@ export default function Estadistica({
                   hayAnterior={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0}
                   cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapa, statsExtrusion.previo.promedioPorCapa) : null}
                   formato={(v) => fmtMl(v, 3)}
+                />
+                <MedidorDestacado
+                  label="Moda de extrusión por capa"
+                  valor={statsModaExtrusion.actual.moda ?? 0}
+                  anterior={statsModaExtrusion.previo.moda ?? 0}
+                  hayAnterior={hayPeriodoAnterior && statsModaExtrusion.previo.moda != null}
+                  cmp={hayPeriodoAnterior && statsModaExtrusion.actual.moda != null && statsModaExtrusion.previo.moda != null ? delta(statsModaExtrusion.actual.moda, statsModaExtrusion.previo.moda) : null}
+                  formato={(v) => (v > 0 ? fmtMl(v, 3) : '—')}
                 />
                 <MedidorDestacado
                   label="Prom. capas por cápsula"

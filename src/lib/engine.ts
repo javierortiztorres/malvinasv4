@@ -460,6 +460,47 @@ export function calcularExtrusionPeriodo(lista: Registro[]): EstadisticaExtrusio
   };
 }
 
+// ---------- Estadística: moda de extrusión por capa (B-19.8) ----------
+// Mismo criterio de inclusión/exclusión y misma unidad de conteo que el
+// promedio (B-19.6.2): cada capa individual de cada cápsula de cada receta
+// es un dato propio (se replica capsulasTotales veces, no una vez por
+// receta). Se redondea a 3 decimales (misma precisión que ya se muestra en
+// pantalla) antes de agrupar, porque el valor crudo es un float calculado
+// y comparar floats sin redondear haría que capas "iguales" a simple vista
+// nunca empataran. Empate en frecuencia máxima → gana el valor más bajo
+// (criterio elegido, no hay uno "correcto" objetivo).
+
+export type EstadisticaModaExtrusion = {
+  moda: number | null; // valor en mL que más se repite entre las capas individuales
+  frecuencia: number; // cantidad de capas individuales con ese valor
+  totalCapas: number; // total de capas individuales consideradas
+  empate: boolean; // true si más de un valor comparte la frecuencia máxima
+  distribucion: { valor: number; frecuencia: number }[]; // todos los valores agrupados, desc. por frecuencia
+};
+
+export function calcularModaExtrusionPeriodo(lista: Registro[]): EstadisticaModaExtrusion {
+  const conteo = new Map<number, number>();
+  for (const r of lista) {
+    const capasConDato = (r.capas ?? []).filter((c) => c.extrusionMl != null);
+    if (capasConDato.length === 0 || !r.capsulasTotales) continue;
+    for (const c of capasConDato) {
+      const valor = Math.round((c.extrusionMl as number) * 1000) / 1000;
+      conteo.set(valor, (conteo.get(valor) ?? 0) + r.capsulasTotales);
+    }
+  }
+  const distribucion = Array.from(conteo.entries())
+    .map(([valor, frecuencia]) => ({ valor, frecuencia }))
+    .sort((a, b) => b.frecuencia - a.frecuencia || a.valor - b.valor);
+  const totalCapas = distribucion.reduce((s, d) => s + d.frecuencia, 0);
+  if (distribucion.length === 0) {
+    return { moda: null, frecuencia: 0, totalCapas: 0, empate: false, distribucion: [] };
+  }
+  const maxFrecuencia = distribucion[0].frecuencia;
+  const empatados = distribucion.filter((d) => d.frecuencia === maxFrecuencia);
+  const ganador = empatados[0]; // ya ordenado por valor asc dentro del empate
+  return { moda: ganador.valor, frecuencia: ganador.frecuencia, totalCapas, empate: empatados.length > 1, distribucion };
+}
+
 // ---------- Estadística: capas por cápsula (B-19.7) ----------
 // Cada capa = un activo distinto (hoy no existen tintas combinadas en una
 // misma capa — eso es B-61, a futuro). Mismo criterio que la extrusión:
