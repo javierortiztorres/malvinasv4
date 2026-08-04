@@ -1,4 +1,30 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.0.34 (04-ago-2026) — 3 correcciones en Estadística tras verificación (B-19.6.2)
+
+1. **Se sacaron los párrafos explicativos de metodología de TODA la solapa
+   Estadística** (no solo del bloque de Extrusión): el de "Con receta
+   repetida" en Pacientes, el de Extrusión/capas y el de "Tiempo de
+   producción" (proxy). Los bloques quedan con título corto + números/
+   gráfico. Se mantienen los avisos cortos y condicionales de datos reales
+   del período (ej. "+2 recetas sin dato, excluidas del promedio") porque
+   informan un hecho del período, no explican metodología general.
+2. **"Recetas con dato" investigado y renombrado**: se consultaron con
+   `GET /api/registros?estado=terminado` las 27 recetas terminadas reales
+   en producción — las 27 tienen el dato de extrusión guardado (0
+   excluidas), confirmando lo que anticipó Tomi. Se renombró la tarjeta a
+   "Recetas incluidas en el promedio" (sin párrafo aparte).
+3. **Bug de cálculo corregido: "extrusión promedio por cápsula" sumaba las
+   capas dentro de cada cápsula antes de promediar** (mezclaba cápsulas de
+   1 y de 9 capas en la misma unidad de conteo, resultado no comparable
+   entre recetas con distinta cantidad de capas). Ahora `engine.ts`
+   (`calcularExtrusionPeriodo`) promedia sobre el total de **capas
+   individuales** del período (cada capa de cada cápsula de cada receta
+   cuenta como un dato propio) — campo renombrado `promedioPorCapa`,
+   tarjeta renombrada "Extrusión promedio por capa". Tests actualizados en
+   `scripts/test-engine.ts`.
+4. Verificado visualmente con Playwright en 1280/768/375 px con datos de
+   magnitud realista, sin overflow ni corte de texto en toda la solapa.
+
 ## v2.0.32 (03-ago-2026) — Extrusión y activo por cápsula en Estadística (B-19.6)
 
 1. **Investigación previa (obligatoria antes de tocar nada)**: se pidió un

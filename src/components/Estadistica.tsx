@@ -768,10 +768,6 @@ export default function Estadistica({
             />
           </div>
         )}
-        <p className="mt-2 text-xs text-niebla">
-          &quot;Con receta repetida&quot; (B-19.7): pacientes con más de una receta terminada dentro de{' '}
-          {tituloPeriodo} — señal de retención/continuidad de tratamiento.
-        </p>
       </section>
 
       {/* ================= Ranking ================= */}
@@ -855,13 +851,6 @@ export default function Estadistica({
           <h2 className="section-title mb-0">💉 Extrusión y capas por cápsula</h2>
           <SelectorVista vista={vistaExtrusion} onChange={setVistaExtrusion} />
         </div>
-        <p className="mb-3 text-xs text-niebla">
-          Volumen de tinta extruido y cantidad de capas (activos distintos) por cápsula, calculados a
-          partir de los datos ya guardados por capa. Recetas sin ese dato guardado (por ejemplo,
-          anteriores a que se empezara a registrar) se excluyen del promedio — no se cuentan como 0.
-          (B-19.6.1: se sacó el activo en gramos por cápsula de este bloque — mezclaba dosis prescriptas
-          a medida por el médico para pacientes distintos, no comparables entre sí.)
-        </p>
         {statsExtrusion.actual.nRecetas === 0 && statsCapas.actual.n === 0 && aPT.activos.length === 0 ? (
           <div className="card p-6 text-center text-niebla">Sin datos de extrusión/capas medibles en {tituloPeriodo}.</div>
         ) : (
@@ -874,9 +863,9 @@ export default function Estadistica({
                   cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorReceta, statsExtrusion.previo.promedioPorReceta) : null}
                 />
                 <Tile
-                  label="Extrusión prom. por cápsula"
-                  valor={fmtMl(statsExtrusion.actual.promedioPorCapsula, 3)}
-                  cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapsula, statsExtrusion.previo.promedioPorCapsula) : null}
+                  label="Extrusión promedio por capa"
+                  valor={fmtMl(statsExtrusion.actual.promedioPorCapa, 3)}
+                  cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapa, statsExtrusion.previo.promedioPorCapa) : null}
                 />
                 <Tile
                   label="Prom. capas por cápsula"
@@ -888,16 +877,16 @@ export default function Estadistica({
                   valor={aPT.activos.length}
                   cmp={hayPeriodoAnterior ? delta(aPT.activos.length, pPT.activos.length) : null}
                 />
-                <Tile label="Recetas con dato" valor={statsExtrusion.actual.nRecetas} cmp={null} />
+                <Tile label="Recetas incluidas en el promedio" valor={statsExtrusion.actual.nRecetas} cmp={null} />
               </div>
             ) : (
               <div className="grid gap-4 lg:grid-cols-3">
                 <MedidorDestacado
-                  label="Extrusión prom. por cápsula"
-                  valor={statsExtrusion.actual.promedioPorCapsula}
-                  anterior={statsExtrusion.previo.promedioPorCapsula}
+                  label="Extrusión promedio por capa"
+                  valor={statsExtrusion.actual.promedioPorCapa}
+                  anterior={statsExtrusion.previo.promedioPorCapa}
                   hayAnterior={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0}
-                  cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapsula, statsExtrusion.previo.promedioPorCapsula) : null}
+                  cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapa, statsExtrusion.previo.promedioPorCapa) : null}
                   formato={(v) => fmtMl(v, 3)}
                 />
                 <MedidorDestacado
@@ -937,11 +926,6 @@ export default function Estadistica({
           <h2 className="section-title mb-0">⏱️ Tiempo de producción</h2>
           <SelectorVista vista={vistaTiempo} onChange={setVistaTiempo} />
         </div>
-        <p className="mb-3 text-xs text-niebla">
-          Proxy de eficacia: entrada de la receta al sistema (fecha de creación del registro) → fin de
-          producción (fecha y hora de finalización, tipeada por el operador). <strong>No es la entrega
-          real al paciente</strong> — ese dato todavía no se registra en el sistema.
-        </p>
         {statsTiempo.actual.n === 0 ? (
           <div className="card p-6 text-center text-niebla">Sin tiempos de producción medibles en {tituloPeriodo}.</div>
         ) : vistaTiempo === 'tabla' ? (

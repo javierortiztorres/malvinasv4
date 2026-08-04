@@ -221,16 +221,17 @@ const CAPA_BASE: CapaTinta = {
 };
 const Capa = (p: Partial<CapaTinta>): CapaTinta => ({ ...CAPA_BASE, ...p });
 
-// calcularExtrusionPeriodo: 2 recetas con dato + 1 sin dato (excluida, no cuenta como 0)
+// calcularExtrusionPeriodo (B-19.6.2): 2 recetas con dato + 1 sin dato (excluida, no cuenta como 0)
 {
-  const r1 = Reg({ id: 1, capsulasTotales: 100, capas: [Capa({ extrusionMl: 0.2 }), Capa({ ref: 2, extrusionMl: 0.1 })] }); // 0.3 mL/cáps × 100 = 30 mL
-  const r2 = Reg({ id: 2, capsulasTotales: 50, capas: [Capa({ extrusionMl: 0.4 })] }); // 0.4 mL/cáps × 50 = 20 mL
+  const r1 = Reg({ id: 1, capsulasTotales: 100, capas: [Capa({ extrusionMl: 0.2 }), Capa({ ref: 2, extrusionMl: 0.1 })] }); // 2 capas × 100 cáps = 200 capas individuales, 30 mL
+  const r2 = Reg({ id: 2, capsulasTotales: 50, capas: [Capa({ extrusionMl: 0.4 })] }); // 1 capa × 50 cáps = 50 capas individuales, 20 mL
   const r3 = Reg({ id: 3, capsulasTotales: 80, capas: [Capa({ extrusionMl: null })] }); // sin dato → excluida
   const r4 = Reg({ id: 4, capsulasTotales: null, capas: [Capa({ extrusionMl: 0.5 })] }); // sin cápsulas → excluida
   const res = calcularExtrusionPeriodo([r1, r2, r3, r4]);
-  // Contraste manual: total 50 mL / 2 recetas = 25 mL/receta; 50 mL / 150 cáps = 0.3333 mL/cáps
+  // Contraste manual: total 50 mL / 2 recetas = 25 mL/receta;
+  // 50 mL / 250 capas individuales (200 + 50) = 0.2 mL/capa
   check('extrusión: promedio por receta = 25 mL (50 mL ÷ 2 recetas)', Math.abs(res.promedioPorReceta - 25) < 1e-9, `=${res.promedioPorReceta}`);
-  check('extrusión: promedio por cápsula = 0.3333 mL (50 mL ÷ 150 cáps)', Math.abs(res.promedioPorCapsula - 50 / 150) < 1e-9, `=${res.promedioPorCapsula}`);
+  check('extrusión: promedio por capa = 0.2 mL (50 mL ÷ 250 capas individuales)', Math.abs(res.promedioPorCapa - 0.2) < 1e-9, `=${res.promedioPorCapa}`);
   check('extrusión: 2 recetas con dato', res.nRecetas === 2);
   check('extrusión: 2 excluidas (sin capas con dato / sin cápsulas), no cuentan como 0', res.excluidos === 2);
 }

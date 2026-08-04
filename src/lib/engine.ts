@@ -407,13 +407,13 @@ export function poeDesdeLote(lote: string | null | undefined): string {
   return i > 0 ? lote.slice(0, i).trim() : '';
 }
 
-// ---------- Estadística: extrusión por cápsula (B-19.6) ----------
+// ---------- Estadística: extrusión por capa (B-19.6 / B-19.6.2) ----------
 // extrusionMl (guardado por capa, calculado para el documento) YA es el
-// volumen POR CÁPSULA con la división aplicada — no existe en el esquema
-// un campo de "cantidad de extrusiones" (conteo de eventos), se investigó
-// antes de tocar nada. Los registros sin ese dato guardado (recetas viejas
-// de antes de que se empezara a guardar, o capas sin datos suficientes
-// para calcularlo) se EXCLUYEN del promedio, nunca se cuentan como 0.
+// volumen POR CÁPSULA de esa capa — no existe en el esquema un campo de
+// "cantidad de extrusiones" (conteo de eventos), se investigó antes de
+// tocar nada. Los registros sin ese dato guardado (recetas viejas de antes
+// de que se empezara a guardar, o capas sin datos suficientes para
+// calcularlo) se EXCLUYEN del promedio, nunca se cuentan como 0.
 //
 // B-19.6.1: se sacó "activo (g) por cápsula" (promedio/máximo/mínimo) de
 // este bloque — cada receta trae una dosis de activo prescripta a medida
@@ -421,10 +421,17 @@ export function poeDesdeLote(lote: string | null | undefined): string {
 // máx/mín de esa dosis entre pacientes distintos mezclaba números no
 // comparables entre sí: no era una señal de calidad de proceso ni de
 // negocio, era ruido estadístico.
+//
+// B-19.6.2: "promedio por cápsula" sumaba las capas DENTRO de cada cápsula
+// antes de promediar (mezclaba cápsulas de 1 y de 9 capas en la misma
+// unidad de conteo). El dato que importa para el proceso es la extrusión
+// de CADA CAPA individual, así que ahora se promedia sobre el total de
+// capas individuales del período (cada capa de cada cápsula de cada receta
+// cuenta como un dato propio), no sobre el total de cápsulas.
 
 export type EstadisticaExtrusion = {
   promedioPorReceta: number; // mL totales del registro ÷ recetas con dato
-  promedioPorCapsula: number; // mL totales ÷ cápsulas totales (de esas recetas)
+  promedioPorCapa: number; // mL totales ÷ capas individuales totales (de esas recetas)
   nRecetas: number; // recetas con dato, incluidas en el promedio
   excluidos: number; // recetas del período sin dato de extrusión guardado
 };
@@ -434,17 +441,20 @@ export function calcularExtrusionPeriodo(lista: Registro[]): EstadisticaExtrusio
     .map((r) => {
       const capasConDato = (r.capas ?? []).filter((c) => c.extrusionMl != null);
       if (capasConDato.length === 0 || !r.capsulasTotales) return null;
-      const porCapsula = capasConDato.reduce((s, c) => s + (c.extrusionMl ?? 0), 0);
-      return { totalMl: porCapsula * r.capsulasTotales, capsulas: r.capsulasTotales };
+      const mlPorCapsula = capasConDato.reduce((s, c) => s + (c.extrusionMl ?? 0), 0);
+      return {
+        totalMl: mlPorCapsula * r.capsulasTotales,
+        capasIndividuales: capasConDato.length * r.capsulasTotales,
+      };
     })
-    .filter((x): x is { totalMl: number; capsulas: number } => x != null);
+    .filter((x): x is { totalMl: number; capasIndividuales: number } => x != null);
 
   const totalMl = items.reduce((s, x) => s + x.totalMl, 0);
-  const totalCapsulas = items.reduce((s, x) => s + x.capsulas, 0);
+  const totalCapasIndividuales = items.reduce((s, x) => s + x.capasIndividuales, 0);
   const nRecetas = items.length;
   return {
     promedioPorReceta: nRecetas > 0 ? totalMl / nRecetas : 0,
-    promedioPorCapsula: totalCapsulas > 0 ? totalMl / totalCapsulas : 0,
+    promedioPorCapa: totalCapasIndividuales > 0 ? totalMl / totalCapasIndividuales : 0,
     nRecetas,
     excluidos: lista.length - nRecetas,
   };
