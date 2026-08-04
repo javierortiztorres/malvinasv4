@@ -548,6 +548,11 @@ export default function Estadistica({
 
       return {
         capsulas,
+        recetas: lista.length,
+        // Cápsulas por receta (B-19.9): mismo total de cápsulas de arriba
+        // ÷ cantidad de recetas del período — misma convención que "capsulas"
+        // (capsulasTotales ?? 0, sin excluir recetas sin dato guardado).
+        promedioCapsulasPorReceta: lista.length > 0 ? capsulas / lista.length : 0,
         pacientes: pacientes.size,
         // Recetas repetidas por paciente (B-19.7): pacientes con más de una
         // receta EN EL PERÍODO elegido — no en todo el histórico, para que
@@ -706,8 +711,13 @@ export default function Estadistica({
           <SelectorVista vista={vistaProduccion} onChange={setVistaProduccion} />
         </div>
         {vistaProduccion === 'tabla' ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <Tile label="Cápsulas producidas" valor={aPT.capsulas} cmp={hayPeriodoAnterior ? delta(aPT.capsulas, pPT.capsulas) : null} />
+            <Tile
+              label="Cápsulas por receta (prom.)"
+              valor={aPT.recetas > 0 ? aPT.promedioCapsulasPorReceta.toFixed(1) : '—'}
+              cmp={hayPeriodoAnterior && pPT.recetas > 0 ? delta(aPT.promedioCapsulasPorReceta, pPT.promedioCapsulasPorReceta) : null}
+            />
             <Tile label="Jeringas de 10" valor={aPI.jeringas10} cmp={hayPeriodoAnterior ? delta(aPI.jeringas10, pPI.jeringas10) : null} />
             <Tile label="Jeringas de 60" valor={aPI.jeringas60} cmp={hayPeriodoAnterior ? delta(aPI.jeringas60, pPI.jeringas60) : null} />
             <Tile label="mL de PI producidos" valor={Number(aPI.ml.toFixed(1))} cmp={hayPeriodoAnterior ? delta(aPI.ml, pPI.ml) : null} />
@@ -719,6 +729,7 @@ export default function Estadistica({
                 hayAnterior={hayPeriodoAnterior}
                 metricas={[
                   { label: 'Cápsulas producidas', actual: aPT.capsulas, anterior: pPT.capsulas },
+                  { label: 'Cápsulas por receta (prom.)', actual: Number(aPT.promedioCapsulasPorReceta.toFixed(1)), anterior: Number(pPT.promedioCapsulasPorReceta.toFixed(1)) },
                   { label: 'Jeringas de 10', actual: aPI.jeringas10, anterior: pPI.jeringas10 },
                   { label: 'Jeringas de 60', actual: aPI.jeringas60, anterior: pPI.jeringas60 },
                   { label: 'mL de PI producidos', actual: Number(aPI.ml.toFixed(1)), anterior: Number(pPI.ml.toFixed(1)) },
