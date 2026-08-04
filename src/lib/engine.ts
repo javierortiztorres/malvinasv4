@@ -407,13 +407,20 @@ export function poeDesdeLote(lote: string | null | undefined): string {
   return i > 0 ? lote.slice(0, i).trim() : '';
 }
 
-// ---------- Estadística: extrusión y activo por cápsula (B-19.6) ----------
+// ---------- Estadística: extrusión por cápsula (B-19.6) ----------
 // extrusionMl (guardado por capa, calculado para el documento) YA es el
 // volumen POR CÁPSULA con la división aplicada — no existe en el esquema
 // un campo de "cantidad de extrusiones" (conteo de eventos), se investigó
 // antes de tocar nada. Los registros sin ese dato guardado (recetas viejas
 // de antes de que se empezara a guardar, o capas sin datos suficientes
 // para calcularlo) se EXCLUYEN del promedio, nunca se cuentan como 0.
+//
+// B-19.6.1: se sacó "activo (g) por cápsula" (promedio/máximo/mínimo) de
+// este bloque — cada receta trae una dosis de activo prescripta a medida
+// por el médico, distinta por paciente a propósito. Promediar o buscar el
+// máx/mín de esa dosis entre pacientes distintos mezclaba números no
+// comparables entre sí: no era una señal de calidad de proceso ni de
+// negocio, era ruido estadístico.
 
 export type EstadisticaExtrusion = {
   promedioPorReceta: number; // mL totales del registro ÷ recetas con dato
@@ -443,47 +450,26 @@ export function calcularExtrusionPeriodo(lista: Registro[]): EstadisticaExtrusio
   };
 }
 
-// Activo (g) por cápsula de UN registro: tinta(g) = volumen(mL) × IP;
-// activo(g) = tinta(g) × concentración (regla de oro del dominio, sumada
-// sobre todas las capas de la cápsula). Usa el extrusionMl YA GUARDADO por
-// capa en vez de recalcular desde la dosis, para respetar ediciones
-// manuales del operador sobre el volumen.
-export function activoPorCapsulaG(r: Registro): number | null {
-  const validas = (r.capas ?? []).filter(
-    (c) => c.extrusionMl != null && c.ip != null && c.concentracion != null
-  );
-  if (validas.length === 0) return null;
-  return validas.reduce((s, c) => s + c.extrusionMl! * c.ip! * c.concentracion!, 0);
-}
+// ---------- Estadística: capas por cápsula (B-19.7) ----------
+// Cada capa = un activo distinto (hoy no existen tintas combinadas en una
+// misma capa — eso es B-61, a futuro). Mismo criterio que la extrusión:
+// si el registro no tiene el dato de capas guardado (capas.length === 0,
+// típico de recetas viejas), se EXCLUYE del promedio, nunca cuenta como 0.
 
-export type RegistroActivoExtremo = {
-  registroId: number;
-  tituloFormula: string;
-  paciente: string;
-  g: number;
-};
-
-export type EstadisticaActivo = {
+export type EstadisticaCapas = {
+  promedio: number; // cantidad promedio de capas por cápsula, entre recetas con dato
   n: number; // recetas con dato, incluidas en el promedio
-  promedio: number;
-  max: RegistroActivoExtremo | null;
-  min: RegistroActivoExtremo | null;
-  excluidos: number; // recetas del período sin dato para calcularlo
+  excluidos: number; // recetas del período sin capas guardadas
 };
 
-export function calcularActivoPeriodo(lista: Registro[]): EstadisticaActivo {
-  const items: RegistroActivoExtremo[] = lista
-    .map((r) => {
-      const g = activoPorCapsulaG(r);
-      return g == null ? null : { registroId: r.id, tituloFormula: r.tituloFormula, paciente: r.paciente, g };
-    })
-    .filter((x): x is RegistroActivoExtremo => x != null);
+export function calcularCapasPromedioPeriodo(lista: Registro[]): EstadisticaCapas {
+  const items = lista
+    .map((r) => ((r.capas ?? []).length > 0 ? r.capas.length : null))
+    .filter((x): x is number => x != null);
 
   const n = items.length;
-  const promedio = n > 0 ? items.reduce((s, x) => s + x.g, 0) / n : 0;
-  const max = n > 0 ? items.reduce((a, b) => (b.g > a.g ? b : a)) : null;
-  const min = n > 0 ? items.reduce((a, b) => (b.g < a.g ? b : a)) : null;
-  return { n, promedio, max, min, excluidos: lista.length - n };
+  const promedio = n > 0 ? items.reduce((s, x) => s + x, 0) / n : 0;
+  return { promedio, n, excluidos: lista.length - n };
 }
 
 // ---------- Formato ----------

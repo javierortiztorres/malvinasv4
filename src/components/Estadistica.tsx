@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import type { Registro, RegistroPi } from '@/db/schema';
 import { hoyISO, fechaProduccion } from '@/lib/utils';
-import { limpiarNombreTinta, fmtMl, fmtG, calcularExtrusionPeriodo, calcularActivoPeriodo } from '@/lib/engine';
+import { limpiarNombreTinta, fmtMl, calcularExtrusionPeriodo, calcularCapasPromedioPeriodo } from '@/lib/engine';
 
 // =====================================================================
 // 📊 ESTADÍSTICA — números completos del admin, SOLO "producido"
@@ -440,24 +440,6 @@ function MedidorDestacado({
   );
 }
 
-// Tarjeta destacada para la receta con el valor máximo/mínimo de una
-// métrica (activo por cápsula, B-19.6) — mismo estilo que la tarjeta de
-// "⭐ Cápsula estrella" del ranking, con acento Tussok para el máximo.
-function CardExtremo({
-  titulo, nombre, paciente, valor, acento,
-}: {
-  titulo: string; nombre: string; paciente: string; valor: string; acento: boolean;
-}) {
-  return (
-    <div className={`card p-3 ${acento ? 'border-2 border-tussok' : ''}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-niebla">{titulo}</p>
-      <p className="truncate text-sm font-black uppercase text-turba" title={nombre}>{nombre}</p>
-      {paciente && <p className="truncate text-xs text-niebla" title={paciente}>Paciente: {paciente}</p>}
-      <p className="text-xl font-black text-profundo">{valor}</p>
-    </div>
-  );
-}
-
 // Selector Tabla/Gráfico: misma vista, otra forma — nunca reemplaza la
 // tabla/tarjeta original (B-19.3).
 function SelectorVista({ vista, onChange }: { vista: 'tabla' | 'grafico'; onChange: (v: 'tabla' | 'grafico') => void }) {
@@ -523,6 +505,7 @@ export default function Estadistica({
     function calcular(lista: Registro[]) {
       let capsulas = 0;
       const pacientes = new Set<string>();
+      const recetasPorPaciente = new Map<string, number>();
       const activos = new Map<string, { nombre: string; mg: number; capsulas: number }>();
       const formulas = new Map<string, { nombre: string; capsulas: number; lotes: number }>();
       const medicos = new Map<string, { nombre: string; recetas: number; capsulas: number }>();
@@ -531,7 +514,11 @@ export default function Estadistica({
       for (const r of lista) {
         const caps = r.capsulasTotales ?? 0;
         capsulas += caps;
-        if (r.paciente.trim()) pacientes.add(normalizarNombre(r.paciente));
+        if (r.paciente.trim()) {
+          const clavePaciente = normalizarNombre(r.paciente);
+          pacientes.add(clavePaciente);
+          recetasPorPaciente.set(clavePaciente, (recetasPorPaciente.get(clavePaciente) ?? 0) + 1);
+        }
 
         const nombresVistos = new Set<string>();
         for (const c of r.capas ?? []) {
@@ -562,6 +549,11 @@ export default function Estadistica({
       return {
         capsulas,
         pacientes: pacientes.size,
+        // Recetas repetidas por paciente (B-19.7): pacientes con más de una
+        // receta EN EL PERÍODO elegido — no en todo el histórico, para que
+        // respete el mismo filtro de período que el resto de Estadística y
+        // se recalcule al navegar entre meses/rangos, como toda esta sección.
+        pacientesConRecetaRepetida: Array.from(recetasPorPaciente.values()).filter((n) => n > 1).length,
         activos: Array.from(activos.values()).sort((a, b) => b.mg - a.mg),
         formulas: Array.from(formulas.values()).sort((a, b) => b.capsulas - a.capsulas),
         medicos: Array.from(medicos.values()).sort((a, b) => b.recetas - a.recetas),
@@ -607,12 +599,17 @@ export default function Estadistica({
     return { actual: calcular(ptPeriodo), previo: calcular(ptPrevio) };
   }, [ptPeriodo, ptPrevio]);
 
-  // ---------------- Extrusión y activo por cápsula (B-19.6) ----------------
+  // ---------------- Extrusión por cápsula (B-19.6) ----------------
   const statsExtrusion = useMemo(
     () => ({ actual: calcularExtrusionPeriodo(ptPeriodo), previo: calcularExtrusionPeriodo(ptPrevio) }),
     [ptPeriodo, ptPrevio]
   );
-  const statsActivo = useMemo(() => calcularActivoPeriodo(ptPeriodo), [ptPeriodo]);
+
+  // ---------------- Capas por cápsula (B-19.7) ----------------
+  const statsCapas = useMemo(
+    () => ({ actual: calcularCapasPromedioPeriodo(ptPeriodo), previo: calcularCapasPromedioPeriodo(ptPrevio) }),
+    [ptPeriodo, ptPrevio]
+  );
 
   // ---------------- Evolución mes a mes ----------------
   const mesesEvolucion = useMemo(() => {
@@ -745,11 +742,16 @@ export default function Estadistica({
           <SelectorVista vista={vistaPacientes} onChange={setVistaPacientes} />
         </div>
         {vistaPacientes === 'tabla' ? (
-          <div className="max-w-[200px]">
+          <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
             <Tile label="Pacientes atendidos" valor={aPT.pacientes} cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null} />
+            <Tile
+              label="Con receta repetida"
+              valor={aPT.pacientesConRecetaRepetida}
+              cmp={hayPeriodoAnterior ? delta(aPT.pacientesConRecetaRepetida, pPT.pacientesConRecetaRepetida) : null}
+            />
           </div>
         ) : (
-          <div className="max-w-sm">
+          <div className="grid gap-4 sm:grid-cols-2">
             <MedidorDestacado
               label="Pacientes atendidos"
               valor={aPT.pacientes}
@@ -757,8 +759,19 @@ export default function Estadistica({
               hayAnterior={hayPeriodoAnterior}
               cmp={hayPeriodoAnterior ? delta(aPT.pacientes, pPT.pacientes) : null}
             />
+            <MedidorDestacado
+              label="Con receta repetida"
+              valor={aPT.pacientesConRecetaRepetida}
+              anterior={pPT.pacientesConRecetaRepetida}
+              hayAnterior={hayPeriodoAnterior}
+              cmp={hayPeriodoAnterior ? delta(aPT.pacientesConRecetaRepetida, pPT.pacientesConRecetaRepetida) : null}
+            />
           </div>
         )}
+        <p className="mt-2 text-xs text-niebla">
+          &quot;Con receta repetida&quot; (B-19.7): pacientes con más de una receta terminada dentro de{' '}
+          {tituloPeriodo} — señal de retención/continuidad de tratamiento.
+        </p>
       </section>
 
       {/* ================= Ranking ================= */}
@@ -836,23 +849,25 @@ export default function Estadistica({
         )}
       </section>
 
-      {/* ================= Extrusión y activo por cápsula (B-19.6) ================= */}
+      {/* ================= Extrusión, capas y diversidad de activos (B-19.6 / B-19.6.1 / B-19.7) ================= */}
       <section className="border-t border-linea pt-6">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="section-title mb-0">💉 Extrusión y activo por cápsula</h2>
+          <h2 className="section-title mb-0">💉 Extrusión y capas por cápsula</h2>
           <SelectorVista vista={vistaExtrusion} onChange={setVistaExtrusion} />
         </div>
         <p className="mb-3 text-xs text-niebla">
-          Volumen de tinta extruido y masa de activo entregada por cápsula, calculados a partir de la
-          extrusión (mL) ya guardada por capa. Recetas sin ese dato guardado (por ejemplo, anteriores a
-          que se empezara a registrar) se excluyen del promedio — no se cuentan como 0.
+          Volumen de tinta extruido y cantidad de capas (activos distintos) por cápsula, calculados a
+          partir de los datos ya guardados por capa. Recetas sin ese dato guardado (por ejemplo,
+          anteriores a que se empezara a registrar) se excluyen del promedio — no se cuentan como 0.
+          (B-19.6.1: se sacó el activo en gramos por cápsula de este bloque — mezclaba dosis prescriptas
+          a medida por el médico para pacientes distintos, no comparables entre sí.)
         </p>
-        {statsExtrusion.actual.nRecetas === 0 && statsActivo.n === 0 ? (
-          <div className="card p-6 text-center text-niebla">Sin datos de extrusión/activo medibles en {tituloPeriodo}.</div>
+        {statsExtrusion.actual.nRecetas === 0 && statsCapas.actual.n === 0 && aPT.activos.length === 0 ? (
+          <div className="card p-6 text-center text-niebla">Sin datos de extrusión/capas medibles en {tituloPeriodo}.</div>
         ) : (
           <>
             {vistaExtrusion === 'tabla' ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 <Tile
                   label="Extrusión prom. por receta"
                   valor={fmtMl(statsExtrusion.actual.promedioPorReceta, 2)}
@@ -863,11 +878,20 @@ export default function Estadistica({
                   valor={fmtMl(statsExtrusion.actual.promedioPorCapsula, 3)}
                   cmp={hayPeriodoAnterior && statsExtrusion.previo.nRecetas > 0 ? delta(statsExtrusion.actual.promedioPorCapsula, statsExtrusion.previo.promedioPorCapsula) : null}
                 />
-                <Tile label="Activo prom. por cápsula" valor={fmtG(statsActivo.promedio, 3)} cmp={null} />
+                <Tile
+                  label="Prom. capas por cápsula"
+                  valor={statsCapas.actual.n > 0 ? statsCapas.actual.promedio.toFixed(1) : '—'}
+                  cmp={hayPeriodoAnterior && statsCapas.previo.n > 0 ? delta(statsCapas.actual.promedio, statsCapas.previo.promedio) : null}
+                />
+                <Tile
+                  label="Activos distintos formulados"
+                  valor={aPT.activos.length}
+                  cmp={hayPeriodoAnterior ? delta(aPT.activos.length, pPT.activos.length) : null}
+                />
                 <Tile label="Recetas con dato" valor={statsExtrusion.actual.nRecetas} cmp={null} />
               </div>
             ) : (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-3">
                 <MedidorDestacado
                   label="Extrusión prom. por cápsula"
                   valor={statsExtrusion.actual.promedioPorCapsula}
@@ -877,36 +901,20 @@ export default function Estadistica({
                   formato={(v) => fmtMl(v, 3)}
                 />
                 <MedidorDestacado
-                  label="Activo prom. por cápsula"
-                  valor={statsActivo.promedio}
-                  anterior={0}
-                  hayAnterior={false}
-                  cmp={null}
-                  formato={(v) => fmtG(v, 3)}
+                  label="Prom. capas por cápsula"
+                  valor={statsCapas.actual.promedio}
+                  anterior={statsCapas.previo.promedio}
+                  hayAnterior={hayPeriodoAnterior && statsCapas.previo.n > 0}
+                  cmp={hayPeriodoAnterior && statsCapas.previo.n > 0 ? delta(statsCapas.actual.promedio, statsCapas.previo.promedio) : null}
+                  formato={(v) => v.toFixed(1)}
                 />
-              </div>
-            )}
-
-            {(statsActivo.max || statsActivo.min) && (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {statsActivo.max && (
-                  <CardExtremo
-                    titulo="🔺 Máximo activo por cápsula"
-                    nombre={statsActivo.max.tituloFormula.trim() || 'Sin fórmula'}
-                    paciente={statsActivo.max.paciente}
-                    valor={fmtG(statsActivo.max.g, 3)}
-                    acento
-                  />
-                )}
-                {statsActivo.min && statsActivo.min.registroId !== statsActivo.max?.registroId && (
-                  <CardExtremo
-                    titulo="🔻 Mínimo activo por cápsula"
-                    nombre={statsActivo.min.tituloFormula.trim() || 'Sin fórmula'}
-                    paciente={statsActivo.min.paciente}
-                    valor={fmtG(statsActivo.min.g, 3)}
-                    acento={false}
-                  />
-                )}
+                <MedidorDestacado
+                  label="Activos distintos formulados"
+                  valor={aPT.activos.length}
+                  anterior={pPT.activos.length}
+                  hayAnterior={hayPeriodoAnterior}
+                  cmp={hayPeriodoAnterior ? delta(aPT.activos.length, pPT.activos.length) : null}
+                />
               </div>
             )}
           </>
@@ -916,9 +924,9 @@ export default function Estadistica({
             + {statsExtrusion.actual.excluidos} receta{statsExtrusion.actual.excluidos === 1 ? '' : 's'} sin dato de extrusión guardado, excluida{statsExtrusion.actual.excluidos === 1 ? '' : 's'} del promedio de extrusión.
           </p>
         )}
-        {statsActivo.excluidos > 0 && statsActivo.excluidos !== statsExtrusion.actual.excluidos && (
+        {statsCapas.actual.excluidos > 0 && (
           <p className="mt-1 text-xs text-niebla">
-            + {statsActivo.excluidos} receta{statsActivo.excluidos === 1 ? '' : 's'} sin dato para calcular el activo por cápsula, excluida{statsActivo.excluidos === 1 ? '' : 's'} de ese promedio.
+            + {statsCapas.actual.excluidos} receta{statsCapas.actual.excluidos === 1 ? '' : 's'} sin dato de capas guardado, excluida{statsCapas.actual.excluidos === 1 ? '' : 's'} del promedio de capas.
           </p>
         )}
       </section>

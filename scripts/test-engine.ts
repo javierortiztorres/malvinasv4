@@ -5,7 +5,7 @@ import {
   autoUbicarCapas, capaDesdeTinta, dosisEnMgParaTinta, tintasParaActivo,
   calcularCapsula, pesadasPI, poeDesdeLote, limpiarNombreTinta,
   activoConMerma, MERMA_PI,
-  calcularExtrusionPeriodo, activoPorCapsulaG, calcularActivoPeriodo,
+  calcularExtrusionPeriodo, calcularCapasPromedioPeriodo,
 } from '../src/lib/engine';
 import { fechaAR, fechaHoraAR, coincideFiltro, diasHasta } from '../src/lib/utils';
 
@@ -197,7 +197,7 @@ check('merma: 15 g → 21,75 g (sin +0,01 fantasma)', activoConMerma(15) === 21.
 // La necesidad de activo sale de la tinta: 39 g de tinta al 50% = 19,5 g de activo
 check('necesidades: activo = tinta × concentración', Math.abs(39 * 0.5 - 19.5) < 1e-9);
 
-// ---------- v2.0.32: extrusión y activo por cápsula en Estadística (B-19.6) ----------
+// ---------- v2.0.32/2.0.33: extrusión y capas por cápsula en Estadística (B-19.6 / B-19.6.1 / B-19.7) ----------
 const BASE_REGISTRO: Registro = {
   id: 1, estado: 'terminado', grupoPaciente: '', tituloFormula: 'Fórmula base',
   paciente: 'Paciente base', dni: '', medico: '', matricula: '', fechaReceta: '',
@@ -235,26 +235,16 @@ const Capa = (p: Partial<CapaTinta>): CapaTinta => ({ ...CAPA_BASE, ...p });
   check('extrusión: 2 excluidas (sin capas con dato / sin cápsulas), no cuentan como 0', res.excluidos === 2);
 }
 
-// activoPorCapsulaG: activo(g) = extrusión(mL) × IP × concentración, sumado por capa
+// calcularCapasPromedioPeriodo (B-19.7): 2 recetas con dato + 1 sin dato (excluida, no cuenta como 0)
 {
-  const g = activoPorCapsulaG(Reg({ capas: [
-    Capa({ extrusionMl: 0.139, ip: 0.9, concentracion: 0.5 }), // 0.139×0.9×0.5 = 0,06255
-    Capa({ ref: 2, extrusionMl: 0.05, ip: 1.028, concentracion: 0.2 }), // 0.05×1.028×0.2 = 0,01028
-  ] }));
-  check('activo por cápsula: suma de capas = 0,07283 g', Math.abs((g ?? 0) - 0.07283) < 1e-9, `=${g}`);
-  check('activo por cápsula: sin capas con dato → null (no 0)', activoPorCapsulaG(Reg({ capas: [Capa({ extrusionMl: null })] })) === null);
-}
-
-// calcularActivoPeriodo: promedio simple por receta + receta de máximo y de mínimo
-{
-  const rA = Reg({ id: 10, tituloFormula: 'Fórmula A', paciente: 'Juan', capas: [Capa({ extrusionMl: 0.2, ip: 1, concentracion: 0.5 })] }); // 0.1 g
-  const rB = Reg({ id: 20, tituloFormula: 'Fórmula B', paciente: 'Ana', capas: [Capa({ extrusionMl: 1, ip: 1, concentracion: 0.5 })] }); // 0.5 g
-  const rC = Reg({ id: 30, tituloFormula: 'Fórmula C', paciente: 'Sin dato', capas: [] }); // sin capas → excluida
-  const res = calcularActivoPeriodo([rA, rB, rC]);
-  check('activo período: promedio = 0,3 g ((0,1+0,5)/2)', Math.abs(res.promedio - 0.3) < 1e-9, `=${res.promedio}`);
-  check('activo período: máximo es Fórmula B (0,5 g)', res.max?.tituloFormula === 'Fórmula B' && Math.abs(res.max.g - 0.5) < 1e-9);
-  check('activo período: mínimo es Fórmula A (0,1 g)', res.min?.tituloFormula === 'Fórmula A' && Math.abs(res.min.g - 0.1) < 1e-9);
-  check('activo período: 2 recetas con dato, 1 excluida', res.n === 2 && res.excluidos === 1);
+  const r1 = Reg({ id: 1, capas: [Capa({ ref: 1 }), Capa({ ref: 2 }), Capa({ ref: 3 })] }); // 3 capas
+  const r2 = Reg({ id: 2, capas: [Capa({ ref: 1 }), Capa({ ref: 2 })] }); // 2 capas
+  const r3 = Reg({ id: 3, capas: [] }); // sin capas guardadas → excluida
+  const res = calcularCapasPromedioPeriodo([r1, r2, r3]);
+  // Contraste manual: (3 + 2) / 2 recetas con dato = 2,5 capas/cápsula
+  check('capas: promedio = 2,5 ((3+2)/2 recetas con dato)', Math.abs(res.promedio - 2.5) < 1e-9, `=${res.promedio}`);
+  check('capas: 2 recetas con dato', res.n === 2);
+  check('capas: 1 excluida (sin capas guardadas), no cuenta como 0', res.excluidos === 1);
 }
 
 console.log(fallas === 0 ? '\n✅ TODOS LOS TESTS PASAN' : `\n❌ ${fallas} tests fallaron`);
