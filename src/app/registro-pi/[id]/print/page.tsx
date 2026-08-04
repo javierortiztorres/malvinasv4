@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { registrosPi } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { FARMACIA } from '@/lib/config';
-import { fechaAR, fechaHoraAR, formatoLotePI } from '@/lib/utils';
+import { fechaAR, fechaHoraAR, formatoLotePI, fmtPctOpcional } from '@/lib/utils';
 import BotonImprimir from '@/components/BotonImprimir';
 
 export const dynamic = 'force-dynamic';
@@ -11,8 +11,25 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
   const [r] = await db.select().from(registrosPi).where(eq(registrosPi.id, Number(params.id)));
   if (!r) return <p className="p-8">Registro no encontrado.</p>;
 
+  // Malaxado: campo nuevo dentro del jsonb `proceso` (opcional) — los PI
+  // históricos no lo tienen, la fila queda en blanco para completar a mano.
+  const pctConcentracion = fmtPctOpcional(r.concentracion);
+  const nombreProductoConPct = pctConcentracion ? `${r.nombreProducto} ${pctConcentracion}` : r.nombreProducto;
+
+  const MALAXADO_LABELS: Record<string, string> = { tinta: 'Tinta', polvo: 'Polvo', ambos: 'Tinta y polvo' };
+  const malaxadoTipoLabel = r.proceso.malaxadoTipo ? MALAXADO_LABELS[r.proceso.malaxadoTipo] : null;
+  const malaxadoMin = r.proceso.malaxadoTiempoMin;
+  const malaxadoValor =
+    malaxadoTipoLabel != null && malaxadoMin != null
+      ? `${malaxadoTipoLabel} — ${malaxadoMin} min`
+      : malaxadoTipoLabel != null
+        ? malaxadoTipoLabel
+        : malaxadoMin != null
+          ? `${malaxadoMin} min`
+          : '';
+
   return (
-    <div className="mx-auto max-w-[820px] bg-white p-10 text-[13px] leading-relaxed text-black">
+    <div className="doc-impresion mx-auto max-w-[820px] bg-white p-10 text-[13px] leading-relaxed text-black">
       <BotonImprimir />
 
       <header className="mb-6 text-center">
@@ -21,7 +38,7 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
       </header>
 
       <div className="space-y-1">
-        <p><b>NOMBRE DEL PRODUCTO:</b> {r.nombreProducto}</p>
+        <p><b>NOMBRE DEL PRODUCTO:</b> {nombreProductoConPct}</p>
         <p><b>LOTE:</b> {formatoLotePI(r.poe, r.loteNumero)}</p>
         <p><b>CANTIDAD DE UNIDADES INDIVIDUALES A PRODUCIR:</b> {r.jeringas} jeringas plásticas de {r.volumenJeringaMl} ml</p>
         <p><b>MASA O VOLUMEN DE LAS UNIDADES INDIVIDUALES:</b> {r.volumenJeringaMl} ml</p>
@@ -102,6 +119,12 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
                 <td className="border border-black p-1">{unidad === '' ? '-' : unidad}</td>
               </tr>
             ))}
+            <tr>
+              <td className="border border-black p-1 text-left font-bold">MALAXADO</td>
+              <td className="border border-black p-1" colSpan={2}>
+                {malaxadoValor || <>&nbsp;</>}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -163,10 +186,18 @@ export default async function PrintRegistroPI({ params }: { params: { id: string
 
       <p className="mt-4"><b>FECHA DE VENCIMIENTO ESTIMADA:</b> {fechaAR(r.fechaVto)}</p>
 
-      <div className="mt-10 w-64">
-        <div className="border-t border-black pt-1">
-          <p className="font-bold">FIRMA DEL OPERADOR</p>
-          <p>{r.operador}</p>
+      <div className="mt-10 grid grid-cols-2 gap-8 break-inside-avoid">
+        <div>
+          <div className="border-t border-black pt-1">
+            <p className="font-bold">ELABORÓ</p>
+            <p>{r.operador}</p>
+          </div>
+        </div>
+        <div>
+          <div className="border-t border-black pt-1">
+            <p className="font-bold">CONTROLÓ (DT)</p>
+            <p>{r.supervisor}</p>
+          </div>
         </div>
       </div>
     </div>

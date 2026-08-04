@@ -10,6 +10,12 @@ export function middleware(req: NextRequest) {
   ) {
     return NextResponse.next();
   }
+  if (!process.env.APP_PASSWORD) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
   const cookie = req.cookies.get('badra_auth')?.value;
   if (cookie === process.env.APP_PASSWORD) return NextResponse.next();
   if (pathname.startsWith('/api/')) {

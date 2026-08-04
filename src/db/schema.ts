@@ -7,7 +7,9 @@ import {
   boolean,
   jsonb,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ---------- Tipos JSON embebidos ----------
 
@@ -58,6 +60,13 @@ export type DatosProceso = {
   tiempoMezclado: string;
   tiempoReposo: string;
   otros: string;
+};
+
+// Proceso de un lote de PI: además de DatosProceso, el malaxado (qué se
+// malaxa y cuánto tiempo) es específico de PI — no existe en PT.
+export type DatosProcesoPi = DatosProceso & {
+  malaxadoTipo?: 'tinta' | 'polvo' | 'ambos';
+  malaxadoTiempoMin?: number;
 };
 
 export type Controles = {
@@ -173,7 +182,14 @@ export const registros = pgTable('registros', {
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  // Ya aplicado a mano en Neon (migración fuera de este repo). Declarativo:
+  // documenta el índice para que el esquema de Drizzle refleje la realidad
+  // de la base. Es quien garantiza la unicidad del lote ante carreras.
+  uxLote: uniqueIndex('ux_registros_lote')
+    .on(table.lotePrefijo, table.loteNumero)
+    .where(sql`${table.loteNumero} IS NOT NULL`),
+}));
 
 // Registros de PRODUCTO INTERMEDIO (lotes de tinta)
 export const registrosPi = pgTable('registros_pi', {
@@ -194,7 +210,7 @@ export const registrosPi = pgTable('registros_pi', {
   materiasPrimas: jsonb('materias_primas').$type<MateriaPrima[]>().notNull().default([]),
 
   proceso: jsonb('proceso')
-    .$type<DatosProceso>()
+    .$type<DatosProcesoPi>()
     .notNull()
     .default({ temperatura: '70', tiempoMezclado: '5', tiempoReposo: '', otros: '' }),
   controles: jsonb('controles')
@@ -207,13 +223,21 @@ export const registrosPi = pgTable('registros_pi', {
   fechaHoraInicio: text('fecha_hora_inicio').notNull().default(''),
   fechaHoraFin: text('fecha_hora_fin').notNull().default(''),
   operador: text('operador').notNull().default(''),
+  supervisor: text('supervisor'),
 
   fechaElab: text('fecha_elab').notNull().default(''),
   fechaVto: text('fecha_vto').notNull().default(''),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  // Ya aplicado a mano en Neon (migración v4-B06, fuera de este repo).
+  // Declarativo: documenta el índice que garantiza la unicidad del lote de
+  // PI por tinta ante creaciones simultáneas.
+  uxLote: uniqueIndex('ux_registros_pi_lote')
+    .on(table.tintaId, table.loteNumero)
+    .where(sql`${table.loteNumero} IS NOT NULL`),
+}));
 
 export const excipientesRotulo = pgTable('excipientes', {
   id: serial('id').primaryKey(),

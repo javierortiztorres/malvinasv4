@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Registro } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import { colorDeGrupo } from '@/lib/colors';
@@ -18,25 +18,45 @@ export default function EnProceso({
   onCambio,
   onActualizado,
   enProduccion,
+  focoInicialId,
+  onFocoConsumido,
 }: {
   registros: Registro[];
   catalogos: Catalogos;
   onCambio: () => void;
   onActualizado: (r: Registro) => void;
   enProduccion: boolean;
+  // Foco pedido desde afuera (ej. click en un evento de la Agenda): se
+  // aplica una sola vez y se avisa al padre para que no se re-dispare.
+  focoInicialId?: number | null;
+  onFocoConsumido?: () => void;
 }) {
   const [abiertoId, setAbiertoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState('');
 
+  useEffect(() => {
+    if (focoInicialId == null) return;
+    if (!registros.some((r) => r.id === focoInicialId)) return;
+    setAbiertoId(focoInicialId);
+    onFocoConsumido?.();
+  }, [focoInicialId, registros, onFocoConsumido]);
+  // Si el navegador bloquea el popup al terminar un PT, la tarjeta ya
+  // volvió a la lista (modo foco se cierra) cuando llega la respuesta: el
+  // aviso vive acá arriba, no en RegistroEditor, para no perderse.
+  const [avisoDoc, setAvisoDoc] = useState<string | null>(null);
+
   // Pasa el registro a la otra solapa (Pendientes ↔ En producción)
   async function mover(r: Registro) {
-    const next = { ...r, enProduccion: !r.enProduccion, updatedAt: new Date() } as Registro;
+    const enProduccion = !r.enProduccion;
+    const next = { ...r, enProduccion, updatedAt: new Date() } as Registro;
     onActualizado(next); // cambio de solapa instantáneo
     try {
+      // Solo el patch, no la fila entera: si el editor tenía cambios sin
+      // sincronizar, un PUT con la fila completa los pisaría.
       const res = await fetch(`/api/registros/${r.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next),
+        body: JSON.stringify({ enProduccion }),
       });
       if (!res.ok) throw new Error();
     } catch {
@@ -45,12 +65,14 @@ export default function EnProceso({
     }
   }
 
-  const visibles = registros.filter((r) =>
-    coincideFiltro(
-      filtro,
-      r.paciente, r.medico, r.tituloFormula, r.indicacion,
-      formatoLote(r.lotePrefijo, r.loteNumero),
-      (r.formula ?? []).map((a) => a.activo).join(' ')
+  const visibles = ordenarPorDeadline(
+    registros.filter((r) =>
+      coincideFiltro(
+        filtro,
+        r.paciente, r.medico, r.tituloFormula, r.indicacion,
+        formatoLote(r.lotePrefijo, r.loteNumero),
+        (r.formula ?? []).map((a) => a.activo).join(' ')
+      )
     )
   );
 
@@ -114,6 +136,7 @@ export default function EnProceso({
             colorPaciente={color}
             onCambio={onCambio}
             onActualizado={onActualizado}
+            onPopupBloqueado={setAvisoDoc}
           />
         </div>
       </div>
@@ -125,6 +148,22 @@ export default function EnProceso({
     <div className="space-y-3">
       <input className="input max-w-md" placeholder="🔍 Buscar por paciente, médico, lote, activo…"
         value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+
+      {avisoDoc && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-l-4 border-l-amber-500 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">
+            ⚠ El navegador bloqueó la pestaña del documento del PT recién terminado.
+          </p>
+          <div className="flex items-center gap-2">
+            <a className="btn-primary" href={avisoDoc} target="_blank" rel="noopener"
+              onClick={() => setAvisoDoc(null)}>
+              📄 Abrir documento
+            </a>
+            <button className="btn-ghost" onClick={() => setAvisoDoc(null)}>✕</button>
+          </div>
+        </div>
+      )}
+
       {registros.length === 0 && !filtro && (
         <div className="card p-8 text-center text-slate-500">
           {enProduccion
@@ -162,12 +201,12 @@ export default function EnProceso({
                 {(r.formula ?? []).length > 3 && ` +${r.formula.length - 3}`}
               </p>
               <div className="flex items-center justify-between gap-2 pt-1">
-                <p className="text-xs font-semibold text-teal-700">Abrir en pantalla completa →</p>
+                <p className="text-xs font-semibold text-profundo">Abrir en pantalla completa →</p>
                 <button
                   className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
                     enProduccion
                       ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      : 'bg-teal-600 text-white hover:bg-teal-700'
+                      : 'bg-tussok text-profundo hover:opacity-90'
                   }`}
                   title={enProduccion ? 'Sacar de producción (vuelve a Pendientes)' : 'Pasar a la solapa En producción'}
                   onClick={(e) => { e.stopPropagation(); mover(r); }}>
@@ -181,6 +220,28 @@ export default function EnProceso({
     </div>
     </div>
   );
+}
+
+// Orden de las tarjetas: vencidas arriba de todo, después por proximidad
+// de deadline, sin deadline al final. Desempate estable: lote más viejo
+// primero (loteNumero) y, si no hay o empata, createdAt (siempre presente).
+function ordenarPorDeadline(regs: Registro[]): Registro[] {
+  return [...regs].sort((a, b) => {
+    const da = diasHasta(a.deadline);
+    const db = diasHasta(b.deadline);
+    if (da === null && db === null) return ordenSecundario(a, b);
+    if (da === null) return 1;
+    if (db === null) return -1;
+    if (da !== db) return da - db;
+    return ordenSecundario(a, b);
+  });
+}
+
+function ordenSecundario(a: Registro, b: Registro): number {
+  if (a.loteNumero != null && b.loteNumero != null && a.loteNumero !== b.loteNumero) {
+    return a.loteNumero - b.loteNumero;
+  }
+  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 }
 
 // Semáforo de fecha límite de entrega: rojo ≤3 días (o vencida),

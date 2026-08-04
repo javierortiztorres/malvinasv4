@@ -1,14 +1,18 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Registro, CapaTinta, ActivoFormula } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
-import { dosisPorCapsula, capsulasSugeridas, sumarMeses, hoyISO } from '@/lib/utils';
+import {
+  dosisPorCapsula, capsulasSugeridas, sumarMeses, hoyISO, operadoresPorRol,
+  ROL_OPERADOR_PRODUCE, ROL_OPERADOR_REVISA,
+} from '@/lib/utils';
 import { MESES_VENCIMIENTO } from '@/lib/config';
 import { faltantes } from '@/lib/validation';
 import {
   calcularCapsula, tintasParaActivo, capaDesdeTinta, extrusionCapa,
   autoUbicarCapas, dosisEnMgParaTinta, normUnidad, fmtMl, fmtPct,
 } from '@/lib/engine';
+import { useAutosave } from '@/hooks/useAutosave';
 import ResultadosPanel from './ResultadosPanel';
 
 type Color = { bg: string; border: string; name: string };
@@ -20,80 +24,45 @@ export default function RegistroEditor({
   colorPaciente,
   onCambio,
   onActualizado,
+  onPopupBloqueado,
 }: {
   registro: Registro;
   catalogos: Catalogos;
   colorPaciente: Color;
   onCambio: () => void;
   onActualizado: (r: Registro) => void;
+  onPopupBloqueado?: (url: string) => void;
 }) {
   // ---------------- Estado + persistencia híbrida (local + nube) ----------------
-  const [r, setR] = useState<Registro>(() => {
-    if (typeof window !== 'undefined') {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) {
-        try {
-          const draft = JSON.parse(raw);
-          if (new Date(draft.updatedAt) > new Date(registro.updatedAt)) return draft;
-        } catch {}
-      }
-    }
-    return registro;
+  const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
+    draftKey: DRAFT_KEY,
+    endpoint: (id) => `/api/registros/${id}`,
+    onActualizado,
   });
-  const [sync, setSync] = useState<'ok' | 'guardando' | 'pendiente'>('ok');
   const [errores, setErrores] = useState<string[] | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
-  const rRef = useRef(r);
-  rRef.current = r;
-
-  const sincronizar = useCallback(async (data: Registro) => {
-    setSync('guardando');
-    try {
-      const res = await fetch(`/api/registros/${data.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error();
-      localStorage.removeItem(DRAFT_KEY(data.id));
-      setSync('ok');
-    } catch {
-      setSync('pendiente');
-    }
-  }, []);
-
-  const set = useCallback(
-    (patch: Partial<Registro>) => {
-      const next = { ...rRef.current, ...patch, updatedAt: new Date() } as Registro;
-      rRef.current = next;
-      setR(next);
-      try {
-        localStorage.setItem(DRAFT_KEY(next.id), JSON.stringify(next));
-      } catch {}
-      clearTimeout(timer.current);
-      timer.current = setTimeout(() => sincronizar(next), 700);
-      // Actualiza la lista en memoria del padre: al cambiar de paciente o
-      // de solapa y volver, la tarjeta se re-monta con estos datos y no
-      // con los de la carga inicial de la página.
-      onActualizado(next);
-    },
-    [sincronizar, onActualizado]
-  );
-
-  useEffect(() => {
-    const reintentar = () => {
-      const raw = localStorage.getItem(DRAFT_KEY(registro.id));
-      if (raw) sincronizar(JSON.parse(raw));
-    };
-    window.addEventListener('online', reintentar);
-    return () => window.removeEventListener('online', reintentar);
-  }, [registro.id, sincronizar]);
 
   // ---------------- MOTOR: resultado en vivo ----------------
   const resultado = useMemo(
     () => calcularCapsula(r.capas, { manual: r.capsulasPorTomaManual, capsulasPorToma: r.capsulasPorToma }),
     [r.capas, r.capsulasPorTomaManual, r.capsulasPorToma]
   );
+
+  // Operador/supervisor: lista filtrada por rol (con fallback si el rol
+  // tiene typo en la base), más el valor ya guardado si quedó fuera de la
+  // lista (para no perderlo silenciosamente, sin duplicarlo).
+  const operadoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_PRODUCE);
+    return r.operador && !base.some((o) => o.nombre === r.operador)
+      ? [...base, { id: -1, nombre: r.operador, rol: ROL_OPERADOR_PRODUCE }]
+      : base;
+  }, [catalogos.operadores, r.operador]);
+
+  const supervisoresOpciones = useMemo(() => {
+    const base = operadoresPorRol(catalogos.operadores, ROL_OPERADOR_REVISA);
+    return r.supervisor && !base.some((o) => o.nombre === r.supervisor)
+      ? [...base, { id: -2, nombre: r.supervisor, rol: ROL_OPERADOR_REVISA }]
+      : base;
+  }, [catalogos.operadores, r.supervisor]);
 
   // Aplica cambios en capas recalculando división, ubicación cuerpo/tapa,
   // extrusiones y cápsulas totales
@@ -108,13 +77,33 @@ export default function RegistroEditor({
         ...c,
         extrusionMl: extrusionCapa(c.dosisMg, c.concentracion, c.ip, res.capsulasPorToma),
       }));
-      const sug = capsulasSugeridas(r.dias, res.capsulasPorToma);
+      // El selector manual de "cada N" (cambiarDivision) sigue recalculando
+      // siempre, como hasta ahora. Las ediciones de capa (sin esa key en
+      // extras) solo tocan el total si la edición cambió la división
+      // automática — si no, lo que cargó el operador/la receta queda intacto.
+      const esCambioDeDivisionManual = extras.capsulasPorTomaManual !== undefined;
+      let capsulasTotales = r.capsulasTotales;
+      let aprobadas = r.aprobadas;
+      if (esCambioDeDivisionManual) {
+        const sug = capsulasSugeridas(r.dias, res.capsulasPorToma);
+        capsulasTotales = sug ?? r.capsulasTotales;
+        aprobadas = sug ?? r.aprobadas;
+      } else if (res.capsulasPorToma !== r.capsulasPorToma) {
+        const nuevoTotal = r.dias
+          ? r.dias * res.capsulasPorToma
+          : r.capsulasTotales
+          ? Math.round((r.capsulasTotales / (r.capsulasPorToma || 1)) * res.capsulasPorToma)
+          : r.capsulasTotales;
+        capsulasTotales = nuevoTotal;
+        aprobadas = nuevoTotal;
+      }
+
       set({
         ...extras,
         capas: capasFinal,
         capsulasPorToma: res.capsulasPorToma,
-        capsulasTotales: sug ?? r.capsulasTotales,
-        aprobadas: sug ?? r.aprobadas,
+        capsulasTotales,
+        aprobadas,
       });
     },
     [r, set, catalogos.tintas]
@@ -179,12 +168,19 @@ export default function RegistroEditor({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(r),
     });
+    const data = await res.json();
     if (res.ok) {
       localStorage.removeItem(DRAFT_KEY(r.id));
+      // El número de lote lo asignó el servidor recién ahí — se refleja acá.
+      set({ loteNumero: data.loteNumero, estado: data.estado });
+      const docUrl = `/registro/${r.id}/print`;
+      const ventana = window.open(docUrl, '_blank');
+      if (!ventana) onPopupBloqueado?.(docUrl);
       onCambio();
+    } else if (res.status === 409) {
+      setErrores([data.error ?? 'Ese número de lote ya existe']);
     } else {
-      const data = await res.json();
-      setErrores(data.faltantes ?? ['Error del servidor']);
+      setErrores(data.faltantes ?? [data.error ?? 'Error del servidor']);
     }
   }
 
@@ -213,6 +209,16 @@ export default function RegistroEditor({
           <span>{estadoSync}</span>
           <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar registro</button>
         </div>
+        {sesionVencida && (
+          <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+            ⚠ Sesión vencida — recargá la página y volvé a entrar. Tus cambios quedaron guardados localmente.
+          </p>
+        )}
+        {errorStorage && (
+          <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">
+            ⚠ No se pudo guardar el borrador local (espacio agotado). Cerrá otras pestañas o liberá espacio.
+          </p>
+        )}
 
         {/* ---------- 0 · Esquema de impresión (resumen para el operador) ---------- */}
         <EsquemaImpresion r={r} resultado={resultado} />
@@ -266,7 +272,7 @@ export default function RegistroEditor({
             <thead>
               <tr className="text-left text-xs uppercase text-slate-500">
                 <th className="py-1">Activo</th><th>Dosis</th><th>Unidad</th>
-                <th className="text-teal-700">Por cápsula</th><th></th>
+                <th className="text-profundo">Por cápsula</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -282,7 +288,7 @@ export default function RegistroEditor({
                   <td className="pr-2">
                     <input className="input w-16" value={a.unidad} onChange={(e) => setActivo(i, { unidad: e.target.value })} />
                   </td>
-                  <td className="pr-2 font-semibold text-teal-700">{dosisPorCapsula(a, r.capsulasPorToma)}</td>
+                  <td className="pr-2 font-semibold text-profundo">{dosisPorCapsula(a, r.capsulasPorToma)}</td>
                   <td>
                     <button className="text-red-500" onClick={() => set({ formula: r.formula.filter((_, j) => j !== i) })}>✕</button>
                   </td>
@@ -303,7 +309,7 @@ export default function RegistroEditor({
                 return (
                   <button key={e.id}
                     className={`rounded-full border px-3 py-1 text-sm ${
-                      on ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white'
+                      on ? 'border-profundo bg-profundo text-hueso' : 'border-slate-300 bg-white'
                     }`}
                     onClick={() => toggleExcipiente(e.nombre)}>
                     {on && '✓ '}{e.nombre}
@@ -338,9 +344,9 @@ export default function RegistroEditor({
                     <div className="flex items-center gap-1 pb-1.5">
                       <span className="w-5 text-base font-black">{i + 1}</span>
                       <span className="flex flex-col leading-none">
-                        <button className="text-slate-400 hover:text-teal-700 disabled:opacity-20" disabled={i === 0}
+                        <button className="text-slate-400 hover:text-profundo disabled:opacity-20" disabled={i === 0}
                           onClick={() => moverCapa(i, -1)}>▲</button>
-                        <button className="text-slate-400 hover:text-teal-700 disabled:opacity-20"
+                        <button className="text-slate-400 hover:text-profundo disabled:opacity-20"
                           disabled={i === r.capas.length - 1} onClick={() => moverCapa(i, 1)}>▼</button>
                       </span>
                     </div>
@@ -385,7 +391,7 @@ export default function RegistroEditor({
                       onChange={(e) => setCapa(i, { tinta: e.target.value })} />
                   )}
                   {convAplicada && (
-                    <p className="mt-1 text-[11px] font-medium text-teal-700">
+                    <p className="mt-1 text-[11px] font-medium text-profundo">
                       ✓ Convertido por la tinta: {c.dosisOriginal} {c.unidadOriginal} ×{' '}
                       {tintaSel?.convMgPorUnidad} mg/{tintaSel?.convUnidad} ={' '}
                       <b>{c.dosisMg != null ? Number(c.dosisMg.toFixed(4)) : '—'} mg de materia prima</b>
@@ -417,7 +423,7 @@ export default function RegistroEditor({
                     <div className="w-32">
                       <label className="label">Extrusión/cáps</label>
                       <p className={`rounded-lg border px-2 py-1.5 text-center text-sm font-black ${
-                        calc?.bajoMinimo ? 'border-red-300 bg-red-50 text-red-600' : 'border-teal-200 bg-teal-50 text-teal-700'
+                        calc?.bajoMinimo ? 'border-red-300 bg-red-50 text-red-600' : 'border-profundo/20 bg-profundo/5 text-profundo'
                       }`}>
                         {fmtMl(calc?.extrusion)}
                       </p>
@@ -436,7 +442,7 @@ export default function RegistroEditor({
                       <label className="label">
                         Ubicación{' '}
                         {c.ubicacionManual ? (
-                          <button className="font-bold text-teal-700 hover:underline" title="Volver a ubicación automática (tapa solo si el cuerpo supera 0.9 mL)"
+                          <button className="font-bold text-profundo hover:underline" title="Volver a ubicación automática (tapa solo si el cuerpo supera 0.9 mL)"
                             onClick={() => setCapa(i, { ubicacionManual: false })}>
                             (fijada · ↺ auto)
                           </button>
@@ -518,7 +524,9 @@ export default function RegistroEditor({
             <div>
               <label className="label">Nº de lote (P…)</label>
               <input className="input" type="number" value={r.loteNumero ?? ''}
+                placeholder={r.loteNumero == null ? 'P— (se asigna al terminar)' : undefined}
                 onChange={(e) => set({ loteNumero: Number(e.target.value) || null })} />
+              <p className="mt-0.5 text-xs text-slate-400">Vacío = se asigna solo al terminar</p>
             </div>
             <div>
               <label className="label">Inicio producción</label>
@@ -550,16 +558,13 @@ export default function RegistroEditor({
               <label className="label">Operador (produjo)</label>
               <select className="input" value={r.operador} onChange={(e) => set({ operador: e.target.value })}>
                 <option value="">—</option>
-                {catalogos.operadores.filter((o) => o.rol === 'produce')
-                  .map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
+                {operadoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
               </select>
             </div>
             <div>
               <label className="label">Supervisor (revisó)</label>
               <select className="input" value={r.supervisor} onChange={(e) => set({ supervisor: e.target.value })}>
-                {catalogos.operadores.filter((o) => o.rol === 'revisa')
-                  .map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
-                <option value={r.supervisor}>{r.supervisor}</option>
+                {supervisoresOpciones.map((o) => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
               </select>
             </div>
           </div>
@@ -663,7 +668,7 @@ function EsquemaImpresion({ r, resultado }: { r: Registro; resultado: ReturnType
             💊 <b>{totales || '—'}</b> cápsulas{resultado.capsulasPorToma > 1 && <> · <b className="text-red-300">{resultado.capsulasPorToma}/toma</b></>}
           </span>
           <span className="rounded-full bg-white/10 px-2.5 py-1">🧪 <b>{fmtMl(resultado.volumenTotal)}</b>/cáps</span>
-          <span className="rounded-full bg-teal-500/25 px-2.5 py-1">Σ tinta a usar: <b>{totales > 0 ? `${Number(mlFinales.toFixed(1))} mL` : '—'}</b></span>
+          <span className="rounded-full bg-tussok/25 px-2.5 py-1">Σ tinta a usar: <b>{totales > 0 ? `${Number(mlFinales.toFixed(1))} mL` : '—'}</b></span>
         </div>
       </div>
       <div className="divide-y divide-white/10 bg-slate-800/60">
@@ -681,7 +686,7 @@ function EsquemaImpresion({ r, resultado }: { r: Registro; resultado: ReturnType
                 </span>
               </span>
               <span className="text-slate-300">dosis <b className="text-white">{c.dosisMg != null ? `${Number(c.dosisMg.toFixed(3))} mg` : '—'}</b></span>
-              <span className="text-slate-300">extrusión <b className={calc?.bajoMinimo ? 'text-red-300' : 'text-teal-300'}>{fmtMl(calc?.extrusion)}</b>/cáps</span>
+              <span className="text-slate-300">extrusión <b className={calc?.bajoMinimo ? 'text-red-300' : 'text-tussok'}>{fmtMl(calc?.extrusion)}</b>/cáps</span>
               <span className="text-slate-300">total <b className="text-white">{mlTot != null ? `${Number(mlTot.toFixed(2))} mL` : '—'}</b></span>
               {c.lote && <span className="text-xs text-slate-400">lote {c.lote}</span>}
             </div>

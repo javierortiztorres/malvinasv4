@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 602 124" role="img" aria-label="Malvinas">
+  <title>MALVINAS — Cápsula 51 · Marca principal</title>
+  <desc>Cápsula partida en dos mitades por el canal, con la juntura a 51°: la cápsula PILL.AR, las dos islas y su estrecho, y la mitad que se personaliza en oro.</desc>
+  <!-- Isotipo: cápsula partida a 51° -->
+  <g transform="translate(14,-17.5) scale(1.55)">
+    <path d="M 60.57 32 L 31.43 68 L 28 68 A 18 18 0 0 1 28 32 Z" fill="#0E3A4D"/>
+    <path d="M 68.57 32 L 72 32 A 18 18 0 0 1 72 68 L 39.43 68 Z" fill="#C1913A"/>
+  </g>
+  <!-- Logotipo trazado a medida -->
+  <g fill="none" stroke="#0E3A4D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" transform="translate(188,28) scale(0.914)">
+    <path d="M 0 70 L 0 0 L 23 46 L 46 0 L 46 70"/>
+    <path d="M 62 70 L 85 0 L 108 70"/>
+    <path d="M 69.5 48 L 100.5 48"/>
+    <path d="M 124 0 L 124 70 L 156 70"/>
+    <path d="M 172 0 L 195 70 L 218 0"/>
+    <path d="M 239 0 L 239 70"/>
+    <path d="M 260 70 L 260 0 L 306 70 L 306 0"/>
+    <path d="M 322 70 L 345 0 L 368 70"/>
+    <path d="M 329.5 48 L 360.5 48"/>
+    <path d="M 417 8 C 412 -2 392 -1 388 9 C 384 18 390 25 400.5 30.5 C 412 36 421 44 417.5 56 C 414 69 392 73 387.5 61"/>
+  </g>
+</svg>
