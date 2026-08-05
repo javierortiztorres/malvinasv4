@@ -96,6 +96,14 @@ function normalizarDiagnostico(s: string): string {
   return colapsarEspacios(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+// B-19.12.1: capitalizaci\u00f3n visual uniforme (T\u00edtulo Case) para los labels de
+// diagn\u00f3stico \u2014 solo cambia c\u00f3mo se MUESTRA el texto ya colapsado; el
+// matching/agrupaci\u00f3n (normalizarDiagnostico, ra\u00edz por primera palabra) es
+// case-insensitive y queda intacto, no depende de esta funci\u00f3n.
+function capitalizarLabel(s: string): string {
+  return s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+}
+
 function pct(n: number, total: number): string {
   return total > 0 ? `${Math.round((n / total) * 100)}%` : '—';
 }
@@ -210,11 +218,17 @@ function TablaRanking({
 // B-19.12: lista de una sola columna "nombre: cantidad" para las vistas de
 // diagnósticos normalizados — sin las dos columnas de TablaRanking, que no
 // aplican acá (un solo número por línea).
+// B-19.12.1: `filas` llega completa (no recortada) — el recorte a
+// `limiteInicial` es interno, así "+N más" puede expandir a la lista
+// entera y volver a colapsarla sin perder datos.
 function ListaConteo({
-  titulo, filas, totalDistintos, vacio,
+  titulo, filas, vacio, limiteInicial = 8,
 }: {
-  titulo: string; filas: { nombre: string; cantidad: number }[]; totalDistintos: number; vacio: string;
+  titulo: string; filas: { nombre: string; cantidad: number }[]; vacio: string; limiteInicial?: number;
 }) {
+  const [expandido, setExpandido] = useState(false);
+  const visibles = expandido ? filas : filas.slice(0, limiteInicial);
+  const ocultas = filas.length - visibles.length;
   return (
     <div className="card overflow-hidden">
       <h3 className="border-b border-slate-100 px-4 py-2 font-archivo text-sm font-bold text-turba">{titulo}</h3>
@@ -222,14 +236,22 @@ function ListaConteo({
         <p className="p-4 text-sm text-niebla">{vacio}</p>
       ) : (
         <ul className="divide-y divide-slate-100 text-sm">
-          {filas.map((f) => (
+          {visibles.map((f) => (
             <li key={f.nombre} className="flex items-center justify-between gap-3 px-4 py-1.5">
               <span className="min-w-0 truncate font-semibold" title={f.nombre}>{f.nombre}</span>
               <span className="shrink-0 text-niebla">{f.cantidad}</span>
             </li>
           ))}
-          {totalDistintos > filas.length && (
-            <li className="px-4 py-1.5 text-xs text-niebla">+{totalDistintos - filas.length} más</li>
+          {filas.length > limiteInicial && (
+            <li>
+              <button
+                type="button"
+                onClick={() => setExpandido((v) => !v)}
+                className="w-full px-4 py-1.5 text-left text-xs text-niebla underline decoration-dotted hover:text-turba"
+              >
+                {expandido ? 'Ver menos' : `+${ocultas} más`}
+              </button>
+            </li>
           )}
         </ul>
       )}
@@ -616,7 +638,7 @@ export default function Estadistica({
     for (const r of ptPeriodo) {
       const clave = normalizarDiagnostico(r.diagnostico);
       if (!clave) continue;
-      const item = detalle.get(clave) ?? { nombre: colapsarEspacios(r.diagnostico), cantidad: 0 };
+      const item = detalle.get(clave) ?? { nombre: capitalizarLabel(colapsarEspacios(r.diagnostico)), cantidad: 0 };
       item.cantidad += 1;
       detalle.set(clave, item);
     }
@@ -633,10 +655,8 @@ export default function Estadistica({
     const agrupadoOrdenado = Array.from(agrupado.values()).sort((a, b) => b.cantidad - a.cantidad);
 
     return {
-      detalle: detalleOrdenado.slice(0, 8),
-      detalleTotal: detalleOrdenado.length,
-      agrupado: agrupadoOrdenado.slice(0, 8),
-      agrupadoTotal: agrupadoOrdenado.length,
+      detalle: detalleOrdenado,
+      agrupado: agrupadoOrdenado,
     };
   }, [ptPeriodo]);
 
@@ -978,13 +998,11 @@ export default function Estadistica({
           <ListaConteo
             titulo="Diagnósticos (detalle)"
             filas={diagnosticosVistas.detalle}
-            totalDistintos={diagnosticosVistas.detalleTotal}
             vacio="Sin diagnósticos en este período."
           />
           <ListaConteo
             titulo="Diagnósticos (agrupados)"
             filas={diagnosticosVistas.agrupado}
-            totalDistintos={diagnosticosVistas.agrupadoTotal}
             vacio="Sin diagnósticos en este período."
           />
         </div>
