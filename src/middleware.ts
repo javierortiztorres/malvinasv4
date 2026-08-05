@@ -13,7 +13,18 @@ export async function middleware(req: NextRequest) {
   }
 
   const session = await verificarSesionToken(req.cookies.get(SESSION_COOKIE)?.value);
-  if (session) return NextResponse.next();
+  if (session) {
+    // Documentos PT/PI (B-30b): navegación directa a la URL no debe saltarse
+    // la restricción por rol — Formulación nunca ve una receta de PT, e
+    // Impresión no tiene ningún motivo para ver lotes de PI.
+    if (session.rol === 'formulacion' && pathname.startsWith('/registro/')) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+    if (session.rol === 'impresion' && pathname.startsWith('/registro-pi/')) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+    return NextResponse.next();
+  }
 
   // Sin sesión válida: si todavía no existe ningún usuario, hay que guiar
   // a crear el primer admin en vez de mandar a un login que nadie puede

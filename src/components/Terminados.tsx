@@ -52,10 +52,15 @@ export default function Terminados({
   registros,
   registrosPi,
   onCambio,
+  mostrarPT = true,
+  mostrarPI = true,
 }: {
   registros: Registro[];
   registrosPi: RegistroPi[];
   onCambio: () => void;
+  // B-30b: Impresión ve solo PT, Formulación ve solo PI.
+  mostrarPT?: boolean;
+  mostrarPI?: boolean;
 }) {
   const [rotuloDe, setRotuloDe] = useState<Registro | null>(null);
   const [filtro, setFiltro] = useState('');
@@ -100,10 +105,13 @@ export default function Terminados({
 
   return (
     <div className="space-y-6">
-      <input className="input max-w-md" placeholder="🔍 Buscar por paciente, médico, lote, tinta, fecha…"
-        value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+      {mostrarPT && (
+        <input className="input max-w-md" placeholder="🔍 Buscar por paciente, médico, lote, tinta, fecha…"
+          value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+      )}
 
       {/* -------- Producto terminado -------- */}
+      {mostrarPT && (
       <div>
         <h2 className="section-title">💊 Producto terminado{filtro && ` · ${ptVisibles.length} de ${registros.length}`}</h2>
         {Object.entries(salteadosPT).map(([prefijo, numeros]) => {
@@ -148,8 +156,10 @@ export default function Terminados({
           </div>
         )}
       </div>
+      )}
 
       {/* -------- Producto intermedio -------- */}
+      {mostrarPI && (
       <div>
         <h2 className="section-title">🧪 Producto intermedio{filtroPi && ` · ${piVisibles.length} de ${registrosPi.length}`}</h2>
         <input className="input mb-3 max-w-md" placeholder="🔍 Buscar por tinta, producto o lote…"
@@ -186,6 +196,7 @@ export default function Terminados({
           </div>
         )}
       </div>
+      )}
 
       {/* -------- Modal rótulo -------- */}
       {rotuloDe && (

@@ -15,12 +15,17 @@ export default function ResultadosPanel({
   manual,
   onCambiarDivision,
   onAplicarDilucion,
+  soloLectura,
 }: {
   resultado: ResultadoCapsula;
   tintas: Tinta[];
   manual: boolean;
   onCambiarDivision: (v: 'auto' | number) => void;
   onAplicarDilucion: () => void;
+  // Impresión (B-30b): forzar división o aplicar dilución cambia campos de
+  // capas que para ese rol son de solo lectura (ej. extrusión/cáps) — se
+  // ocultan en vez de dejar una acción que el servidor va a rechazar.
+  soloLectura?: boolean;
 }) {
   const r = resultado;
   const segments = r.capas
@@ -93,12 +98,14 @@ export default function ResultadosPanel({
             <span className={`badge ${r.seDivide ? 'bg-red-100 text-red-700' : 'bg-profundo/10 text-profundo'} text-base`}>
               {r.capsulasPorToma}
             </span>
-            <select className="input w-auto py-1 text-xs"
-              value={manual ? String(r.capsulasPorToma) : 'auto'}
-              onChange={(e) => onCambiarDivision(e.target.value === 'auto' ? 'auto' : Number(e.target.value))}>
-              <option value="auto">Auto ({r.capsulasPorTomaAuto})</option>
-              {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>forzar {n}</option>)}
-            </select>
+            {!soloLectura && (
+              <select className="input w-auto py-1 text-xs"
+                value={manual ? String(r.capsulasPorToma) : 'auto'}
+                onChange={(e) => onCambiarDivision(e.target.value === 'auto' ? 'auto' : Number(e.target.value))}>
+                <option value="auto">Auto ({r.capsulasPorTomaAuto})</option>
+                {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>forzar {n}</option>)}
+              </select>
+            )}
           </span>
         </div>
       </div>
@@ -109,7 +116,7 @@ export default function ResultadosPanel({
           ⚠ La cápsula queda <b>demasiado vacía</b> ({fmtMl(r.volumenTotal)} &lt; {MINIMO_ACEPTADO_ML} mL).
         </div>
       )}
-      {r.sugerenciaDilucion && (
+      {r.sugerenciaDilucion && !soloLectura && (
         <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
           <p className="mb-2">
             💡 <b>Sugerencia:</b> diluir <b>{r.sugerenciaDilucion.tinta}</b> de{' '}
