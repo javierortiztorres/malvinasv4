@@ -145,7 +145,8 @@ export default function Home() {
         <Agenda registros={ptProceso} onIrARegistro={irARegistro} onIrATab={setTab} />
       )}
       {tab === 'lector' && catalogos && (
-        <LectorRecetas catalogos={catalogos} onCreados={() => { recargar(); setTab('pt'); }} />
+        <LectorRecetas catalogos={catalogos}
+          onCreados={(primerId) => { recargar(); setTab('pt'); setFocoId(primerId); }} />
       )}
       {tab === 'prod' && catalogos && (
         <EnProceso registros={enProduccion} catalogos={catalogos} onCambio={recargar}
