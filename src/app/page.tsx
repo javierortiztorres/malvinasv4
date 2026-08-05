@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Registro, RegistroPi, Tinta } from '@/db/schema';
 import { APP } from '@/lib/config';
 import { diasHasta, esPiPendiente } from '@/lib/utils';
@@ -12,6 +13,7 @@ import Terminados from '@/components/Terminados';
 import Necesidades from '@/components/Necesidades';
 import Estadistica from '@/components/Estadistica';
 import Admin from '@/components/Admin';
+import GestionUsuarios from '@/components/GestionUsuarios';
 
 export type Catalogos = {
   tintas: Tinta[];
@@ -33,12 +35,27 @@ const TABS = [
   { id: 'gestion', label: '🗂️ Gestión' },
 ] as const;
 
+type Yo = { uid: number; usuario: string; nombre: string; rol: string };
+
 export default function Home() {
+  const router = useRouter();
   const [tab, setTab] = useState<string>('agenda');
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [registrosPi, setRegistrosPi] = useState<RegistroPi[]>([]);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [online, setOnline] = useState(true);
+  const [yo, setYo] = useState<Yo | null>(null);
+
+  useEffect(() => {
+    fetch('/api/me').then((r) => (r.ok ? r.json() : null)).then(setYo);
+  }, []);
+
+  async function salir() {
+    await fetch('/api/logout', { method: 'POST' });
+    router.push('/login');
+  }
+
+  const tabs = yo?.rol === 'admin' ? [...TABS, { id: 'usuarios', label: '👤 Usuarios' }] : TABS;
   // Foco pedido desde la Agenda (click en un evento): se aplica una vez
   // dentro de la instancia de EnProceso correspondiente (prod o pt) y se
   // limpia enseguida para no re-disparar el foco al volver a esa solapa.
@@ -105,15 +122,25 @@ export default function Home() {
             <p className="text-sm text-niebla">{APP.subtitulo}</p>
           </div>
         </div>
-        {!online && (
-          <span className="badge bg-amber-100 text-amber-800">
-            ⚠ Sin conexión — los cambios se guardan localmente
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {!online && (
+            <span className="badge bg-amber-100 text-amber-800">
+              ⚠ Sin conexión — los cambios se guardan localmente
+            </span>
+          )}
+          {yo && (
+            <span className="flex items-center gap-2 text-sm text-niebla">
+              {yo.nombre}
+              <button onClick={salir} className="badge bg-white/10 text-hueso hover:bg-white/20">
+                Cerrar sesión
+              </button>
+            </span>
+          )}
+        </div>
       </header>
 
       <nav className="mb-5 flex flex-wrap gap-2">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const count =
             t.id === 'prod' ? enProduccion.length
             : t.id === 'pt' ? pendientes.length
@@ -173,6 +200,7 @@ export default function Home() {
         <Estadistica registros={ptTerm} registrosPi={piTerm} />
       )}
       {tab === 'gestion' && catalogos && <Admin catalogos={catalogos} onCambio={recargar} />}
+      {tab === 'usuarios' && yo?.rol === 'admin' && <GestionUsuarios miId={yo.uid} />}
       {!catalogos && <p className="text-slate-500">Cargando…</p>}
     </main>
   );
