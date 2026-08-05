@@ -263,6 +263,23 @@ export const operadores = pgTable('operadores', {
   rol: text('rol').notNull().default('produce'),
 });
 
+// Cuentas de login reales (B-30a) — un usuario y contraseña por persona,
+// con uno de 3 roles fijos. Totalmente aparte de `operadores` (quién firma
+// un documento PT/PI): esa tabla no participa del login.
+export const usuarios = pgTable('usuarios', {
+  id: serial('id').primaryKey(),
+  nombre: text('nombre').notNull(),
+  usuario: text('usuario').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  rol: text('rol').notNull(), // admin | impresion | formulacion
+  activo: boolean('activo').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uxUsuario: uniqueIndex('ux_usuarios_usuario').on(table.usuario),
+}));
+
 export type Tinta = typeof tintas.$inferSelect;
 export type Registro = typeof registros.$inferSelect;
 export type RegistroPi = typeof registrosPi.$inferSelect;
+export type Usuario = typeof usuarios.$inferSelect;
