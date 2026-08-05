@@ -25,7 +25,8 @@ export async function middleware(req: NextRequest) {
       const sql = neon(process.env.DATABASE_URL);
       const filas = await sql`SELECT 1 FROM usuarios LIMIT 1`;
       necesitaSetup = filas.length === 0;
-    } catch {
+    } catch (e) {
+      console.error('middleware: chequeo de necesitaSetup falló', e);
       necesitaSetup = false;
     }
   }

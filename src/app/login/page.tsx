@@ -13,13 +13,21 @@ export default function Login() {
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usuario, password }),
-    });
-    if (res.ok) router.push('/');
-    else setError('Usuario o contraseña incorrectos');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, password }),
+      });
+      if (res.ok) {
+        router.push('/');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Usuario o contraseña incorrectos');
+      }
+    } catch {
+      setError('No se pudo conectar con el servidor. Probá de nuevo.');
+    }
   }
 
   return (

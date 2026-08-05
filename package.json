@@ -1,6 +1,6 @@
 {
   "name": "malvinas-2",
-  "version": "2.0.43",
+  "version": "2.0.44",
   "private": true,
   "scripts": {
     "dev": "next dev",

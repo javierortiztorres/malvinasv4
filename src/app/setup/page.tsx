@@ -46,6 +46,8 @@ export default function Setup() {
       } else {
         setError(data.error || 'No se pudo crear la cuenta');
       }
+    } catch {
+      setError('No se pudo conectar con el servidor. Probá de nuevo.');
     } finally {
       setEnviando(false);
     }
