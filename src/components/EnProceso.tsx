@@ -20,6 +20,7 @@ export default function EnProceso({
   enProduccion,
   focoInicialId,
   onFocoConsumido,
+  rol,
 }: {
   registros: Registro[];
   catalogos: Catalogos;
@@ -30,6 +31,7 @@ export default function EnProceso({
   // aplica una sola vez y se avisa al padre para que no se re-dispare.
   focoInicialId?: number | null;
   onFocoConsumido?: () => void;
+  rol?: string;
 }) {
   const [abiertoId, setAbiertoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState('');
@@ -137,6 +139,7 @@ export default function EnProceso({
             onCambio={onCambio}
             onActualizado={onActualizado}
             onPopupBloqueado={setAvisoDoc}
+            rol={rol}
           />
         </div>
       </div>

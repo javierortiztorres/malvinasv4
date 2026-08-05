@@ -3,14 +3,25 @@ import { db } from '@/db';
 import { registrosPi } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { faltantesPI } from '@/lib/validation';
+import { getSession } from '@/lib/auth';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'impresion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   const [row] = await db.select().from(registrosPi).where(eq(registrosPi.id, Number(params.id)));
   if (!row) return NextResponse.json({ error: 'No existe' }, { status: 404 });
   return NextResponse.json(row);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'impresion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   const id = Number(params.id);
   const body = await req.json();
   const terminar = req.nextUrl.searchParams.get('terminar') === '1';
@@ -31,7 +42,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(row);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'impresion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   await db.delete(registrosPi).where(eq(registrosPi.id, Number(params.id)));
   return NextResponse.json({ ok: true });
 }
