@@ -190,7 +190,7 @@ export default function Home() {
             t.id === 'prod' ? enProduccion.length
             : t.id === 'pt' ? pendientes.length
             : t.id === 'pi' ? piProceso.length
-            : t.id === 'agenda' ? vencidasCount
+            : t.id === 'agenda' || t.id === 'agenda-pt' ? vencidasCount
             : 0;
           return (
             <button
@@ -213,12 +213,20 @@ export default function Home() {
         })}
       </nav>
 
+      {/* Agenda combinada por rol: Impresión ve PT, Formulación ve PI. */}
       {tab === 'agenda' && catalogos && permitido.has('agenda') && (
         yo?.rol === 'formulacion' ? (
           <Agenda eventos={eventosPI} onIrAEvento={() => irATabSiPermitido('pi')} onIrASinFecha={() => irATabSiPermitido('pi')} />
         ) : (
           <Agenda eventos={eventosPT} onIrAEvento={(o) => irARegistro(o as Registro)} onIrASinFecha={irASinFechaPT} />
         )
+      )}
+      {/* Admin (B-30b-fix): las mismas dos vistas, separadas en solapas propias. */}
+      {tab === 'agenda-pt' && catalogos && permitido.has('agenda-pt') && (
+        <Agenda eventos={eventosPT} onIrAEvento={(o) => irARegistro(o as Registro)} onIrASinFecha={irASinFechaPT} />
+      )}
+      {tab === 'agenda-pi' && catalogos && permitido.has('agenda-pi') && (
+        <Agenda eventos={eventosPI} onIrAEvento={() => irATabSiPermitido('pi')} onIrASinFecha={() => irATabSiPermitido('pi')} />
       )}
       {tab === 'lector' && catalogos && permitido.has('lector') && (
         <LectorRecetas catalogos={catalogos}
