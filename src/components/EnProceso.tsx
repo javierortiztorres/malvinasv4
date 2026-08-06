@@ -3,7 +3,10 @@ import { useEffect, useState } from 'react';
 import type { Registro } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import { colorDeGrupo } from '@/lib/colors';
-import { coincideFiltro, diasHasta, fechaAR, formatoLote } from '@/lib/utils';
+import { coincideFiltro, diasHasta, fechaAR, fechaHoraAR, formatoLote } from '@/lib/utils';
+import {
+  destinosDisponibles, estadoPT, esAvance, datetimeLocalDeFecha, LABEL_ESTADO, type EstadoActivo,
+} from '@/lib/estadoPT';
 import RegistroEditor from './RegistroEditor';
 
 // =====================================================================
@@ -17,7 +20,7 @@ export default function EnProceso({
   catalogos,
   onCambio,
   onActualizado,
-  enProduccion,
+  estadoActual,
   focoInicialId,
   onFocoConsumido,
   rol,
@@ -26,7 +29,10 @@ export default function EnProceso({
   catalogos: Catalogos;
   onCambio: () => void;
   onActualizado: (r: Registro) => void;
-  enProduccion: boolean;
+  // Cuál de las 3 solapas activas (Pendientes / Pre-producción / En
+  // producción) es esta instancia — decide qué botones de movimiento se
+  // ofrecen (B-31).
+  estadoActual: EstadoActivo;
   // Foco pedido desde afuera (ej. click en un evento de la Agenda): se
   // aplica una sola vez y se avisa al padre para que no se re-dispare.
   focoInicialId?: number | null;
@@ -47,23 +53,36 @@ export default function EnProceso({
   // aviso vive acá arriba, no en RegistroEditor, para no perderse.
   const [avisoDoc, setAvisoDoc] = useState<string | null>(null);
 
-  // Pasa el registro a la otra solapa (Pendientes ↔ En producción)
-  async function mover(r: Registro) {
-    const enProduccion = !r.enProduccion;
-    const next = { ...r, enProduccion, updatedAt: new Date() } as Registro;
-    onActualizado(next); // cambio de solapa instantáneo
+  // Mueve el registro a otra de las 3 solapas activas (B-31). El servidor
+  // vuelve a validar el permiso por rol y aplica los efectos automáticos
+  // (timestamp de inicio, indicador de "devuelto") — acá solo se pide.
+  //
+  // Si el registro estaba abierto en modo foco, cierra la vista apenas se
+  // confirma el movimiento: RegistroEditor guarda su propia copia local (el
+  // autosave) que no se entera de este cambio, así que dejarlo montado
+  // arriesgaría que un autoguardado posterior pise el estado nuevo con el
+  // viejo. Sale solo de vuelta a la lista, que ya no lo va a mostrar acá.
+  const [moviendoId, setMoviendoId] = useState<number | null>(null);
+  async function moverA(r: Registro, destino: EstadoActivo) {
+    setMoviendoId(r.id);
     try {
-      // Solo el patch, no la fila entera: si el editor tenía cambios sin
-      // sincronizar, un PUT con la fila completa los pisaría.
-      const res = await fetch(`/api/registros/${r.id}`, {
+      const res = await fetch(`/api/registros/${r.id}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enProduccion }),
+        body: JSON.stringify({ destino }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? 'No se pudo mover el registro.');
+        return;
+      }
+      const actualizado = await res.json();
+      onActualizado(actualizado);
+      setAbiertoId((id) => (id === r.id ? null : id));
     } catch {
-      onActualizado(r); // revertir si falló
       alert('No se pudo mover el registro. Revisá la conexión.');
+    } finally {
+      setMoviendoId(null);
     }
   }
 
@@ -130,7 +149,9 @@ export default function EnProceso({
                 <b>{formatoLote(abierto.lotePrefijo, abierto.loteNumero)}</b>
               </p>
             </div>
+            <BotonesMovimiento registro={abierto} rol={rol} moviendo={moviendoId === abierto.id} onMover={moverA} />
           </div>
+          <BadgeDevuelto registro={abierto} />
           <RegistroEditor
             key={abierto.id}
             registro={abierto}
@@ -169,8 +190,10 @@ export default function EnProceso({
 
       {registros.length === 0 && !filtro && (
         <div className="card p-8 text-center text-slate-500">
-          {enProduccion
-            ? 'No hay registros en producción. Pasá los del día desde la solapa 📋 Pendientes.'
+          {estadoActual === 'en_produccion'
+            ? 'No hay registros en producción. Pasá los del día desde la solapa 📋 Pendientes o 🧱 Pre-producción.'
+            : estadoActual === 'pre_produccion'
+            ? 'No hay registros en pre-producción.'
             : 'No hay registros pendientes.'}
         </div>
       )}
@@ -199,22 +222,20 @@ export default function EnProceso({
               <p>Médico <b>{r.medico || '—'}</b></p>
               <p>Lote <b>{formatoLote(r.lotePrefijo, r.loteNumero)}</b></p>
               <DeadlineBadge deadline={r.deadline} />
+              {r.devueltoPor && (
+                <p className="text-xs font-semibold text-amber-700">
+                  ↩ Devuelto por {r.devueltoPor}{r.devueltoEn && ` · ${fechaHoraAR(datetimeLocalDeFecha(r.devueltoEn))}`}
+                </p>
+              )}
               <p className="text-xs text-slate-400">
                 {(r.formula ?? []).slice(0, 3).map((a) => a.activo).join(' · ')}
                 {(r.formula ?? []).length > 3 && ` +${r.formula.length - 3}`}
               </p>
               <div className="flex items-center justify-between gap-2 pt-1">
                 <p className="text-xs font-semibold text-profundo">Abrir en pantalla completa →</p>
-                <button
-                  className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
-                    enProduccion
-                      ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      : 'bg-tussok text-profundo hover:opacity-90'
-                  }`}
-                  title={enProduccion ? 'Sacar de producción (vuelve a Pendientes)' : 'Pasar a la solapa En producción'}
-                  onClick={(e) => { e.stopPropagation(); mover(r); }}>
-                  {enProduccion ? '↩ A pendientes' : '🖨️ A producción'}
-                </button>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <BotonesMovimiento registro={r} rol={rol} moviendo={moviendoId === r.id} onMover={moverA} compacto />
+                </div>
               </div>
             </div>
           </div>
@@ -261,6 +282,56 @@ function DeadlineBadge({ deadline }: { deadline: string }) {
   return (
     <p>
       <span className={`badge ${clase}`}>⏰ Entrega {fechaAR(deadline)} · {texto}</span>
+    </p>
+  );
+}
+
+// Botones de movimiento manual entre Pendientes/Pre-producción/Producción
+// (B-31): qué destinos aparecen depende del rol y del estado actual —
+// puedeTransicionar() en @/lib/estadoPT es la única fuente de verdad, acá
+// solo se pintan los botones que esa función habilita.
+function BotonesMovimiento({
+  registro, rol, moviendo, onMover, compacto,
+}: {
+  registro: Registro;
+  rol?: string;
+  moviendo: boolean;
+  onMover: (r: Registro, destino: EstadoActivo) => void;
+  compacto?: boolean;
+}) {
+  if (!rol) return null;
+  const actual = estadoPT(registro);
+  if (actual === 'terminado') return null;
+  const destinos = destinosDisponibles(rol, actual);
+  if (destinos.length === 0) return null;
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${compacto ? '' : 'mt-2'}`}>
+      {destinos.map((d) => {
+        const avance = esAvance(actual, d);
+        return (
+          <button key={d} disabled={moviendo}
+            className={`rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50 ${
+              avance ? 'bg-tussok text-profundo hover:opacity-90' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+            title={`${avance ? 'Pasar a' : 'Devolver a'} ${LABEL_ESTADO[d]}`}
+            onClick={() => onMover(registro, d)}>
+            {avance ? '→' : '↩'} {LABEL_ESTADO[d]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Aviso de que el registro fue devuelto manualmente a un estado anterior
+// (B-31): visible para cualquiera que lo vea después, para que no pase
+// desapercibido. Se limpia solo la próxima vez que el registro avanza.
+function BadgeDevuelto({ registro }: { registro: Registro }) {
+  if (!registro.devueltoPor) return null;
+  return (
+    <p className="bg-amber-50 px-5 py-2 text-sm font-semibold text-amber-800">
+      ↩ Devuelto por {registro.devueltoPor}
+      {registro.devueltoEn && ` · ${fechaHoraAR(datetimeLocalDeFecha(registro.devueltoEn))}`}
     </p>
   );
 }

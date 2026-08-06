@@ -4,13 +4,13 @@ import { useRouter } from 'next/navigation';
 import type { Registro, RegistroPi, Tinta } from '@/db/schema';
 import { APP } from '@/lib/config';
 import { diasHasta, esPiPendiente, formatoLotePI } from '@/lib/utils';
+import { estadoPT, tabDeEstadoPT } from '@/lib/estadoPT';
 import { limpiarNombreTinta } from '@/lib/engine';
 import { TABS_POR_ROL } from '@/lib/roles';
 import MarcaMalvinas from '@/components/MarcaMalvinas';
 import Agenda, { type EventoAgenda } from '@/components/Agenda';
 import LectorRecetas from '@/components/LectorRecetas';
 import EnProceso from '@/components/EnProceso';
-import PreProduccion from '@/components/PreProduccion';
 import ProductoIntermedio from '@/components/ProductoIntermedio';
 import Terminados from '@/components/Terminados';
 import Necesidades from '@/components/Necesidades';
@@ -103,33 +103,40 @@ export default function Home() {
     setRegistrosPi((prev) => prev.map((x) => (x.id === reg.id ? reg : x)));
   }, []);
 
-  const ptProceso = registros.filter((r) => r.estado === 'en_proceso');
-  const enProduccion = ptProceso.filter((r) => r.enProduccion);
-  const pendientes = ptProceso.filter((r) => !r.enProduccion);
+  // Máquina de estados única de PT (B-31): pendiente / pre_produccion /
+  // en_produccion / terminado, todo derivado con estadoPT() — ver
+  // src/lib/estadoPT.ts para por qué el campo de la base sigue siendo el
+  // mismo texto libre de siempre.
+  const ptTerm = registros.filter((r) => estadoPT(r) === 'terminado');
+  const ptProceso = registros.filter((r) => estadoPT(r) !== 'terminado');
+  const pendientes = ptProceso.filter((r) => estadoPT(r) === 'pendiente');
+  const preProduccion = ptProceso.filter((r) => estadoPT(r) === 'pre_produccion');
+  const enProduccion = ptProceso.filter((r) => estadoPT(r) === 'en_produccion');
   const piProceso = registrosPi.filter(esPiPendiente);
-  const ptTerm = registros.filter((r) => r.estado === 'terminado');
   const piTerm = registrosPi.filter((r) => r.estado === 'terminado');
   const vencidasCount = ptProceso.filter((r) => r.deadline && (diasHasta(r.deadline) ?? 0) < 0).length;
 
   // Solo salta a una solapa si el rol actual la tiene: p.ej. Impresión no
   // tiene "Pendientes", así que un evento de Agenda de una receta que
-  // todavía no pasó a producción no navega a ningún lado (B-31 decide el
-  // ruteo real; por ahora simplemente no hay adónde ir).
+  // todavía está ahí no navega a ningún lado (no hay adónde ir con su rol).
   function irATabSiPermitido(id: string) {
     if (permitido.has(id)) setTab(id);
   }
 
   function irARegistro(r: Registro) {
-    const destino = r.enProduccion ? 'prod' : 'pt';
-    if (!permitido.has(destino)) return;
+    const destino = tabDeEstadoPT(estadoPT(r));
+    if (!destino || !permitido.has(destino)) return;
     setTab(destino);
     setFocoId(r.id);
   }
 
   const sinFechaPT = ptProceso.filter((r) => !r.deadline);
   function irASinFechaPT() {
-    if (sinFechaPT.length === 0) return;
-    irATabSiPermitido(sinFechaPT.some((r) => r.enProduccion) ? 'prod' : 'pt');
+    const primero = sinFechaPT.find((r) => {
+      const t = tabDeEstadoPT(estadoPT(r));
+      return t && permitido.has(t);
+    });
+    if (primero) irATabSiPermitido(tabDeEstadoPT(estadoPT(primero))!);
   }
 
   // Adaptan PT/PI a la forma genérica que consume <Agenda>. Admin e
@@ -189,6 +196,7 @@ export default function Home() {
           const count =
             t.id === 'prod' ? enProduccion.length
             : t.id === 'pt' ? pendientes.length
+            : t.id === 'preprod' ? preProduccion.length
             : t.id === 'pi' ? piProceso.length
             : t.id === 'agenda' || t.id === 'agenda-pt' ? vencidasCount
             : 0;
@@ -234,18 +242,22 @@ export default function Home() {
       )}
       {tab === 'prod' && catalogos && permitido.has('prod') && (
         <EnProceso registros={enProduccion} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistro} enProduccion rol={yo?.rol}
+          onActualizado={actualizarRegistro} estadoActual="en_produccion" rol={yo?.rol}
           focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
       )}
       {tab === 'pt' && catalogos && permitido.has('pt') && (
         <EnProceso registros={pendientes} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistro} enProduccion={false} rol={yo?.rol}
+          onActualizado={actualizarRegistro} estadoActual="pendiente" rol={yo?.rol}
           focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
       )}
-      {tab === 'preprod' && permitido.has('preprod') && <PreProduccion />}
+      {tab === 'preprod' && catalogos && permitido.has('preprod') && (
+        <EnProceso registros={preProduccion} catalogos={catalogos} onCambio={recargar}
+          onActualizado={actualizarRegistro} estadoActual="pre_produccion" rol={yo?.rol}
+          focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
+      )}
       {tab === 'pi' && catalogos && permitido.has('pi') && (
         <ProductoIntermedio registros={piProceso} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistroPi} />
+          onActualizado={actualizarRegistroPi} rol={yo?.rol} />
       )}
       {tab === 'neces' && catalogos && permitido.has('neces') && (
         <Necesidades registros={ptProceso} catalogos={catalogos}

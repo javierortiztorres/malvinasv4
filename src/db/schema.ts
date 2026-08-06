@@ -178,6 +178,12 @@ export const registros = pgTable('registros', {
   fechaElab: text('fecha_elab').notNull().default(''),
   fechaVto: text('fecha_vto').notNull().default(''),
 
+  // Quién devolvió el registro a un estado anterior a mano y cuándo (B-31):
+  // se completa en cada retroceso manual y se limpia en el próximo avance,
+  // para que quede a la vista sin quedar pegado para siempre.
+  devueltoPor: text('devuelto_por'),
+  devueltoEn: timestamp('devuelto_en', { withTimezone: true }),
+
   fotos: jsonb('fotos').$type<string[]>().notNull().default([]), // registro fotográfico OPCIONAL
 
   createdAt: timestamp('created_at').notNull().defaultNow(),

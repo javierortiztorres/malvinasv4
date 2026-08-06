@@ -81,6 +81,26 @@ export function formatoLotePI(poe: string, numero: number | null): string {
   return `${PREFIJO_LOTE_PI}/${poe || 'FPI.—'}/${p}`;
 }
 
+// Núcleo alfanumérico (sin espaciado ni separadores, minúscula) de un lote
+// de PI, sin el prefijo "PI/" — para comparar contra lo que el operador tipeó
+// a mano en "Lote PI usado" de una capa de PT, que puede venir con distinto
+// espaciado/separadores pero siempre conserva el POE y el número de lote.
+function nucleoLotePI(poe: string, numero: number | null): string | null {
+  if (numero == null || !poe) return null;
+  const p = `P${String(numero).padStart(3, '0')}`;
+  return `${poe}${p}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// ¿El texto libre de "Lote PI usado" de una capa de PT corresponde a este
+// lote de PI? Único punto que hace este matching (B-31, devolución
+// automática desde Producto Intermedio) — no reimplementar en cada lugar.
+export function coincideLotePI(loteCapaPT: string, poe: string, numero: number | null): boolean {
+  const nucleo = nucleoLotePI(poe, numero);
+  if (!nucleo) return false;
+  const capaNormalizada = (loteCapaPT || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return capaNormalizada.length > 0 && capaNormalizada.includes(nucleo);
+}
+
 // Criterio único de "PI pendiente": el mismo que usa la solapa Producto
 // Intermedio (page.tsx). Cualquier otra pantalla que necesite la misma
 // lista (ej. la planilla de pesadas) debe reusar esto, no reimplementarlo.
