@@ -18,11 +18,13 @@ export default function ProductoIntermedio({
   catalogos,
   onCambio,
   onActualizado,
+  rol,
 }: {
   registros: RegistroPi[];
   catalogos: Catalogos;
   onCambio: () => void;
   onActualizado: (r: RegistroPi) => void;
+  rol?: string;
 }) {
   const [abiertos, setAbiertos] = useState<Record<number, boolean>>({});
   const [tintaNueva, setTintaNueva] = useState('');
@@ -161,7 +163,7 @@ export default function ProductoIntermedio({
                 </div>
                 {abierto && (
                   <PiEditor registro={r} catalogos={catalogos} onCambio={onCambio} onActualizado={onActualizado}
-                    onPopupBloqueado={setAvisoDoc} />
+                    onPopupBloqueado={setAvisoDoc} rol={rol} />
                 )}
               </div>
             );
@@ -213,12 +215,14 @@ function PiEditor({
   onCambio,
   onActualizado,
   onPopupBloqueado,
+  rol,
 }: {
   registro: RegistroPi;
   catalogos: Catalogos;
   onCambio: () => void;
   onActualizado: (r: RegistroPi) => void;
   onPopupBloqueado: (url: string) => void;
+  rol?: string;
 }) {
   const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
     draftKey: DRAFT_KEY,
@@ -226,6 +230,39 @@ function PiEditor({
     onActualizado,
   });
   const [errores, setErrores] = useState<string[] | null>(null);
+  const [devolviendo, setDevolviendo] = useState(false);
+
+  // Devolución automática (B-31): Formulación detecta un problema con este
+  // lote de PI y devuelve a Pre-producción, sin verlos, todos los PT en
+  // Producción que lo referencian por lote — ver el endpoint para el porqué
+  // del matching por texto en vez de un selector con datos de paciente.
+  async function devolverPT() {
+    if (r.loteNumero == null) {
+      alert('Este lote todavía no tiene número asignado — no hay nada que devolver.');
+      return;
+    }
+    if (!confirm(
+      `¿Devolver a Pre-producción todos los registros de Producto Terminado que usan el lote ${formatoLotePI(r.poe, r.loteNumero)}?`
+    )) return;
+    setDevolviendo(true);
+    try {
+      const res = await fetch(`/api/registros-pi/${r.id}/devolver-pt`, { method: 'PUT' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error ?? 'No se pudo completar la devolución.');
+        return;
+      }
+      alert(
+        data.cantidad > 0
+          ? `Se devolvieron ${data.cantidad} registro(s) de PT a Pre-producción.`
+          : 'No se encontró ningún registro de PT en Producción que use este lote.'
+      );
+    } catch {
+      alert('No se pudo completar la devolución. Revisá la conexión.');
+    } finally {
+      setDevolviendo(false);
+    }
+  }
 
   const tinta: Tinta | undefined = useMemo(
     () => catalogos.tintas.find((t) => t.id === r.tintaId),
@@ -311,9 +348,18 @@ function PiEditor({
 
   return (
     <div className="space-y-5 p-4">
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
         <span>{estadoSync}</span>
-        <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar</button>
+        <div className="flex items-center gap-3">
+          {(rol === 'formulacion' || rol === 'admin') && (
+            <button className="font-semibold text-amber-700 hover:underline disabled:opacity-50"
+              disabled={devolviendo} onClick={devolverPT}
+              title="Si falta un activo o hay un error en este lote, devuelve a Pre-producción los PT en Producción que lo usan">
+              ⚠ Devolver PT que usan este lote
+            </button>
+          )}
+          <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar</button>
+        </div>
       </div>
       {sesionVencida && (
         <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">

@@ -5,6 +5,7 @@ import { eq, sql } from 'drizzle-orm';
 import { faltantes } from '@/lib/validation';
 import { getSession } from '@/lib/auth';
 import { capasSoloOrdenYLoteCambiaron } from '@/lib/roles';
+import { ahoraDatetimeLocal } from '@/lib/estadoPT';
 
 const REINTENTOS_LOTE = 3;
 
@@ -92,6 +93,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       body.loteNumero = asignado;
     }
 
+    // Fecha y hora de fin: automática al terminar (B-31), no depende de que
+    // el operador se acuerde de cargarla a mano.
+    body.fechaHoraFin = ahoraDatetimeLocal();
+
     // VALIDACIÓN ESTRICTA en el servidor: no se puede terminar incompleto.
     const faltan = faltantes(body);
     if (faltan) {
@@ -101,6 +106,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       );
     }
     body.estado = 'terminado';
+    body.enProduccion = false;
+    body.devueltoPor = null;
+    body.devueltoEn = null;
   }
 
   try {

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { Registro, MateriaPrima } from '@/db/schema';
 import type { Catalogos } from '@/app/page';
 import { hoyISO, sumarMeses, formatoLote, formatoLotePI, fechaAR } from '@/lib/utils';
+import { estadoPT, LABEL_ESTADO, type EstadoActivo } from '@/lib/estadoPT';
 import { MESES_VENCIMIENTO } from '@/lib/config';
 import {
   extrusionCapa, pesadasPI, limpiarNombreTinta, fmtG, fmtMl, fmtPct,
@@ -11,13 +12,13 @@ import {
 
 // =====================================================================
 // 📊 NECESIDADES DE PRODUCCIÓN
-// Lee TODOS los registros en proceso (Pendientes + En producción) y suma,
-// tinta por tinta, cuánto PRINCIPIO ACTIVO hace falta para cubrirlos
-// (también muestra la tinta y los mL equivalentes). Es 100% en vivo:
-// cuando un paciente pasa a Terminados, sus gramos desaparecen de acá
-// solos. El botón "Hacer" crea el registro de PI armado DESDE EL ACTIVO:
-// activo = necesidad × 1.45 (merma 45%), total = activo ÷ concentración,
-// excipientes por porcentaje. Es reversible con «↩ Deshacer».
+// Lee TODOS los registros activos (Pendientes + Pre-producción + En
+// producción) y suma, tinta por tinta, cuánto PRINCIPIO ACTIVO hace falta
+// para cubrirlos (también muestra la tinta y los mL equivalentes). Es 100%
+// en vivo: cuando un paciente pasa a Terminados, sus gramos desaparecen de
+// acá solos. El botón "Hacer" crea el registro de PI armado DESDE EL
+// ACTIVO: activo = necesidad × 1.45 (merma 45%), total = activo ÷
+// concentración, excipientes por porcentaje. Es reversible con «↩ Deshacer».
 // La estadística de producción vive en la solapa 📈 Estadística (B-19).
 // =====================================================================
 
@@ -28,7 +29,7 @@ type DetalleNecesidad = {
   paciente: string;
   formula: string;
   lote: string;
-  enProduccion: boolean;
+  estado: EstadoActivo;
   ml: number;
   gramos: number;
 };
@@ -57,7 +58,7 @@ export default function Necesidades({
   onCambio,
   onIrPI,
 }: {
-  registros: Registro[]; // SOLO en proceso (Pendientes + En producción)
+  registros: Registro[]; // SOLO activos (Pendientes + Pre-producción + En producción)
   catalogos: Catalogos;
   onCambio: () => void;
   onIrPI: () => void;
@@ -114,7 +115,7 @@ export default function Necesidades({
         g.detalles.push({
           registroId: r.id, paciente: r.paciente, formula: r.tituloFormula,
           lote: formatoLote(r.lotePrefijo, r.loteNumero),
-          enProduccion: r.enProduccion, ml, gramos,
+          estado: estadoPT(r) as EstadoActivo, ml, gramos,
         });
       }
     }
@@ -208,7 +209,7 @@ export default function Necesidades({
     <div className="space-y-6">
       {/* ================= Necesidades en vivo ================= */}
       <div>
-        <h2 className="section-title">📊 Necesidad de tinta para cubrir Pendientes + En producción</h2>
+        <h2 className="section-title">📊 Necesidad de tinta para cubrir Pendientes + Pre-producción + En producción</h2>
         <p className="mb-3 text-sm text-slate-500">
           Se calcula en vivo con los pacientes pendientes y en producción; cuando un lote pasa a
           Terminados, sus gramos dejan de contar solos. El número grande es el <b>principio activo</b>;
@@ -227,7 +228,7 @@ export default function Necesidades({
 
         {grupos.length === 0 ? (
           <div className="card p-8 text-center text-slate-500">
-            No hay necesidades pendientes: no hay registros en Pendientes ni En producción con capas calculadas.
+            No hay necesidades pendientes: no hay registros activos (Pendientes, Pre-producción o En producción) con capas calculadas.
           </div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -300,7 +301,7 @@ export default function Necesidades({
                           <tr key={i} className="border-t border-slate-50">
                             <td className="px-4 py-1 font-semibold">{d.paciente || 'SIN NOMBRE'} · {d.formula}</td>
                             <td className="font-mono">{d.lote}</td>
-                            <td>{d.enProduccion ? '🖨️ en producción' : '📋 pendiente'}</td>
+                            <td>{LABEL_ESTADO[d.estado]}</td>
                             <td className="pr-4 text-right">
                               {fmtG(d.gramos * g.concentracion)} act. · {fmtG(d.gramos)} tinta · {fmtMl(d.ml, 1)}
                             </td>

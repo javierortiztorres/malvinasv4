@@ -88,11 +88,15 @@ export default function Terminados({
   const [sucursal, setSucursal] = useState(SUCURSALES[0].id);
   const [copiado, setCopiado] = useState(false);
 
-  async function reabrir(url: string, r: any) {
+  // Reabrir un PT vuelve siempre a "En producción" (de ahí sale el único
+  // camino a Terminado); un PI vuelve a su único estado previo, en_proceso.
+  async function reabrir(url: string, r: any, esPT: boolean) {
     await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...r, estado: 'en_proceso' }),
+      body: JSON.stringify(
+        esPT ? { ...r, estado: 'en_produccion', enProduccion: true } : { ...r, estado: 'en_proceso' }
+      ),
     });
     onCambio();
   }
@@ -148,7 +152,7 @@ export default function Terminados({
                   <div className="flex gap-2">
                     <a className="btn-primary" href={`/registro/${r.id}/print`} target="_blank">📄 Documento</a>
                     <button className="btn-ghost" onClick={() => setRotuloDe(r)}>🏷️ Rótulo</button>
-                    <button className="btn-ghost" onClick={() => reabrir(`/api/registros/${r.id}`, r)}>↩ Reabrir</button>
+                    <button className="btn-ghost" onClick={() => reabrir(`/api/registros/${r.id}`, r, true)}>↩ Reabrir</button>
                   </div>
                 </div>
               );
@@ -189,7 +193,7 @@ export default function Terminados({
                 </div>
                 <div className="flex gap-2">
                   <a className="btn-primary" href={`/registro-pi/${r.id}/print`} target="_blank">📄 Documento</a>
-                  <button className="btn-ghost" onClick={() => reabrir(`/api/registros-pi/${r.id}`, r)}>↩ Reabrir</button>
+                  <button className="btn-ghost" onClick={() => reabrir(`/api/registros-pi/${r.id}`, r, false)}>↩ Reabrir</button>
                 </div>
               </div>
             ))}

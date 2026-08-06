@@ -210,7 +210,7 @@ const BASE_REGISTRO: Registro = {
   controles: { peso: true, visual: true, otroControl: '', vestimenta: true, higiene: true },
   aprobadas: null, rechazadas: 0,
   fechaHoraInicio: '', fechaHoraFin: '', operador: '', supervisor: '',
-  fechaElab: '', fechaVto: '',
+  fechaElab: '', fechaVto: '', devueltoPor: null, devueltoEn: null,
   fotos: [], createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
 } as Registro;
 const Reg = (p: Partial<Registro>): Registro => ({ ...BASE_REGISTRO, ...p });
