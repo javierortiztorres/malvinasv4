@@ -260,7 +260,7 @@ export default function Home() {
           onActualizado={actualizarRegistroPi} rol={yo?.rol} />
       )}
       {tab === 'neces' && catalogos && permitido.has('neces') && (
-        <Necesidades registros={ptProceso} registrosTerminados={ptTerm} registrosPiTerminados={piTerm}
+        <Necesidades registros={ptProceso} registrosTerminados={ptTerm} registrosPiTodos={registrosPi}
           catalogos={catalogos} onCambio={recargar} onIrPI={() => irATabSiPermitido('pi')} />
       )}
       {tab === 'terminados' && permitido.has('terminados') && (

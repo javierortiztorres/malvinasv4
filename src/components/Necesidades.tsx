@@ -11,20 +11,41 @@ import {
 } from '@/lib/engine';
 
 // ---------------------------------------------------------------------
-// 📦 Stock/autonomía de PI (B-34) — parche de VISIBILIDAD sobre datos que
-// ya existen (no hay tabla de stock real todavía). "Producido histórico"
-// = suma de jeringas×volumenJeringaMl de los lotes de PI TERMINADOS de esa
-// tinta (mismo criterio que usa 📈 Estadística para "mL producidos").
-// "Consumido histórico" = Σ extrusionCapa()×cápsulas de todos los PT
-// TERMINADOS cuyas capas referencian esa tinta (mismo cálculo de mL que ya
-// usa la necesidad en vivo de acá abajo, aplicado a TODO el historial en
-// vez de solo lo activo). Stock aprox = producido − consumido, nunca < 0.
-// Velocidad de consumo = "promedio reciente" con criterio fijo: ventana de
-// 8 semanas (56 días) hacia atrás desde hoy, total mL consumidos en esa
-// ventana ÷ 8 → mL/semana (sin ponderar semanas sin producción). Autonomía
-// = stock ÷ velocidad × 7 días; si no hubo consumo en la ventana pero hay
-// stock, autonomía se trata como "amplia" (verde); si no hay stock ni
-// consumo reciente, autonomía = 0 (rojo, urge producir).
+// 📦 Stock/autonomía de PI (B-34/B-34-fix) — parche de VISIBILIDAD sobre
+// datos que ya existen (no hay tabla de stock real todavía).
+//
+// LISTA (B-34-fix, criterio 2): nunca se recorre el catálogo completo de
+// tintas. El universo de productos a mostrar es la UNIÓN de tintaId con
+// al menos un lote en registros_pi (cualquier estado) y tintaId
+// referenciado por al menos una capa de algún registro real, activo o
+// terminado (cualquier estado) — un producto sin ningún rastro real en
+// ninguna de las dos tablas no aparece.
+//
+// "Producido histórico" = suma de jeringas×volumenJeringaMl de los lotes
+// de PI TERMINADOS de esa tinta (mismo criterio que usa 📈 Estadística
+// para "mL producidos"). "Consumido histórico" = Σ extrusionCapa()×
+// cápsulas de todos los PT TERMINADOS cuyas capas referencian esa tinta
+// (mismo cálculo de mL que ya usa la necesidad en vivo de acá abajo,
+// aplicado a TODO el historial en vez de solo lo activo). Ambos matchean
+// por tintaId (FK real a la tinta del catálogo) — confirmado con datos de
+// producción real que el join es correcto: no hay bug de matching de
+// texto/lote, ver commit B-34-fix para el detalle.
+//
+// Stock aprox = producido − consumido, nunca < 0. Velocidad de consumo =
+// "promedio reciente" con criterio fijo: ventana de 8 semanas (56 días)
+// hacia atrás desde hoy, total mL consumidos en esa ventana ÷ 8 → mL/
+// semana (sin ponderar semanas sin producción). Autonomía = stock ÷
+// velocidad × 7 días.
+//
+// GRIS (B-34-fix, criterio 1): YA NO significa "nunca se produjo" a
+// secas — un producto sin producción pero con consumo real (ej. B12: se
+// usa en recetas terminadas pero jamás se cargó un lote de PI) es
+// justamente el caso más urgente, y cae en ROJO con autonomía 0 días, no
+// en gris. Gris queda para cuando NO hay ningún dato completado en
+// ninguna de las dos puntas (ej. un lote de PI recién arrancado, todavía
+// en_proceso, o una receta activa que aún no llegó a Terminados): ahí
+// realmente no hay con qué calcular un número, así que se marca aparte
+// en vez de mostrar una autonomía inventada.
 // ---------------------------------------------------------------------
 const VENTANA_SEMANAS_CONSUMO = 8;
 const DIAS_VENTANA_CONSUMO = VENTANA_SEMANAS_CONSUMO * 7;
@@ -50,7 +71,7 @@ const BADGE_COLOR: Record<ColorAutonomia, string> = {
   verde: 'bg-emerald-100 text-emerald-800',
 };
 const LABEL_COLOR: Record<ColorAutonomia, string> = {
-  gris: 'sin historial',
+  gris: 'sin datos completos',
   rojo: 'crítico',
   amarillo: 'atención',
   verde: 'ok',
@@ -66,7 +87,7 @@ type IndicadorPI = {
   stockMl: number;
   velocidadSemanalMl: number;
   autonomiaDias: number;
-  producidoHistorico: boolean;
+  sinDatosCompletos: boolean; // ni producción ni consumo TERMINADOS — no hay con qué calcular
   color: ColorAutonomia;
   sugeridoG: number;
   consumoMesAnteriorG: number;
@@ -117,14 +138,14 @@ type Incompleto = { paciente: string; formula: string; motivo: string };
 export default function Necesidades({
   registros,
   registrosTerminados,
-  registrosPiTerminados,
+  registrosPiTodos,
   catalogos,
   onCambio,
   onIrPI,
 }: {
   registros: Registro[]; // SOLO activos (Pendientes + Pre-producción + En producción)
   registrosTerminados: Registro[]; // SOLO terminados (B-34: consumo histórico real de PI)
-  registrosPiTerminados: RegistroPi[]; // SOLO terminados (B-34: producido histórico de PI)
+  registrosPiTodos: RegistroPi[]; // TODOS los estados (B-34-fix: la lista sale de uso real, no del catálogo)
   catalogos: Catalogos;
   onCambio: () => void;
   onIrPI: () => void;
@@ -136,6 +157,8 @@ export default function Necesidades({
   // Fila de indicador con el editor de cantidad "A Producción" abierto
   const [produciendo, setProduciendo] = useState<string | null>(null);
   const [cantidadEditable, setCantidadEditable] = useState<Record<string, string>>({});
+  // Filtro visual por color (B-34-fix, criterio 3)
+  const [filtroColor, setFiltroColor] = useState<'todos' | ColorAutonomia>('todos');
 
   // ---------------- Necesidades en vivo ----------------
   const { grupos, incompletos } = useMemo(() => {
@@ -194,67 +217,86 @@ export default function Necesidades({
     return { grupos, incompletos };
   }, [registros, catalogos.tintas]);
 
-  // ---------------- Indicadores de stock/autonomía de PI (B-34) ----------------
+  // ---------------- Indicadores de stock/autonomía de PI (B-34/B-34-fix) ----------------
   const indicadores = useMemo(() => {
     const hoy = hoyISO();
     const corte = addDiasISO(hoy, -DIAS_VENTANA_CONSUMO);
     const claveMesAnterior = mesAnteriorClave(hoy.slice(0, 7));
+    const registrosPiTerminados = registrosPiTodos.filter((r) => r.estado === 'terminado');
 
-    return catalogos.tintas
-      .filter((t) => t.activo)
-      .map((t): IndicadorPI => {
-        let producidoMl = 0;
-        for (const r of registrosPiTerminados) {
-          if (r.tintaId !== t.id) continue;
-          producidoMl += (r.jeringas ?? 0) * (r.volumenJeringaMl ?? 0);
+    // Universo real (criterio 2): unión de tintaId con al menos un lote en
+    // registros_pi (cualquier estado) o al menos una capa en algún
+    // registro real, activo o terminado (cualquier estado). Nunca el
+    // catálogo completo.
+    const tintaIds = new Set<number>();
+    for (const r of registrosPiTodos) if (r.tintaId != null) tintaIds.add(r.tintaId);
+    for (const r of [...registros, ...registrosTerminados]) {
+      for (const c of r.capas ?? []) if (c.tintaId != null) tintaIds.add(c.tintaId);
+    }
+
+    const lista: IndicadorPI[] = [];
+    for (const tintaId of Array.from(tintaIds)) {
+      const t = catalogos.tintas.find((x) => x.id === tintaId);
+      if (!t) continue; // sin metadata en el catálogo (tinta borrada) — no hay cómo mostrarlo
+
+      let producidoMl = 0;
+      for (const r of registrosPiTerminados) {
+        if (r.tintaId !== t.id) continue;
+        producidoMl += (r.jeringas ?? 0) * (r.volumenJeringaMl ?? 0);
+      }
+
+      let consumidoTotalMl = 0;
+      let consumidoVentanaMl = 0;
+      let consumoMesAnteriorG = 0;
+      for (const r of registrosTerminados) {
+        const caps = r.capsulasTotales;
+        if (!caps || caps <= 0) continue;
+        const fecha = fechaProduccion(r);
+        for (const c of r.capas ?? []) {
+          if (c.tintaId !== t.id) continue;
+          const ext = extrusionCapa(c.dosisMg, c.concentracion, c.ip, r.capsulasPorToma);
+          if (!ext || !c.ip) continue;
+          const ml = ext * caps;
+          consumidoTotalMl += ml;
+          if (fecha && fecha >= corte) consumidoVentanaMl += ml;
+          if (fecha && fecha.slice(0, 7) === claveMesAnterior) consumoMesAnteriorG += ml * c.ip;
         }
+      }
 
-        let consumidoTotalMl = 0;
-        let consumidoVentanaMl = 0;
-        let consumoMesAnteriorG = 0;
-        for (const r of registrosTerminados) {
-          const caps = r.capsulasTotales;
-          if (!caps || caps <= 0) continue;
-          const fecha = fechaProduccion(r);
-          for (const c of r.capas ?? []) {
-            if (c.tintaId !== t.id) continue;
-            const ext = extrusionCapa(c.dosisMg, c.concentracion, c.ip, r.capsulasPorToma);
-            if (!ext || !c.ip) continue;
-            const ml = ext * caps;
-            consumidoTotalMl += ml;
-            if (fecha && fecha >= corte) consumidoVentanaMl += ml;
-            if (fecha && fecha.slice(0, 7) === claveMesAnterior) consumoMesAnteriorG += ml * c.ip;
-          }
-        }
+      const stockMl = Math.max(0, producidoMl - consumidoTotalMl);
+      const velocidadSemanalMl = consumidoVentanaMl / VENTANA_SEMANAS_CONSUMO;
+      const autonomiaDias = velocidadSemanalMl > 0 ? (stockMl / velocidadSemanalMl) * 7
+        : stockMl > 0 ? Infinity : 0;
+      // Sin producción NI consumo terminados: no hay ningún dato real
+      // completado para calcular nada (ej. lote de PI recién arrancado).
+      // Si hubo consumo real aunque nunca se haya producido, NO es este
+      // caso — cae en rojo con autonomía 0 (ver comentario de cabecera).
+      const sinDatosCompletos = producidoMl <= 0 && consumidoTotalMl <= 0;
+      const color: ColorAutonomia = sinDatosCompletos ? 'gris'
+        : autonomiaDias < 15 ? 'rojo'
+        : autonomiaDias < 25 ? 'amarillo'
+        : 'verde';
 
-        const stockMl = Math.max(0, producidoMl - consumidoTotalMl);
-        const velocidadSemanalMl = consumidoVentanaMl / VENTANA_SEMANAS_CONSUMO;
-        const autonomiaDias = velocidadSemanalMl > 0 ? (stockMl / velocidadSemanalMl) * 7
-          : stockMl > 0 ? Infinity : 0;
-        const producidoHistorico = producidoMl > 0;
-        const color: ColorAutonomia = !producidoHistorico ? 'gris'
-          : autonomiaDias < 15 ? 'rojo'
-          : autonomiaDias < 25 ? 'amarillo'
-          : 'verde';
+      lista.push({
+        key: `${t.id}|${t.concentracion.toFixed(6)}`,
+        tintaId: t.id,
+        nombreLimpio: limpiarNombreTinta(t.nombre),
+        concentracion: t.concentracion,
+        poe: t.poe,
+        ip: t.ip,
+        stockMl,
+        velocidadSemanalMl,
+        autonomiaDias,
+        sinDatosCompletos,
+        color,
+        sugeridoG: Math.round(consumoMesAnteriorG * 1.5 * 100) / 100,
+        consumoMesAnteriorG: Math.round(consumoMesAnteriorG * 100) / 100,
+      });
+    }
+    return lista.sort((a, b) => RANGO_COLOR[a.color] - RANGO_COLOR[b.color] || a.autonomiaDias - b.autonomiaDias);
+  }, [catalogos.tintas, registros, registrosTerminados, registrosPiTodos]);
 
-        return {
-          key: `${t.id}|${t.concentracion.toFixed(6)}`,
-          tintaId: t.id,
-          nombreLimpio: limpiarNombreTinta(t.nombre),
-          concentracion: t.concentracion,
-          poe: t.poe,
-          ip: t.ip,
-          stockMl,
-          velocidadSemanalMl,
-          autonomiaDias,
-          producidoHistorico,
-          color,
-          sugeridoG: Math.round(consumoMesAnteriorG * 1.5 * 100) / 100,
-          consumoMesAnteriorG: Math.round(consumoMesAnteriorG * 100) / 100,
-        };
-      })
-      .sort((a, b) => RANGO_COLOR[a.color] - RANGO_COLOR[b.color] || a.autonomiaDias - b.autonomiaDias);
-  }, [catalogos.tintas, registrosPiTerminados, registrosTerminados]);
+  const indicadoresFiltrados = filtroColor === 'todos' ? indicadores : indicadores.filter((i) => i.color === filtroColor);
 
   // ---------------- Crear el PI precargado (compartido por ambos botones) ----------------
   async function crearLotePI(params: {
@@ -367,13 +409,30 @@ export default function Necesidades({
 
   return (
     <div className="space-y-6">
-      {/* ================= Stock/autonomía de PI (B-34) ================= */}
+      {/* ================= Stock/autonomía de PI (B-34/B-34-fix) ================= */}
       <div>
         <h2 className="section-title">📦 Stock y autonomía de PI</h2>
         <p className="mb-3 text-xs text-slate-400">
           Aproximado: producido histórico − consumido histórico, no hay tabla de stock real todavía.
           Velocidad = consumo de las últimas {VENTANA_SEMANAS_CONSUMO} semanas ÷ {VENTANA_SEMANAS_CONSUMO}.
+          Solo se listan productos con uso real (producidos o consumidos alguna vez).
         </p>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {(['todos', 'rojo', 'amarillo', 'gris', 'verde'] as const).map((c) => {
+            const activo = filtroColor === c;
+            const cantidad = c === 'todos' ? indicadores.length : indicadores.filter((i) => i.color === c).length;
+            const estilo = c === 'todos' ? 'bg-indigo-600 text-white' : BADGE_COLOR[c];
+            return (
+              <button
+                key={c}
+                className={`badge ${activo ? estilo : 'bg-slate-100 text-slate-400'} ${activo ? 'ring-2 ring-offset-1 ring-indigo-400' : ''}`}
+                onClick={() => setFiltroColor(c)}
+              >
+                {c === 'todos' ? 'Todos' : LABEL_COLOR[c]} ({cantidad})
+              </button>
+            );
+          })}
+        </div>
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -386,7 +445,10 @@ export default function Necesidades({
               </tr>
             </thead>
             <tbody>
-              {indicadores.map((ind) => {
+              {indicadoresFiltrados.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Sin productos en este filtro.</td></tr>
+              )}
+              {indicadoresFiltrados.map((ind) => {
                 const hecho = hechos[ind.key];
                 const abierto = produciendo === ind.key;
                 return (
@@ -402,7 +464,7 @@ export default function Necesidades({
                         {fmtMl(ind.velocidadSemanalMl, 1)}/sem
                       </td>
                       <td className="px-2 py-2 text-right font-mono">
-                        {!ind.producidoHistorico ? '—' : ind.autonomiaDias === Infinity ? '25+ d' : `${Math.round(ind.autonomiaDias)} d`}
+                        {ind.sinDatosCompletos ? '—' : ind.autonomiaDias === Infinity ? '25+ d' : `${Math.round(ind.autonomiaDias)} d`}
                       </td>
                       <td className="px-4 py-2 text-right">
                         {hecho ? (
