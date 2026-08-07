@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { registros } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { faltantes } from '@/lib/validation';
+import { getSession } from '@/lib/auth';
+import { capasSoloOrdenYLoteCambiaron } from '@/lib/roles';
+import { ahoraDatetimeLocal } from '@/lib/estadoPT';
 
 const REINTENTOS_LOTE = 3;
 
@@ -14,16 +17,42 @@ function mensajeLoteDuplicado(prefijo: string) {
   return `Ese número de lote ya existe para el prefijo ${prefijo}`;
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'formulacion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   const [row] = await db.select().from(registros).where(eq(registros.id, Number(params.id)));
   if (!row) return NextResponse.json({ error: 'No existe' }, { status: 404 });
   return NextResponse.json(row);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'formulacion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   const id = Number(params.id);
   const body = await req.json();
   const terminar = req.nextUrl.searchParams.get('terminar') === '1';
+
+  // Impresión: en "Capas, tintas y extrusiones" solo puede reordenar capas
+  // y cambiar el lote de PI usado — el resto ya viene definido por el
+  // Admin. Se revalida acá porque el cliente manda siempre la fila
+  // completa (autosave) y no alcanza con deshabilitar los campos en el
+  // editor.
+  if (session.rol === 'impresion' && body.capas !== undefined) {
+    const [actual] = await db.select({ capas: registros.capas }).from(registros).where(eq(registros.id, id));
+    if (!actual) return NextResponse.json({ error: 'No existe' }, { status: 404 });
+    if (!capasSoloOrdenYLoteCambiaron(actual.capas, body.capas)) {
+      return NextResponse.json(
+        { error: 'Impresión solo puede reordenar capas o cambiar el lote de PI usado' },
+        { status: 403 }
+      );
+    }
+  }
 
   delete body.id;
   delete body.createdAt;
@@ -64,6 +93,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       body.loteNumero = asignado;
     }
 
+    // Fecha y hora de fin: automática al terminar (B-31), no depende de que
+    // el operador se acuerde de cargarla a mano.
+    body.fechaHoraFin = ahoraDatetimeLocal();
+
     // VALIDACIÓN ESTRICTA en el servidor: no se puede terminar incompleto.
     const faltan = faltantes(body);
     if (faltan) {
@@ -73,6 +106,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       );
     }
     body.estado = 'terminado';
+    body.enProduccion = false;
+    body.devueltoPor = null;
+    body.devueltoEn = null;
   }
 
   try {
@@ -87,7 +123,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'formulacion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   await db.delete(registros).where(eq(registros.id, Number(params.id)));
   return NextResponse.json({ ok: true });
 }
