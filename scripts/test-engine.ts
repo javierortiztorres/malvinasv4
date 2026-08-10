@@ -208,7 +208,7 @@ const BASE_REGISTRO: Registro = {
   lotePrefijo: 'PT001', loteNumero: 1,
   capas: [], proceso: { temperatura: '', tiempoMezclado: '', tiempoReposo: '', otros: '' },
   controles: { peso: true, visual: true, otroControl: '', vestimenta: true, higiene: true },
-  aprobadas: null, rechazadas: 0,
+  aprobadas: null, rechazadas: 0, cotizacionId: null,
   fechaHoraInicio: '', fechaHoraFin: '', operador: '', supervisor: '',
   fechaElab: '', fechaVto: '', devueltoPor: null, devueltoEn: null,
   fotos: [], createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),

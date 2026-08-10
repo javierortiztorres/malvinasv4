@@ -184,6 +184,10 @@ export const registros = pgTable('registros', {
   devueltoPor: text('devuelto_por'),
   devueltoEn: timestamp('devuelto_en', { withTimezone: true }),
 
+  // Cotización a la que pertenece este registro (branch atencion-cliente).
+  // Nullable: los registros creados sin pasar por Atención no tienen una.
+  cotizacionId: integer('cotizacion_id'),
+
   fotos: jsonb('fotos').$type<string[]>().notNull().default([]), // registro fotográfico OPCIONAL
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -285,7 +289,85 @@ export const usuarios = pgTable('usuarios', {
   uxUsuario: uniqueIndex('ux_usuarios_usuario').on(table.usuario),
 }));
 
+// ---------- Cotizaciones (branch atencion-cliente) ----------
+
+// Una línea de cotización = una fórmula/cápsula de la receta (hasta 3 en el
+// cotizador de Tomi). La composición sale de los registros PT asociados; los
+// costos los completa el motor de cotización (o a mano hasta que esté).
+export type LineaCotizacion = {
+  registroId: number | null; // registro PT asociado (null si se borró)
+  titulo: string; // "A", "B"… (tituloFormula)
+  nCapsulas: number | null;
+  activos: { nombre: string; dosis: number; unidad: string; costo: number | null }[];
+  costoCapsulas: number | null;
+  costoEnvase: number | null;
+  costoTiempo: number | null;
+  costoExtra: number | null;
+  precioSugerido: number | null; // lo calcula el motor
+  precioComercial: number | null; // el que se cobra (editable)
+};
+
+// Registro inmutable de cada precio que tuvo la cotización: el primero al
+// cotizar y uno por cada cambio posterior (con quién y cuándo). Es la
+// trazabilidad que pidió Tomi: "que se guarde un registro del precio al
+// momento de cotizar, y si se cambia que aparezca un warning".
+export type VersionCotizacion = {
+  fecha: string; // ISO con hora
+  usuario: string;
+  precioTotal: number | null;
+  precioTransferencia: number | null;
+  motivo: string; // '' en la primera; después, el motivo del cambio
+};
+
+export const cotizaciones = pgTable('cotizaciones', {
+  id: serial('id').primaryKey(),
+  // pendiente | pagada — el estado de PRODUCCIÓN vive en registros.estado
+  // (pendiente_pago → pendiente…): son dos dimensiones independientes,
+  // porque una cotización puede irse a producción sin estar paga.
+  estadoPago: text('estado_pago').notNull().default('pendiente'),
+  paciente: text('paciente').notNull().default(''),
+  dni: text('dni').notNull().default(''),
+  grupoPaciente: text('grupo_paciente').notNull().default(''),
+
+  lineas: jsonb('lineas').$type<LineaCotizacion[]>().notNull().default([]),
+  // Snapshot de los parámetros/costos del cotizador usados al calcular
+  // (markup, precios vigentes, etc.) — congela el contexto del precio.
+  parametros: jsonb('parametros').$type<Record<string, unknown>>().notNull().default({}),
+
+  precioTotal: real('precio_total'), // comercial vigente (suma de líneas o manual)
+  precioTransferencia: real('precio_transferencia'), // con descuento por transferencia
+  linkPago: text('link_pago').notNull().default(''), // link de MP pegado a mano (por ahora)
+  notas: text('notas').notNull().default(''),
+
+  historial: jsonb('historial').$type<VersionCotizacion[]>().notNull().default([]),
+
+  // Marca del botón "mandar a producción sin pago" (pacientes que pagan después)
+  enviadaSinPago: boolean('enviada_sin_pago').notNull().default(false),
+  cotizadoPor: text('cotizado_por').notNull().default(''),
+  pagadaEn: timestamp('pagada_en', { withTimezone: true }),
+
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Comprobantes de pago (.jpg/.pdf) — guardados DENTRO de Neon (decisión de
+// Tomi 10-ago: todo en un solo lugar). Tabla aparte para que las listas de
+// cotizaciones nunca carguen los archivos: el base64 solo viaja cuando se
+// abre/descarga un comprobante puntual.
+export const comprobantes = pgTable('comprobantes', {
+  id: serial('id').primaryKey(),
+  cotizacionId: integer('cotizacion_id').notNull(),
+  nombreArchivo: text('nombre_archivo').notNull().default(''),
+  mime: text('mime').notNull().default(''),
+  tamanoBytes: integer('tamano_bytes').notNull().default(0),
+  datosBase64: text('datos_base64').notNull().default(''),
+  subidoPor: text('subido_por').notNull().default(''),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 export type Tinta = typeof tintas.$inferSelect;
 export type Registro = typeof registros.$inferSelect;
 export type RegistroPi = typeof registrosPi.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
+export type Cotizacion = typeof cotizaciones.$inferSelect;
+export type Comprobante = typeof comprobantes.$inferSelect;
