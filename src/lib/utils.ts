@@ -37,6 +37,46 @@ export function diasHasta(iso: string): number | null {
   return Math.round((a - b) / 86400000);
 }
 
+// Suma/resta días de calendario a una fecha ISO tratándola como fecha "pura"
+// (Date.UTC) para no arrastrar drift de huso. Mismo patrón que sumarMeses.
+export function addDiasISO(iso: string, dias: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+
+// 0=Dom..6=Sáb
+export function diaSemanaISO(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+// Lunes de la semana que contiene la fecha dada (mismo criterio Lun→Dom
+// que usa Agenda.tsx para agrupar por semana — B-31.1 lo centraliza acá
+// para que el cálculo de capacidad semanal use exactamente el mismo corte).
+export function inicioSemanaISO(iso: string): string {
+  const dow = diaSemanaISO(iso);
+  const offset = dow === 0 ? -6 : 1 - dow;
+  return addDiasISO(iso, offset);
+}
+
+// Día hábil = Lun a Vie. No hay calendario de feriados en el sistema
+// (B-31.1): si en el futuro se agrega uno, este es el único punto a tocar.
+export function esDiaHabil(iso: string): boolean {
+  const dow = diaSemanaISO(iso);
+  return dow !== 0 && dow !== 6;
+}
+
+// Suma N días hábiles (Lun-Vie) a una fecha ISO.
+export function addDiasHabilesISO(iso: string, dias: number): string {
+  let resultado = iso;
+  let restantes = dias;
+  while (restantes > 0) {
+    resultado = addDiasISO(resultado, 1);
+    if (esDiaHabil(resultado)) restantes--;
+  }
+  return resultado;
+}
+
 // Fecha (ISO, "YYYY-MM-DD") en la que se considera PRODUCIDO un registro,
 // para reportes/estadística. Mismo orden de precedencia que ya usa Terminados
 // para ordenar por terminación (fechaHoraFin → fechaElab → createdAt):
@@ -79,6 +119,26 @@ export function formatoLote(prefijo: string, numero: number | null): string {
 export function formatoLotePI(poe: string, numero: number | null): string {
   const p = numero == null ? 'P—' : `P${String(numero).padStart(3, '0')}`;
   return `${PREFIJO_LOTE_PI}/${poe || 'FPI.—'}/${p}`;
+}
+
+// Núcleo alfanumérico (sin espaciado ni separadores, minúscula) de un lote
+// de PI, sin el prefijo "PI/" — para comparar contra lo que el operador tipeó
+// a mano en "Lote PI usado" de una capa de PT, que puede venir con distinto
+// espaciado/separadores pero siempre conserva el POE y el número de lote.
+function nucleoLotePI(poe: string, numero: number | null): string | null {
+  if (numero == null || !poe) return null;
+  const p = `P${String(numero).padStart(3, '0')}`;
+  return `${poe}${p}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// ¿El texto libre de "Lote PI usado" de una capa de PT corresponde a este
+// lote de PI? Único punto que hace este matching (B-31, devolución
+// automática desde Producto Intermedio) — no reimplementar en cada lugar.
+export function coincideLotePI(loteCapaPT: string, poe: string, numero: number | null): boolean {
+  const nucleo = nucleoLotePI(poe, numero);
+  if (!nucleo) return false;
+  const capaNormalizada = (loteCapaPT || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return capaNormalizada.length > 0 && capaNormalizada.includes(nucleo);
 }
 
 // Criterio único de "PI pendiente": el mismo que usa la solapa Producto

@@ -5,19 +5,29 @@ import { APP } from '@/lib/config';
 import MarcaMalvinas from '@/components/MarcaMalvinas';
 
 export default function Login() {
+  const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
 
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    if (res.ok) router.push('/');
-    else setError('Contraseña incorrecta');
+    setError('');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, password }),
+      });
+      if (res.ok) {
+        router.push('/');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Usuario o contraseña incorrectos');
+      }
+    } catch {
+      setError('No se pudo conectar con el servidor. Probá de nuevo.');
+    }
   }
 
   return (
@@ -29,9 +39,14 @@ export default function Login() {
           <p className="text-sm text-niebla">{APP.subtitulo}</p>
         </div>
         <div>
+          <label className="label">Usuario</label>
+          <input className="input" value={usuario}
+            onChange={(e) => setUsuario(e.target.value)} autoFocus autoCapitalize="none" />
+        </div>
+        <div>
           <label className="label">Contraseña</label>
           <input type="password" className="input" value={password}
-            onChange={(e) => setPassword(e.target.value)} autoFocus />
+            onChange={(e) => setPassword(e.target.value)} />
         </div>
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <button className="btn-primary w-full">Entrar</button>

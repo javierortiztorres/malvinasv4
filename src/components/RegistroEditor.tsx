@@ -25,6 +25,7 @@ export default function RegistroEditor({
   onCambio,
   onActualizado,
   onPopupBloqueado,
+  rol,
 }: {
   registro: Registro;
   catalogos: Catalogos;
@@ -32,7 +33,13 @@ export default function RegistroEditor({
   onCambio: () => void;
   onActualizado: (r: Registro) => void;
   onPopupBloqueado?: (url: string) => void;
+  rol?: string;
 }) {
+  // Impresión (B-30b): no ve "Fórmula según receta", y en "Capas, tintas y
+  // extrusiones" solo puede reordenar capas y cambiar el lote de PI usado
+  // — todo lo demás (ya definido por el Admin) queda de solo lectura. El
+  // servidor vuelve a validar esto en el PUT, esto es solo la pantalla.
+  const soloLecturaCapas = rol === 'impresion';
   // ---------------- Estado + persistencia híbrida (local + nube) ----------------
   const { r, set, sync, sesionVencida, errorStorage } = useAutosave(registro, {
     draftKey: DRAFT_KEY,
@@ -266,6 +273,8 @@ export default function RegistroEditor({
         </section>
 
         {/* ---------- 2 · Fórmula (rótulo) ---------- */}
+        {/* Impresión (B-30b) no ve esta sección: la fórmula ya viene definida por el Admin. */}
+        {rol !== 'impresion' && (
         <section>
           <h3 className="section-title text-sm">🧾 2 · Fórmula según receta (dosis por toma)</h3>
           <table className="w-full text-sm">
@@ -319,6 +328,7 @@ export default function RegistroEditor({
             </div>
           </div>
         </section>
+        )}
 
         {/* ---------- 3 · Capas y extrusiones (EL MOTOR) ---------- */}
         <section>
@@ -352,17 +362,17 @@ export default function RegistroEditor({
                     </div>
                     <div className="w-44 grow">
                       <label className="label">Activo (receta)</label>
-                      <input className="input" value={c.activoReceta}
+                      <input className="input" value={c.activoReceta} disabled={soloLecturaCapas}
                         onChange={(e) => setCapa(i, { activoReceta: e.target.value })} />
                     </div>
                     <div className="w-28">
                       <label className="label">Dosis/toma (mg)</label>
-                      <input className="input" type="number" step="any" value={c.dosisMg ?? ''}
+                      <input className="input" type="number" step="any" value={c.dosisMg ?? ''} disabled={soloLecturaCapas}
                         onChange={(e) => setCapa(i, { dosisMg: e.target.value ? Number(e.target.value) : null })} />
                     </div>
                     <div className="min-w-64 grow-[2]">
                       <label className="label">Tinta (producto intermedio)</label>
-                      <select className="input" value={c.tintaId ? String(c.tintaId) : 'manual'}
+                      <select className="input" value={c.tintaId ? String(c.tintaId) : 'manual'} disabled={soloLecturaCapas}
                         onChange={(e) => elegirTinta(i, e.target.value)}>
                         <option value="manual">✎ manual / sin catálogo</option>
                         {opciones.length > 0 && (
@@ -381,13 +391,15 @@ export default function RegistroEditor({
                         </optgroup>
                       </select>
                     </div>
-                    <button className="pb-2 text-lg text-red-500"
-                      onClick={() => actualizarCapas(r.capas.filter((_, j) => j !== i).map((c2, j) => ({ ...c2, ref: j + 1 })))}>
-                      ✕
-                    </button>
+                    {!soloLecturaCapas && (
+                      <button className="pb-2 text-lg text-red-500"
+                        onClick={() => actualizarCapas(r.capas.filter((_, j) => j !== i).map((c2, j) => ({ ...c2, ref: j + 1 })))}>
+                        ✕
+                      </button>
+                    )}
                   </div>
                   {c.tintaId === null && (
-                    <input className="input mt-2" placeholder="Nombre de la tinta (manual)" value={c.tinta}
+                    <input className="input mt-2" placeholder="Nombre de la tinta (manual)" value={c.tinta} disabled={soloLecturaCapas}
                       onChange={(e) => setCapa(i, { tinta: e.target.value })} />
                   )}
                   {convAplicada && (
@@ -410,14 +422,14 @@ export default function RegistroEditor({
                   <div className="mt-2 flex flex-wrap items-end gap-2 border-t border-slate-200/70 pt-2">
                     <div className="w-28">
                       <label className="label">Conc. (%)</label>
-                      <input className="input" type="number" step="any"
+                      <input className="input" type="number" step="any" disabled={soloLecturaCapas}
                         value={c.concentracion != null ? Number((c.concentracion * 100).toFixed(4)) : ''}
                         onChange={(e) =>
                           setCapa(i, { concentracion: e.target.value ? Number(e.target.value) / 100 : null })} />
                     </div>
                     <div className="w-24">
                       <label className="label">IP</label>
-                      <input className="input" type="number" step="any" value={c.ip ?? ''}
+                      <input className="input" type="number" step="any" value={c.ip ?? ''} disabled={soloLecturaCapas}
                         onChange={(e) => setCapa(i, { ip: e.target.value ? Number(e.target.value) : null })} />
                     </div>
                     <div className="w-32">
@@ -442,7 +454,9 @@ export default function RegistroEditor({
                       <label className="label">
                         Ubicación{' '}
                         {c.ubicacionManual ? (
-                          <button className="font-bold text-profundo hover:underline" title="Volver a ubicación automática (tapa solo si el cuerpo supera 0.9 mL)"
+                          <button className="font-bold text-profundo hover:underline disabled:no-underline disabled:opacity-50"
+                            disabled={soloLecturaCapas}
+                            title="Volver a ubicación automática (tapa solo si el cuerpo supera 0.9 mL)"
                             onClick={() => setCapa(i, { ubicacionManual: false })}>
                             (fijada · ↺ auto)
                           </button>
@@ -450,7 +464,7 @@ export default function RegistroEditor({
                           <span className="normal-case text-slate-400">(auto)</span>
                         )}
                       </label>
-                      <select className="input" value={c.ubicacion}
+                      <select className="input" value={c.ubicacion} disabled={soloLecturaCapas}
                         onChange={(e) => setCapa(i, { ubicacion: e.target.value, ubicacionManual: true })}>
                         <option value="cuerpo">Cuerpo</option>
                         <option value="tapa">Tapa</option>
@@ -473,11 +487,13 @@ export default function RegistroEditor({
               );
             })}
           </div>
-          <button className="btn-ghost mt-2 text-xs"
-            onClick={() =>
-              actualizarCapas([...r.capas, capaDesdeTinta(r.capas.length + 1, '', null, 'mg', null)])}>
-            + Agregar capa
-          </button>
+          {!soloLecturaCapas && (
+            <button className="btn-ghost mt-2 text-xs"
+              onClick={() =>
+                actualizarCapas([...r.capas, capaDesdeTinta(r.capas.length + 1, '', null, 'mg', null)])}>
+              + Agregar capa
+            </button>
+          )}
         </section>
 
         {/* ---------- 4 · Producción ---------- */}
@@ -640,6 +656,7 @@ export default function RegistroEditor({
           manual={r.capsulasPorTomaManual}
           onCambiarDivision={cambiarDivision}
           onAplicarDilucion={aplicarDilucion}
+          soloLectura={soloLecturaCapas}
         />
       </div>
     </div>

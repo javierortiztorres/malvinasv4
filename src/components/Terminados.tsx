@@ -52,10 +52,15 @@ export default function Terminados({
   registros,
   registrosPi,
   onCambio,
+  mostrarPT = true,
+  mostrarPI = true,
 }: {
   registros: Registro[];
   registrosPi: RegistroPi[];
   onCambio: () => void;
+  // B-30b: Impresión ve solo PT, Formulación ve solo PI.
+  mostrarPT?: boolean;
+  mostrarPI?: boolean;
 }) {
   const [rotuloDe, setRotuloDe] = useState<Registro | null>(null);
   const [filtro, setFiltro] = useState('');
@@ -83,11 +88,15 @@ export default function Terminados({
   const [sucursal, setSucursal] = useState(SUCURSALES[0].id);
   const [copiado, setCopiado] = useState(false);
 
-  async function reabrir(url: string, r: any) {
+  // Reabrir un PT vuelve siempre a "En producción" (de ahí sale el único
+  // camino a Terminado); un PI vuelve a su único estado previo, en_proceso.
+  async function reabrir(url: string, r: any, esPT: boolean) {
     await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...r, estado: 'en_proceso' }),
+      body: JSON.stringify(
+        esPT ? { ...r, estado: 'en_produccion', enProduccion: true } : { ...r, estado: 'en_proceso' }
+      ),
     });
     onCambio();
   }
@@ -100,10 +109,13 @@ export default function Terminados({
 
   return (
     <div className="space-y-6">
-      <input className="input max-w-md" placeholder="🔍 Buscar por paciente, médico, lote, tinta, fecha…"
-        value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+      {mostrarPT && (
+        <input className="input max-w-md" placeholder="🔍 Buscar por paciente, médico, lote, tinta, fecha…"
+          value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+      )}
 
       {/* -------- Producto terminado -------- */}
+      {mostrarPT && (
       <div>
         <h2 className="section-title">💊 Producto terminado{filtro && ` · ${ptVisibles.length} de ${registros.length}`}</h2>
         {Object.entries(salteadosPT).map(([prefijo, numeros]) => {
@@ -139,8 +151,9 @@ export default function Terminados({
                   </div>
                   <div className="flex gap-2">
                     <a className="btn-primary" href={`/registro/${r.id}/print`} target="_blank">📄 Documento</a>
-                    <button className="btn-ghost" onClick={() => setRotuloDe(r)}>🏷️ Rótulo</button>
-                    <button className="btn-ghost" onClick={() => reabrir(`/api/registros/${r.id}`, r)}>↩ Reabrir</button>
+                    <a className="btn-ghost" href={`/registro/${r.id}/rotulo`} target="_blank">🏷️ Rótulo</a>
+                    <button className="btn-ghost" onClick={() => setRotuloDe(r)}>📋 Copiar rótulo</button>
+                    <button className="btn-ghost" onClick={() => reabrir(`/api/registros/${r.id}`, r, true)}>↩ Reabrir</button>
                   </div>
                 </div>
               );
@@ -148,8 +161,10 @@ export default function Terminados({
           </div>
         )}
       </div>
+      )}
 
       {/* -------- Producto intermedio -------- */}
+      {mostrarPI && (
       <div>
         <h2 className="section-title">🧪 Producto intermedio{filtroPi && ` · ${piVisibles.length} de ${registrosPi.length}`}</h2>
         <input className="input mb-3 max-w-md" placeholder="🔍 Buscar por tinta, producto o lote…"
@@ -179,13 +194,14 @@ export default function Terminados({
                 </div>
                 <div className="flex gap-2">
                   <a className="btn-primary" href={`/registro-pi/${r.id}/print`} target="_blank">📄 Documento</a>
-                  <button className="btn-ghost" onClick={() => reabrir(`/api/registros-pi/${r.id}`, r)}>↩ Reabrir</button>
+                  <button className="btn-ghost" onClick={() => reabrir(`/api/registros-pi/${r.id}`, r, false)}>↩ Reabrir</button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      )}
 
       {/* -------- Modal rótulo -------- */}
       {rotuloDe && (

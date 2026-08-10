@@ -12,7 +12,8 @@ export default function LectorRecetas({
   onCreados,
 }: {
   catalogos: Catalogos;
-  onCreados: () => void;
+  // Recibe el id del primer registro creado, para abrir su editor automáticamente.
+  onCreados: (primerId: number) => void;
 }) {
   const [modo, setModo] = useState<'pdf' | 'texto'>('pdf');
   const [texto, setTexto] = useState('');
@@ -111,9 +112,10 @@ export default function LectorRecetas({
     });
     setCargando(false);
     if (res.ok) {
+      const creados = await res.json();
       setReceta(null);
       setTexto('');
-      onCreados();
+      if (creados[0]?.id != null) onCreados(creados[0].id);
     } else {
       setError('No se pudieron crear los registros');
     }

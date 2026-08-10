@@ -178,6 +178,12 @@ export const registros = pgTable('registros', {
   fechaElab: text('fecha_elab').notNull().default(''),
   fechaVto: text('fecha_vto').notNull().default(''),
 
+  // Quién devolvió el registro a un estado anterior a mano y cuándo (B-31):
+  // se completa en cada retroceso manual y se limpia en el próximo avance,
+  // para que quede a la vista sin quedar pegado para siempre.
+  devueltoPor: text('devuelto_por'),
+  devueltoEn: timestamp('devuelto_en', { withTimezone: true }),
+
   fotos: jsonb('fotos').$type<string[]>().notNull().default([]), // registro fotográfico OPCIONAL
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -269,6 +275,23 @@ export const configuracion = pgTable('configuracion', {
   valor: text('valor').notNull(),
 });
 
+// Cuentas de login reales (B-30a) — un usuario y contraseña por persona,
+// con uno de 3 roles fijos. Totalmente aparte de `operadores` (quién firma
+// un documento PT/PI): esa tabla no participa del login.
+export const usuarios = pgTable('usuarios', {
+  id: serial('id').primaryKey(),
+  nombre: text('nombre').notNull(),
+  usuario: text('usuario').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  rol: text('rol').notNull(), // admin | impresion | formulacion
+  activo: boolean('activo').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uxUsuario: uniqueIndex('ux_usuarios_usuario').on(table.usuario),
+}));
+
 export type Tinta = typeof tintas.$inferSelect;
 export type Registro = typeof registros.$inferSelect;
 export type RegistroPi = typeof registrosPi.$inferSelect;
+export type Usuario = typeof usuarios.$inferSelect;

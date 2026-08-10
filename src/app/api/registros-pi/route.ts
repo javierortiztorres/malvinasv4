@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { registrosPi } from '@/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
+import { getSession } from '@/lib/auth';
 
 const REINTENTOS_LOTE = 3;
 
@@ -9,7 +10,15 @@ function esConflictoDeUnicidad(e: unknown): boolean {
   return typeof e === 'object' && e !== null && (e as { code?: string }).code === '23505';
 }
 
+// Producto intermedio (PI): Impresión no tiene ninguna solapa que lo use
+// (el "Lote PI usado" del editor de PT es texto libre, no consulta esta
+// tabla) y no debe poder verlo ni de este lado (B-30b).
 export async function GET(req: NextRequest) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'impresion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   const estado = req.nextUrl.searchParams.get('estado');
   const q = estado
     ? db.select().from(registrosPi).where(eq(registrosPi.estado, estado)).orderBy(desc(registrosPi.createdAt))
@@ -18,6 +27,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (session.rol === 'impresion') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
   const body = await req.json();
   const [row] = await db.insert(registrosPi).values(body).returning();
 

@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import type { Registro } from '@/db/schema';
 import { diasHasta, fechaAR, hoyISO, sumarMeses } from '@/lib/utils';
 
 // =====================================================================
@@ -9,7 +8,21 @@ import { diasHasta, fechaAR, hoyISO, sumarMeses } from '@/lib/utils';
 // de semana elegido acá, no hay convención previa en el proyecto) y mes
 // en grilla de 6 semanas. Fechas siempre en base a hoyISO()/diasHasta()
 // (huso Argentina) — nunca new Date() crudo, ver lecciones B-07/B-15.
+//
+// Genérica desde B-30b: no conoce Registro/RegistroPi — cada solapa
+// (PT para Admin/Impresión, PI para Formulación) le pasa sus propios
+// "eventos" ya adaptados. La navegación al hacer click queda 100% a
+// cargo de quien la usa (onIrAEvento/onIrASinFecha), porque el destino
+// depende de qué solapas tiene ese rol.
 // =====================================================================
+
+export type EventoAgenda = {
+  id: number;
+  deadline: string;
+  titulo: string;
+  subtitulo?: string;
+  original: unknown;
+};
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const MESES = [
@@ -50,45 +63,40 @@ function claseUrgencia(dias: number): string {
     : 'bg-slate-100 text-slate-600 border-slate-300';
 }
 
-function tabDestino(lista: Registro[]): 'prod' | 'pt' {
-  return lista.some((r) => r.enProduccion) ? 'prod' : 'pt';
-}
-
-function EventoPill({ r, onClick }: { r: Registro; onClick: () => void }) {
-  const dias = diasHasta(r.deadline) ?? 0;
-  const activo = (r.formula ?? [])[0]?.activo;
+function EventoPill({ evento, onClick }: { evento: EventoAgenda; onClick: () => void }) {
+  const dias = diasHasta(evento.deadline) ?? 0;
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title={`${r.paciente || 'SIN NOMBRE'} · ${r.tituloFormula || ''}`}
+      title={`${evento.titulo || 'SIN NOMBRE'} · ${evento.subtitulo || ''}`}
       className={`block w-full truncate rounded-md border px-1.5 py-0.5 text-left text-xs font-semibold ${claseUrgencia(dias)}`}
     >
-      {r.paciente || 'SIN NOMBRE'}
-      {activo && <span className="font-normal opacity-75"> · {activo}</span>}
+      {evento.titulo || 'SIN NOMBRE'}
+      {evento.subtitulo && <span className="font-normal opacity-75"> · {evento.subtitulo}</span>}
     </button>
   );
 }
 
 export default function Agenda({
-  registros,
-  onIrARegistro,
-  onIrATab,
+  eventos,
+  onIrAEvento,
+  onIrASinFecha,
 }: {
-  registros: Registro[];
-  onIrARegistro: (r: Registro) => void;
-  onIrATab: (tab: 'prod' | 'pt') => void;
+  eventos: EventoAgenda[];
+  onIrAEvento: (original: unknown) => void;
+  onIrASinFecha: () => void;
 }) {
   const [vista, setVista] = useState<'semana' | 'mes'>('semana');
   const [ancla, setAncla] = useState(hoyISO());
   const hoy = hoyISO();
 
-  const conFecha = registros.filter((r) => r.deadline);
-  const sinFecha = registros.filter((r) => !r.deadline);
+  const conFecha = eventos.filter((r) => r.deadline);
+  const sinFecha = eventos.filter((r) => !r.deadline);
   const vencidas = conFecha
     .filter((r) => (diasHasta(r.deadline) ?? 0) < 0)
     .sort((a, b) => (diasHasta(a.deadline) ?? 0) - (diasHasta(b.deadline) ?? 0));
 
-  const porFecha = new Map<string, Registro[]>();
+  const porFecha = new Map<string, EventoAgenda[]>();
   for (const r of conFecha) {
     const arr = porFecha.get(r.deadline) ?? [];
     arr.push(r);
@@ -97,12 +105,7 @@ export default function Agenda({
 
   function irVencidas() {
     if (vencidas.length === 0) return;
-    onIrARegistro(vencidas[0]);
-  }
-
-  function irSinFecha() {
-    if (sinFecha.length === 0) return;
-    onIrATab(tabDestino(sinFecha));
+    onIrAEvento(vencidas[0].original);
   }
 
   function anterior() {
@@ -155,7 +158,7 @@ export default function Agenda({
         )}
         {sinFecha.length > 0 && (
           <button
-            onClick={irSinFecha}
+            onClick={onIrASinFecha}
             className="badge border border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200"
           >
             {sinFecha.length} sin fecha
@@ -163,9 +166,9 @@ export default function Agenda({
         )}
       </div>
 
-      {registros.length === 0 ? (
+      {eventos.length === 0 ? (
         <div className="card p-10 text-center text-slate-500">
-          No hay registros en proceso todavía. Cargá una receta desde el <b>Lector de recetas</b>.
+          No hay registros en proceso todavía.
         </div>
       ) : (
         <div className="grid grid-cols-7 gap-2">
@@ -173,7 +176,7 @@ export default function Agenda({
             <p key={d} className="text-center text-xs font-bold uppercase text-niebla">{d}</p>
           ))}
           {diasGrilla.map((iso) => {
-            const eventos = porFecha.get(iso) ?? [];
+            const eventosDia = porFecha.get(iso) ?? [];
             const esHoy = iso === hoy;
             const esOtroMes = vista === 'mes' && iso.slice(0, 7) !== ancla.slice(0, 7);
             return (
@@ -187,8 +190,8 @@ export default function Agenda({
                   {vista === 'semana' ? fechaAR(iso).slice(0, 5) : iso.slice(8, 10)}
                 </p>
                 <div className="space-y-1 overflow-y-auto" style={{ maxHeight: vista === 'semana' ? 220 : 70 }}>
-                  {eventos.map((r) => (
-                    <EventoPill key={r.id} r={r} onClick={() => onIrARegistro(r)} />
+                  {eventosDia.map((evento) => (
+                    <EventoPill key={evento.id} evento={evento} onClick={() => onIrAEvento(evento.original)} />
                   ))}
                 </div>
               </div>
