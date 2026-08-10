@@ -17,6 +17,7 @@ import Necesidades from '@/components/Necesidades';
 import Estadistica from '@/components/Estadistica';
 import Admin from '@/components/Admin';
 import GestionUsuarios from '@/components/GestionUsuarios';
+import Cotizaciones from '@/components/Cotizaciones';
 
 export type Catalogos = {
   tintas: Tinta[];
@@ -109,6 +110,7 @@ export default function Home() {
   // mismo texto libre de siempre.
   const ptTerm = registros.filter((r) => estadoPT(r) === 'terminado');
   const ptProceso = registros.filter((r) => estadoPT(r) !== 'terminado');
+  const pendientesPago = ptProceso.filter((r) => estadoPT(r) === 'pendiente_pago');
   const pendientes = ptProceso.filter((r) => estadoPT(r) === 'pendiente');
   const preProduccion = ptProceso.filter((r) => estadoPT(r) === 'pre_produccion');
   const enProduccion = ptProceso.filter((r) => estadoPT(r) === 'en_produccion');
@@ -198,6 +200,7 @@ export default function Home() {
             : t.id === 'pt' ? pendientes.length
             : t.id === 'preprod' ? preProduccion.length
             : t.id === 'pi' ? piProceso.length
+            : t.id === 'cotizaciones' ? pendientesPago.length
             : t.id === 'agenda' || t.id === 'agenda-pt' ? vencidasCount
             : 0;
           return (
@@ -238,7 +241,16 @@ export default function Home() {
       )}
       {tab === 'lector' && catalogos && permitido.has('lector') && (
         <LectorRecetas catalogos={catalogos}
-          onCreados={(primerId) => { recargar(); setTab('pt'); setFocoId(primerId); }} />
+          onCreados={(primerId) => {
+            recargar();
+            // Atención: lo que crea el Lector queda retenido en Pendiente de
+            // pago con su cotización creada — se sigue en Cotizaciones.
+            if (yo?.rol === 'atencion') { setTab('cotizaciones'); return; }
+            setTab('pt'); setFocoId(primerId);
+          }} />
+      )}
+      {tab === 'cotizaciones' && permitido.has('cotizaciones') && (
+        <Cotizaciones registros={registros} rol={yo?.rol} onCambio={recargar} />
       )}
       {tab === 'prod' && catalogos && permitido.has('prod') && (
         <EnProceso registros={enProduccion} catalogos={catalogos} onCambio={recargar}
