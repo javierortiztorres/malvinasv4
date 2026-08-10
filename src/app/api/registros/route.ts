@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { registros, medicos, pacientes } from '@/db/schema';
-import { eq, desc, and, gte, lte } from 'drizzle-orm';
+import { registros, medicos, pacientes, cotizaciones } from '@/db/schema';
+import { eq, desc, and, gte, lte, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { hoyISO, addDiasISO, addDiasHabilesISO, inicioSemanaISO } from '@/lib/utils';
+import { lineasDesdeRegistros } from '@/lib/cotizador';
 
 // Capacidad real del laboratorio (B-31.1): 2 recetas/día, 10 recetas/semana
 // (Lun-Dom, mismo corte que Agenda). Arranca en 5 días hábiles desde hoy y
@@ -60,6 +61,14 @@ export async function POST(req: NextRequest) {
   const items = Array.isArray(body) ? body : [body];
   const creados = [];
   for (const item of items) {
+    // Atención al cliente (branch atencion-cliente): TODO lo que crea entra
+    // retenido en "Pendiente de pago" — pasa a Pendientes recién al subir el
+    // comprobante o con el botón "a producción sin pago". Se fuerza acá en
+    // el server para no depender del cliente (y sin tocar el Lector).
+    if (session.rol === 'atencion') {
+      item.estado = 'pendiente_pago';
+      item.enProduccion = false;
+    }
     if (!item.deadline) {
       item.deadline = await calcularDeadlineAuto();
     }
@@ -76,5 +85,26 @@ export async function POST(req: NextRequest) {
         await db.insert(pacientes).values({ nombre: item.paciente, dni: item.dni ?? '' });
     }
   }
+
+  // Atención: se crea la cotización del grupo en el mismo paso (una sola,
+  // cubriendo todas las fórmulas de la receta), lista para ponerle precio.
+  if (session.rol === 'atencion' && creados.length > 0) {
+    const [cot] = await db
+      .insert(cotizaciones)
+      .values({
+        paciente: creados[0].paciente,
+        dni: creados[0].dni,
+        grupoPaciente: creados[0].grupoPaciente,
+        lineas: lineasDesdeRegistros(creados),
+        cotizadoPor: session.nombre,
+      })
+      .returning();
+    await db
+      .update(registros)
+      .set({ cotizacionId: cot.id })
+      .where(inArray(registros.id, creados.map((r) => r.id)));
+    for (const r of creados) r.cotizacionId = cot.id;
+  }
+
   return NextResponse.json(creados);
 }
