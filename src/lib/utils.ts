@@ -37,6 +37,46 @@ export function diasHasta(iso: string): number | null {
   return Math.round((a - b) / 86400000);
 }
 
+// Suma/resta días de calendario a una fecha ISO tratándola como fecha "pura"
+// (Date.UTC) para no arrastrar drift de huso. Mismo patrón que sumarMeses.
+export function addDiasISO(iso: string, dias: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+
+// 0=Dom..6=Sáb
+export function diaSemanaISO(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+// Lunes de la semana que contiene la fecha dada (mismo criterio Lun→Dom
+// que usa Agenda.tsx para agrupar por semana — B-31.1 lo centraliza acá
+// para que el cálculo de capacidad semanal use exactamente el mismo corte).
+export function inicioSemanaISO(iso: string): string {
+  const dow = diaSemanaISO(iso);
+  const offset = dow === 0 ? -6 : 1 - dow;
+  return addDiasISO(iso, offset);
+}
+
+// Día hábil = Lun a Vie. No hay calendario de feriados en el sistema
+// (B-31.1): si en el futuro se agrega uno, este es el único punto a tocar.
+export function esDiaHabil(iso: string): boolean {
+  const dow = diaSemanaISO(iso);
+  return dow !== 0 && dow !== 6;
+}
+
+// Suma N días hábiles (Lun-Vie) a una fecha ISO.
+export function addDiasHabilesISO(iso: string, dias: number): string {
+  let resultado = iso;
+  let restantes = dias;
+  while (restantes > 0) {
+    resultado = addDiasISO(resultado, 1);
+    if (esDiaHabil(resultado)) restantes--;
+  }
+  return resultado;
+}
+
 // Fecha (ISO, "YYYY-MM-DD") en la que se considera PRODUCIDO un registro,
 // para reportes/estadística. Mismo orden de precedencia que ya usa Terminados
 // para ordenar por terminación (fechaHoraFin → fechaElab → createdAt):
