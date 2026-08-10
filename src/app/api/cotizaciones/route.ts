@@ -4,6 +4,7 @@ import { cotizaciones, registros } from '@/db/schema';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { lineasDesdeRegistros } from '@/lib/cotizador';
+import { cotizarLineas, snapshotParametros } from '@/lib/cotizadorServer';
 
 // Cotizaciones: las ven y gestionan Admin y Atención al cliente.
 // Impresión/Formulación no tienen nada que ver con precios (regla de
@@ -55,13 +56,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No se puede cotizar un registro terminado' }, { status: 409 });
   }
 
+  // El motor pone precio en el momento si todas las drogas matchean
+  // (envío "sin" por defecto; se ajusta desde la pantalla).
+  const calc = await cotizarLineas(lineasDesdeRegistros(filas), 'sin');
   const [cot] = await db
     .insert(cotizaciones)
     .values({
       paciente: filas[0].paciente,
       dni: filas[0].dni,
       grupoPaciente: filas[0].grupoPaciente,
-      lineas: lineasDesdeRegistros(filas),
+      lineas: calc.lineas,
+      parametros: snapshotParametros(calc, 'sin'),
+      precioTotal: calc.totales?.precioTotal ?? null,
+      precioTransferencia: calc.totales?.precioTransferencia ?? null,
+      historial: calc.totales
+        ? [{
+            fecha: new Date().toISOString(),
+            usuario: session.nombre,
+            precioTotal: calc.totales.precioTotal,
+            precioTransferencia: calc.totales.precioTransferencia,
+            motivo: 'Cotización automática (motor)',
+          }]
+        : [],
       cotizadoPor: session.nombre,
     })
     .returning();

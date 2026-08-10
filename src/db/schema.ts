@@ -307,7 +307,10 @@ export type LineaCotizacion = {
   registroId: number | null; // registro PT asociado (null si se borró)
   titulo: string; // "A", "B"… (tituloFormula)
   nCapsulas: number | null;
-  activos: { nombre: string; dosis: number; unidad: string; costo: number | null }[];
+  // drogaId: con qué droga del cotizador se matcheó este activo (null =
+  // sin matchear; se elige a mano en la pantalla). costo = subtotal del
+  // activo (precio unitario con markup topeado × dosis × cápsulas).
+  activos: { nombre: string; dosis: number; unidad: string; costo: number | null; drogaId?: number | null }[];
   costoCapsulas: number | null;
   costoEnvase: number | null;
   costoTiempo: number | null;
@@ -374,9 +377,31 @@ export const comprobantes = pgTable('comprobantes', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+// Motor del cotizador (branch atencion-cliente, migración 2): lista de
+// costos de drogas + parámetros generales, portados del Excel de Tomi.
+export const cotizadorDrogas = pgTable('cotizador_drogas', {
+  id: serial('id').primaryKey(),
+  nombre: text('nombre').notNull(),
+  keywords: text('keywords').notNull().default(''), // sinónimos para matchear la receta
+  unidad: text('unidad').notNull().default('mg'), // mg | ug | UI (unidad del precio)
+  costoUnitario: real('costo_unitario'), // costo real por unidad (col E del Excel)
+  precioComercialUnitario: real('precio_comercial_unitario'), // tope comercial (col D)
+  activo: boolean('activo').notNull().default(true),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uxNombre: uniqueIndex('ux_cotizador_drogas_nombre').on(sql`lower(${table.nombre})`),
+}));
+
+export const cotizadorConfig = pgTable('cotizador_config', {
+  id: integer('id').primaryKey(), // única fila: id = 1
+  datos: jsonb('datos').$type<Record<string, number>>().notNull().default({}),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export type Tinta = typeof tintas.$inferSelect;
 export type Registro = typeof registros.$inferSelect;
 export type RegistroPi = typeof registrosPi.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
 export type Cotizacion = typeof cotizaciones.$inferSelect;
 export type Comprobante = typeof comprobantes.$inferSelect;
+export type CotizadorDroga = typeof cotizadorDrogas.$inferSelect;

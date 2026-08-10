@@ -19,6 +19,7 @@ import Admin from '@/components/Admin';
 import GestionUsuarios from '@/components/GestionUsuarios';
 import Cotizaciones from '@/components/Cotizaciones';
 import AgendaAtencion from '@/components/AgendaAtencion';
+import CotizadorGestion from '@/components/CotizadorGestion';
 
 export type Catalogos = {
   tintas: Tinta[];
@@ -289,6 +290,7 @@ export default function Home() {
         <Estadistica registros={ptTerm} registrosPi={piTerm} />
       )}
       {tab === 'gestion' && catalogos && permitido.has('gestion') && <Admin catalogos={catalogos} onCambio={recargar} />}
+      {tab === 'cotizador' && permitido.has('cotizador') && <CotizadorGestion />}
       {tab === 'usuarios' && permitido.has('usuarios') && <GestionUsuarios miId={yo!.uid} />}
       {!catalogos && <p className="text-slate-500">Cargando…</p>}
     </main>

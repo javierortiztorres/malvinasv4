@@ -1,10 +1,10 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Cotizacion, Registro } from '@/db/schema';
+import type { Cotizacion, CotizadorDroga, Registro } from '@/db/schema';
 import { colorDeGrupo } from '@/lib/colors';
 import { coincideFiltro } from '@/lib/utils';
 import { estadoPT, LABEL_ESTADO } from '@/lib/estadoPT';
-import { formatoPeso, mensajeWhatsApp, precioTransferenciaSugerido } from '@/lib/cotizador';
+import { formatoPeso, mensajeWhatsApp, precioTransferenciaSugerido, LABEL_ENVIO, type Envio } from '@/lib/cotizador';
 import { useCerrarModal } from '@/hooks/useCerrarModal';
 
 // ---------------------------------------------------------------
@@ -327,6 +327,12 @@ function DetalleCotizacion({
   const [copiado, setCopiado] = useState(false);
   const [modal, setModal] = useState<'warning-precio' | 'sin-pago' | 'cancelar' | null>(null);
   const [motivo, setMotivo] = useState('');
+  // Motor: envío elegido, lista de drogas (para asignar a mano) y lo que
+  // faltó en el último cálculo.
+  const [envio, setEnvio] = useState<Envio>('sin');
+  const [drogas, setDrogas] = useState<CotizadorDroga[]>([]);
+  const [faltantes, setFaltantes] = useState<string[]>([]);
+  const [calculando, setCalculando] = useState(false);
 
   useEffect(() => {
     if (detalle && !inicializado) {
@@ -334,9 +340,19 @@ function DetalleCotizacion({
       setTransf(detalle.cotizacion.precioTransferencia != null ? String(detalle.cotizacion.precioTransferencia) : '');
       setLink(detalle.cotizacion.linkPago ?? '');
       setNotas(detalle.cotizacion.notas ?? '');
+      const envioGuardado = (detalle.cotizacion.parametros as Record<string, unknown> | null)?.envio;
+      if (envioGuardado === 'corto' || envioGuardado === 'largo') setEnvio(envioGuardado);
+      const f = (detalle.cotizacion.parametros as Record<string, unknown> | null)?.faltantes;
+      if (Array.isArray(f)) setFaltantes(f as string[]);
       setInicializado(true);
     }
   }, [detalle, inicializado]);
+
+  useEffect(() => {
+    fetch('/api/cotizador/drogas')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => Array.isArray(d) && setDrogas(d));
+  }, []);
 
   if (!detalle) {
     return (
@@ -452,7 +468,59 @@ function DetalleCotizacion({
         break;
       }
     }
+    // Vuelve retenida: el badge "en producción sin pago" ya no corresponde.
+    await fetch(`/api/cotizaciones/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enviadaSinPago: false }),
+    }).catch(() => {});
     onRefrescar();
+  }
+
+  // Motor de precios: recalcula composición + costos + totales con las
+  // drogas y parámetros vigentes y el envío elegido.
+  async function calcularConMotor(envioElegido: Envio) {
+    setCalculando(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/cotizaciones/${id}/recotizar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ envio: envioElegido }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo calcular');
+      setFaltantes(data.faltantes ?? []);
+      if (data.cotizacion) {
+        setPrecio(data.cotizacion.precioTotal != null ? String(data.cotizacion.precioTotal) : '');
+        setTransf(data.cotizacion.precioTransferencia != null ? String(data.cotizacion.precioTransferencia) : '');
+      }
+      onRefrescar();
+    } catch (e: any) {
+      setError(e.message ?? 'No se pudo calcular');
+    } finally {
+      setCalculando(false);
+    }
+  }
+
+  // Asigna a mano la droga de un activo que no matcheó y recalcula.
+  async function asignarDroga(lineaIdx: number, activoIdx: number, drogaId: number | null) {
+    const lineas = cot.lineas.map((l, i) =>
+      i !== lineaIdx
+        ? l
+        : { ...l, activos: l.activos.map((a, j) => (j !== activoIdx ? a : { ...a, drogaId })) }
+    );
+    const res = await fetch(`/api/cotizaciones/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lineas }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? 'No se pudo asignar la droga');
+      return;
+    }
+    await calcularConMotor(envio);
   }
 
   async function cancelar() {
@@ -570,7 +638,7 @@ function DetalleCotizacion({
               </div>
             )}
 
-            {/* Composición (snapshot) + estado de producción */}
+            {/* Composición (snapshot) + estado de producción + desglose */}
             <div className="space-y-2">
               {cot.lineas.map((l, i) => {
                 const reg = regs.find((r) => r.id === l.registroId);
@@ -582,14 +650,44 @@ function DetalleCotizacion({
                         {reg ? (reg.entregadoEn ? '🔵 Entregado' : LABEL_ESTADO[estadoPT(reg)]) : 'registro borrado'}
                       </span>
                     </div>
-                    <ul className="space-y-0.5 text-slate-700">
-                      {l.activos.map((a, j) => (
-                        <li key={j}>
-                          • {a.nombre}: {a.dosis} {a.unidad}
-                          {a.costo != null && <span className="ml-1 text-xs text-slate-500">({formatoPeso(a.costo)})</span>}
-                        </li>
-                      ))}
+                    <ul className="space-y-1 text-slate-700">
+                      {l.activos.map((a, j) => {
+                        const droga = a.drogaId != null ? drogas.find((d) => d.id === a.drogaId) : null;
+                        return (
+                          <li key={j} className="flex flex-wrap items-center gap-1.5">
+                            <span>• {a.nombre}: {a.dosis} {a.unidad}</span>
+                            {droga ? (
+                              <span className="text-xs text-slate-500">
+                                → {droga.nombre}{a.costo != null && <> · {formatoPeso(a.costo)}</>}
+                              </span>
+                            ) : drogas.length > 0 && !bloqueada ? (
+                              <select
+                                className="input !w-auto !py-0.5 text-xs"
+                                value=""
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  if (Number.isInteger(v) && v > 0) asignarDroga(i, j, v);
+                                }}
+                              >
+                                <option value="">⚠ elegir droga…</option>
+                                {drogas.filter((d) => d.activo).map((d) => (
+                                  <option key={d.id} value={d.id}>{d.nombre} (${d.costoUnitario ?? '—'}/{d.unidad})</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="text-xs font-medium text-amber-700">⚠ sin droga en el cotizador</span>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
+                    {l.precioSugerido != null && (
+                      <p className="mt-2 border-t border-slate-100 pt-1.5 text-xs text-slate-500">
+                        Excipientes {formatoPeso(l.costoExtra)} · Cápsulas {formatoPeso(l.costoCapsulas)} · Envase{' '}
+                        {formatoPeso(l.costoEnvase)} · Tiempo {formatoPeso(l.costoTiempo)} →{' '}
+                        <b className="text-slate-700">Sugerido {formatoPeso(l.precioSugerido)}</b>
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -597,6 +695,39 @@ function DetalleCotizacion({
 
             {/* Precio */}
             <div className="rounded-xl border border-slate-200 p-3">
+              {/* Motor: envío + calcular */}
+              <div className="mb-3 flex flex-wrap items-end gap-2">
+                <div className="grow">
+                  <label className="label">Envío</label>
+                  <select
+                    className="input"
+                    value={envio}
+                    disabled={bloqueada}
+                    onChange={(e) => setEnvio(e.target.value as Envio)}
+                  >
+                    {(Object.keys(LABEL_ENVIO) as Envio[]).map((ev) => (
+                      <option key={ev} value={ev}>{LABEL_ENVIO[ev]}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  className="btn-primary"
+                  disabled={bloqueada || calculando}
+                  onClick={() => calcularConMotor(envio)}
+                  title="Recalcula composición, costos y totales con las drogas y parámetros vigentes"
+                >
+                  {calculando ? 'Calculando…' : '🧮 Calcular con el motor'}
+                </button>
+              </div>
+              {faltantes.length > 0 && (
+                <div className="mb-3 rounded-lg border-l-4 border-l-amber-500 bg-amber-50 p-2.5 text-xs text-amber-800">
+                  <b>El motor no pudo poner precio:</b>
+                  <ul className="mt-0.5 list-inside list-disc">
+                    {faltantes.map((f, i) => <li key={i}>{f}</li>)}
+                  </ul>
+                  <p className="mt-1">Asigná la droga en la fórmula (arriba) o cargala en ⚙️ Cotizador, y volvé a calcular. Mientras tanto podés poner el precio a mano.</p>
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="label">Precio total (3 cuotas / lista)</label>

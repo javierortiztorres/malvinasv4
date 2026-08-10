@@ -75,6 +75,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   if (typeof body.linkPago === 'string') patch.linkPago = body.linkPago.trim();
   if (typeof body.notas === 'string') patch.notas = body.notas;
+  // Asignación manual de drogas por activo (la pantalla manda las líneas
+  // completas) y limpieza del flag al devolver a Pendiente de pago.
+  if (Array.isArray(body.lineas)) patch.lineas = body.lineas;
+  if (typeof body.enviadaSinPago === 'boolean') patch.enviadaSinPago = body.enviadaSinPago;
 
   const traePrecio = body.precioTotal !== undefined;
   const nuevoPrecio =

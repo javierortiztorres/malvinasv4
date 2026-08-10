@@ -1,4 +1,4 @@
-import type { Cotizacion, LineaCotizacion, Registro } from '@/db/schema';
+import type { Cotizacion, CotizadorDroga, LineaCotizacion, Registro } from '@/db/schema';
 
 // ---------------------------------------------------------------
 // Cotizador (branch atencion-cliente).
@@ -72,6 +72,238 @@ function primerNombre(paciente: string): string {
   const partes = limpio.includes(',') ? limpio.split(',')[1] : limpio.split(/\s+/)[0];
   const nombre = (partes || '').trim().split(/\s+/)[0] || '';
   return nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+}
+
+// ---------------------------------------------------------------
+// MOTOR DE PRECIOS — portado del Excel "NUEVO COTIZADOR" (10-ago-2026).
+// Réplica exacta de las fórmulas del bloque CAPSULA 1 (los bloques 2 y 3
+// del Excel tenían errores de copia que acá NO se replican: cada fórmula
+// usa SUS PROPIAS cápsulas y activos).
+//
+//   activo:   min(costoUnitario × markup, precioComercialUnitario)
+//             × dosis(convertida a la unidad de la droga) × nCaps
+//   excip.:   nCaps × excipientePorCapsula                  (sin markup)
+//   cápsulas: nCaps × (costoCapsula×markup + costoJeringa×markup/capsPorJeringa)
+//   envase:   ceil(nCaps/capsPorEnvase) × costoPackaging×markupPackaging + costoCaja
+//   tiempo:   (minutosBase + nActivos × ceil(nCaps/capsPorTandaTiempo)
+//             × minutosPorActivoCada30Caps) × costoMinuto × markup × factorTiempo
+//   sugerido de la fórmula = suma de los 5 bloques
+//   base     = Σ sugeridos × (1+cargaExtra) + envío(sin/corto/largo)
+//   LISTA (3 cuotas) = base / (1 − descuentoTransferencia)   ← lo del mensaje
+//   TRANSFERENCIA    = base
+// ---------------------------------------------------------------
+
+export type CotizadorConfig = {
+  markupGeneral: number;
+  cargaExtra: number; // fracción (0.1 = +10%) sobre la suma de sugeridos
+  costoMinutoFarmaceutico: number;
+  factorTiempo: number; // el ×0.6 del Excel sobre el minuto con markup
+  minutosBase: number;
+  minutosPorActivoCada30Caps: number;
+  capsPorTandaTiempo: number;
+  costoCapsula: number;
+  costoJeringa: number;
+  capsPorJeringa: number; // 1 jeringa cada N cápsulas (C65/10 del Excel)
+  excipientePorCapsula: number; // sin markup
+  costoPackaging: number;
+  markupPackaging: number; // el envase lleva ×2, no ×7
+  capsPorEnvase: number; // 1 envase cada N cápsulas (ROUNDUP(n/90))
+  costoCaja: number; // caja secundaria, una por pedido de fórmula
+  descuentoTransferencia: number; // 0.15 → lista = base/0.85
+  envioCorto: number;
+  envioLargo: number;
+};
+
+// Valores vigentes del Excel al portarlo (10-ago-2026). La config real
+// vive en la tabla cotizador_config y la edita el Admin; esto es el
+// fallback y el "reset de fábrica".
+export const CONFIG_DEFAULT: CotizadorConfig = {
+  markupGeneral: 7,
+  cargaExtra: 0,
+  costoMinutoFarmaceutico: 209.67,
+  factorTiempo: 0.6,
+  minutosBase: 10,
+  minutosPorActivoCada30Caps: 2,
+  capsPorTandaTiempo: 30,
+  costoCapsula: 36.08,
+  costoJeringa: 98.08,
+  capsPorJeringa: 10,
+  // OJO: en el Excel la celda del costo de excipientes (C67) está VACÍA —
+  // los $6,5 de la celda E67 nunca entran al precio. Se replica ese
+  // comportamiento (0) para que los precios den IGUALES a los actuales;
+  // si Tomi decide cobrarlo, lo sube desde la pantalla ⚙️ Cotizador.
+  excipientePorCapsula: 0,
+  costoPackaging: 850,
+  markupPackaging: 2,
+  capsPorEnvase: 90,
+  costoCaja: 4150,
+  descuentoTransferencia: 0.15,
+  envioCorto: 5000,
+  envioLargo: 10000,
+};
+
+export function configCompleta(datos: Record<string, number> | null | undefined): CotizadorConfig {
+  return { ...CONFIG_DEFAULT, ...(datos ?? {}) };
+}
+
+export type Envio = 'sin' | 'corto' | 'largo';
+export const LABEL_ENVIO: Record<Envio, string> = {
+  sin: 'Sin envío (retira)',
+  corto: 'Envío corto (Colegio de Farmacéuticos)',
+  largo: 'Envío largo (a domicilio)',
+};
+
+export function montoEnvio(envio: Envio, cfg: CotizadorConfig): number {
+  return envio === 'largo' ? cfg.envioLargo : envio === 'corto' ? cfg.envioCorto : 0;
+}
+
+export function normalizarNombre(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+// Matcheo receta → droga del cotizador. Reglas: nombre exacto gana
+// siempre; después keywords y nombres por FRASE COMPLETA con límites de
+// palabra (así "Vit. B12" nunca cae en la keyword "B1") y gana la frase
+// más específica (más larga).
+export function matchDroga(activoReceta: string, drogas: CotizadorDroga[]): CotizadorDroga | null {
+  const n = normalizarNombre(activoReceta);
+  if (!n) return null;
+  const nBordes = ` ${n} `;
+  let mejor: { d: CotizadorDroga; score: number } | null = null;
+  for (const d of drogas) {
+    if (!d.activo) continue;
+    const dn = normalizarNombre(d.nombre);
+    let score = 0;
+    if (dn === n) {
+      score = 1000;
+    } else {
+      const frases = [dn, ...(d.keywords || '').split(',').map(normalizarNombre)].filter((f) => f.length >= 2);
+      for (const f of frases) {
+        const fBordes = ` ${f} `;
+        if (nBordes.includes(fBordes) || fBordes.includes(nBordes)) {
+          score = Math.max(score, f.length);
+        }
+      }
+    }
+    if (score > 0 && (!mejor || score > mejor.score)) mejor = { d, score };
+  }
+  return mejor?.d ?? null;
+}
+
+// Precio por unidad CON markup, topeado por el precio comercial de mercado
+// (la regla clave del Excel: nunca cobrar un activo más caro que su
+// equivalente comercial).
+export function precioUnitarioConMarkup(d: CotizadorDroga, cfg: CotizadorConfig): number | null {
+  if (d.costoUnitario == null) return d.precioComercialUnitario ?? null;
+  const conMarkup = d.costoUnitario * cfg.markupGeneral;
+  if (d.precioComercialUnitario != null && conMarkup > d.precioComercialUnitario) {
+    return d.precioComercialUnitario;
+  }
+  return conMarkup;
+}
+
+// Convierte la dosis de la receta a la unidad en la que está el precio de
+// la droga. null = unidades incompatibles (se resuelve a mano).
+export function convertirDosis(dosis: number, unidadReceta: string, unidadDroga: string): number | null {
+  const u = (x: string) => normalizarNombre(x).replace('µ', 'u').replace('mcg', 'ug');
+  const ur = u(unidadReceta || 'mg');
+  const ud = u(unidadDroga || 'mg');
+  if (ur === ud) return dosis;
+  const factor: Record<string, number> = { g: 1000, mg: 1, ug: 0.001 };
+  if (ur in factor && ud in factor) return (dosis * factor[ur]) / factor[ud];
+  return null; // UI ↔ masa no se convierte automáticamente
+}
+
+export type ResultadoLineas = {
+  lineas: LineaCotizacion[];
+  // Qué faltó para poder poner precio (por línea): activos sin droga
+  // asignada, sin conversión de unidad posible, o sin Nº de cápsulas.
+  faltantes: string[];
+};
+
+export function calcularLineas(
+  lineasBase: LineaCotizacion[],
+  drogas: CotizadorDroga[],
+  cfg: CotizadorConfig
+): ResultadoLineas {
+  const faltantes: string[] = [];
+  const lineas = lineasBase.map((l) => {
+    const titulo = l.titulo ? `Fórmula ${l.titulo}` : 'Fórmula';
+    const nCaps = l.nCapsulas;
+    if (!nCaps || nCaps <= 0) {
+      faltantes.push(`${titulo}: falta el Nº de cápsulas`);
+      return { ...l };
+    }
+    let costoActivos = 0;
+    let ok = true;
+    const activos = l.activos.map((a) => {
+      const droga = a.drogaId != null ? drogas.find((d) => d.id === a.drogaId) ?? null : matchDroga(a.nombre, drogas);
+      if (!droga) {
+        faltantes.push(`${titulo}: "${a.nombre}" sin droga asignada en el cotizador`);
+        ok = false;
+        return { ...a, drogaId: null, costo: null };
+      }
+      const unitario = precioUnitarioConMarkup(droga, cfg);
+      if (unitario == null) {
+        faltantes.push(`${titulo}: "${droga.nombre}" no tiene costo cargado`);
+        ok = false;
+        return { ...a, drogaId: droga.id, costo: null };
+      }
+      const dosisConv = convertirDosis(a.dosis, a.unidad, droga.unidad);
+      if (dosisConv == null) {
+        faltantes.push(`${titulo}: "${a.nombre}" en ${a.unidad} vs precio en ${droga.unidad} — revisar unidad`);
+        ok = false;
+        return { ...a, drogaId: droga.id, costo: null };
+      }
+      const costo = unitario * dosisConv * nCaps;
+      costoActivos += costo;
+      return { ...a, drogaId: droga.id, costo: Math.round(costo * 100) / 100 };
+    });
+
+    if (!ok) {
+      return { ...l, activos, costoCapsulas: null, costoEnvase: null, costoTiempo: null, precioSugerido: null };
+    }
+
+    const costoActivosConExc = costoActivos + nCaps * cfg.excipientePorCapsula;
+    const costoCapsulas = nCaps * (cfg.costoCapsula * cfg.markupGeneral + (cfg.costoJeringa * cfg.markupGeneral) / cfg.capsPorJeringa);
+    const costoEnvase = Math.ceil(nCaps / cfg.capsPorEnvase) * cfg.costoPackaging * cfg.markupPackaging + cfg.costoCaja;
+    const costoTiempo =
+      (cfg.minutosBase + activos.length * Math.ceil(nCaps / cfg.capsPorTandaTiempo) * cfg.minutosPorActivoCada30Caps) *
+      cfg.costoMinutoFarmaceutico *
+      cfg.markupGeneral *
+      cfg.factorTiempo;
+    const precioSugerido = costoActivosConExc + costoCapsulas + costoEnvase + costoTiempo;
+
+    return {
+      ...l,
+      activos,
+      costoExtra: Math.round(nCaps * cfg.excipientePorCapsula * 100) / 100, // excipientes, para el desglose
+      costoCapsulas: Math.round(costoCapsulas * 100) / 100,
+      costoEnvase: Math.round(costoEnvase * 100) / 100,
+      costoTiempo: Math.round(costoTiempo * 100) / 100,
+      precioSugerido: Math.round(precioSugerido * 100) / 100,
+    };
+  });
+  return { lineas, faltantes };
+}
+
+// Totales del pedido. null si alguna fórmula quedó sin precio.
+export function totalesDesdeLineas(
+  lineas: LineaCotizacion[],
+  cfg: CotizadorConfig,
+  envio: Envio
+): { sugerido: number; precioTotal: number; precioTransferencia: number } | null {
+  if (lineas.length === 0 || lineas.some((l) => l.precioSugerido == null)) return null;
+  const sugerido = lineas.reduce((acc, l) => acc + (l.precioSugerido ?? 0), 0) * (1 + cfg.cargaExtra);
+  const base = sugerido + montoEnvio(envio, cfg);
+  const precioTotal = redondearPeso(base / (1 - cfg.descuentoTransferencia));
+  const precioTransferencia = redondearPeso(base);
+  return { sugerido: Math.round(sugerido), precioTotal, precioTransferencia };
 }
 
 // ---------------------------------------------------------------
@@ -160,7 +392,12 @@ export function mensajeWhatsApp(cot: Cotizacion, regsDeLaCotizacion: Registro[])
   const transf = cot.precioTransferencia ?? precioTransferenciaSugerido(total);
   const ahorro = total != null && transf != null ? total - transf : null;
   const cuota = total != null ? redondearPeso(total / 3) : null;
-  const pct = Math.round(DESCUENTO_TRANSFERENCIA * 100);
+  // % real según los dos precios cargados (si la transferencia se tocó a
+  // mano, el mensaje no miente) — fallback al 15% estándar.
+  const pct =
+    total != null && transf != null && total > 0
+      ? Math.round((1 - transf / total) * 100)
+      : Math.round(DESCUENTO_TRANSFERENCIA * 100);
   const desc = [
     nActivos ? `${nActivos} activo${nActivos !== 1 ? 's' : ''}` : '',
     totalCapsulas ? `${totalCapsulas} cápsulas` : '',

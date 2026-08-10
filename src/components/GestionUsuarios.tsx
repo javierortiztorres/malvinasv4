@@ -77,11 +77,13 @@ export default function GestionUsuarios({ miId }: { miId: number }) {
         </div>
         <div>
           <label className="label">Usuario</label>
-          <input className="input" value={usuario} onChange={(e) => setUsuario(e.target.value)} autoCapitalize="none" required />
+          {/* autoComplete off/new-password: sin esto el navegador rellena
+              acá las credenciales GUARDADAS del admin (visto 10-ago). */}
+          <input className="input" value={usuario} onChange={(e) => setUsuario(e.target.value)} autoCapitalize="none" autoComplete="off" required />
         </div>
         <div>
           <label className="label">Contraseña</label>
-          <input type="password" className="input" value={password}
+          <input type="password" className="input" value={password} autoComplete="new-password"
             onChange={(e) => setPassword(e.target.value)} minLength={8} required />
         </div>
         <div>

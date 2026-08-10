@@ -5,6 +5,7 @@ import { eq, desc, and, gte, lte, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { hoyISO, addDiasISO, addDiasHabilesISO, inicioSemanaISO } from '@/lib/utils';
 import { lineasDesdeRegistros } from '@/lib/cotizador';
+import { cotizarLineas, snapshotParametros } from '@/lib/cotizadorServer';
 
 // Capacidad real del laboratorio (B-31.1): 2 recetas/día, 10 recetas/semana
 // (Lun-Dom, mismo corte que Agenda). Arranca en 5 días hábiles desde hoy y
@@ -87,15 +88,29 @@ export async function POST(req: NextRequest) {
   }
 
   // Atención: se crea la cotización del grupo en el mismo paso (una sola,
-  // cubriendo todas las fórmulas de la receta), lista para ponerle precio.
+  // cubriendo todas las fórmulas de la receta) y el MOTOR le pone precio
+  // al toque si puede (envío "sin" por defecto — se cambia en la pantalla).
   if (session.rol === 'atencion' && creados.length > 0) {
+    const calc = await cotizarLineas(lineasDesdeRegistros(creados), 'sin');
     const [cot] = await db
       .insert(cotizaciones)
       .values({
         paciente: creados[0].paciente,
         dni: creados[0].dni,
         grupoPaciente: creados[0].grupoPaciente,
-        lineas: lineasDesdeRegistros(creados),
+        lineas: calc.lineas,
+        parametros: snapshotParametros(calc, 'sin'),
+        precioTotal: calc.totales?.precioTotal ?? null,
+        precioTransferencia: calc.totales?.precioTransferencia ?? null,
+        historial: calc.totales
+          ? [{
+              fecha: new Date().toISOString(),
+              usuario: session.nombre,
+              precioTotal: calc.totales.precioTotal,
+              precioTransferencia: calc.totales.precioTransferencia,
+              motivo: 'Cotización automática (motor)',
+            }]
+          : [],
         cotizadoPor: session.nombre,
       })
       .returning();

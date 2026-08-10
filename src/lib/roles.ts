@@ -24,6 +24,7 @@ const TABS_ADMIN: TabDef[] = [
   { id: 'terminados', label: '✅ Terminados' },
   { id: 'estadistica', label: '📈 Estadística' },
   { id: 'gestion', label: '🗂️ Gestión' },
+  { id: 'cotizador', label: '⚙️ Cotizador' },
   { id: 'usuarios', label: '👤 Usuarios' },
 ];
 
