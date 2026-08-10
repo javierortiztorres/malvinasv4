@@ -188,6 +188,15 @@ export const registros = pgTable('registros', {
   // Nullable: los registros creados sin pasar por Atención no tienen una.
   cotizacionId: integer('cotizacion_id'),
 
+  // Entrega al paciente (Agenda de Atención al cliente, color azul): la
+  // marca Atención cuando el pedido salió/se retiró. Aparte del flujo de
+  // producción — un registro terminado puede tardar días en entregarse.
+  entregadoEn: timestamp('entregado_en', { withTimezone: true }),
+  entregadoPor: text('entregado_por'),
+  // "No se puede producir" (gris en la Agenda AC). Null = producible.
+  // Cómo lo marcan Formulación/Impresión se define más adelante.
+  noProducibleMotivo: text('no_producible_motivo'),
+
   fotos: jsonb('fotos').$type<string[]>().notNull().default([]), // registro fotográfico OPCIONAL
 
   createdAt: timestamp('created_at').notNull().defaultNow(),

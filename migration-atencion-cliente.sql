@@ -40,6 +40,13 @@ CREATE TABLE IF NOT EXISTS comprobantes (
 
 ALTER TABLE registros ADD COLUMN IF NOT EXISTS cotizacion_id integer;
 
+-- Agenda de Atención al cliente: entrega al paciente (azul) y marca de
+-- "no se puede producir" (gris; cómo la setean Formulación/Impresión se
+-- define después — la columna queda lista).
+ALTER TABLE registros ADD COLUMN IF NOT EXISTS entregado_en timestamptz;
+ALTER TABLE registros ADD COLUMN IF NOT EXISTS entregado_por text;
+ALTER TABLE registros ADD COLUMN IF NOT EXISTS no_producible_motivo text;
+
 -- Búsquedas frecuentes: historial de precios por paciente (DNI) y
 -- comprobantes de una cotización.
 CREATE INDEX IF NOT EXISTS ix_cotizaciones_dni ON cotizaciones (dni);

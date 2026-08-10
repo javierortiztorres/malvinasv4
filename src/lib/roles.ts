@@ -15,6 +15,7 @@ const TABS_ADMIN: TabDef[] = [
   { id: 'cotizaciones', label: '💰 Cotizaciones' },
   { id: 'agenda-pt', label: '🗓️ Agenda PT' },
   { id: 'agenda-pi', label: '🗓️ Agenda PI' },
+  { id: 'agenda-ac', label: '🗓️ Agenda AC' },
   { id: 'prod', label: '🖨️ En producción' },
   { id: 'preprod', label: '🧱 Pre-producción' },
   { id: 'pt', label: '📋 Pendientes' },
@@ -40,10 +41,12 @@ const TABS_FORMULACION: TabDef[] = [
 ];
 
 // Atención al cliente (branch atencion-cliente): recibe la receta, la lee
-// con el MISMO lector, cotiza y gestiona el cobro. Lo que crea entra en
-// "Pendiente de pago" y recién pasa a Pendientes (producción) al subir el
-// comprobante o con el botón de enviar sin pago.
+// con el MISMO lector, cotiza, gestiona el cobro y la ENTREGA. Lo que crea
+// entra en "Pendiente de pago" y recién pasa a Pendientes (producción) al
+// subir el comprobante o con el botón de enviar sin pago. Su Agenda va
+// primera (regla 12: perfiles de área arrancan en la Agenda).
 const TABS_ATENCION: TabDef[] = [
+  { id: 'agenda-ac', label: '🗓️ Agenda' },
   { id: 'lector', label: '📄 Lector de recetas' },
   { id: 'cotizaciones', label: '💰 Cotizaciones' },
 ];

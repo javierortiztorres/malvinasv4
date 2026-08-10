@@ -579,7 +579,7 @@ function DetalleCotizacion({
                     <div className="mb-1 flex items-center justify-between">
                       <b>Fórmula {l.titulo || '—'}{l.nCapsulas ? ` · ${l.nCapsulas} cápsulas` : ''}</b>
                       <span className="badge bg-slate-100 text-slate-700">
-                        {reg ? LABEL_ESTADO[estadoPT(reg)] : 'registro borrado'}
+                        {reg ? (reg.entregadoEn ? '🔵 Entregado' : LABEL_ESTADO[estadoPT(reg)]) : 'registro borrado'}
                       </span>
                     </div>
                     <ul className="space-y-0.5 text-slate-700">

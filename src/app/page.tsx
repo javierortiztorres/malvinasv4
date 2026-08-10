@@ -18,6 +18,7 @@ import Estadistica from '@/components/Estadistica';
 import Admin from '@/components/Admin';
 import GestionUsuarios from '@/components/GestionUsuarios';
 import Cotizaciones from '@/components/Cotizaciones';
+import AgendaAtencion from '@/components/AgendaAtencion';
 
 export type Catalogos = {
   tintas: Tinta[];
@@ -238,6 +239,11 @@ export default function Home() {
       )}
       {tab === 'agenda-pi' && catalogos && permitido.has('agenda-pi') && (
         <Agenda eventos={eventosPI} onIrAEvento={() => irATabSiPermitido('pi')} onIrASinFecha={() => irATabSiPermitido('pi')} />
+      )}
+      {/* Agenda de Atención al cliente: por pedido, coloreada por estado de
+          entrega (rojo/amarillo/verde/azul/gris) — ver AgendaAtencion. */}
+      {tab === 'agenda-ac' && permitido.has('agenda-ac') && (
+        <AgendaAtencion registros={registros} onCambio={recargar} />
       )}
       {tab === 'lector' && catalogos && permitido.has('lector') && (
         <LectorRecetas catalogos={catalogos}
