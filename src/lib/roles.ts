@@ -6,17 +6,17 @@ import type { Rol } from '@/lib/session';
 // queda vacía, no hay lógica que mueva registros ahí.
 export type TabDef = { id: string; label: string };
 
-// B-30b-fix: la Agenda (o Agendas, para Admin) va siempre primera — es la
-// pantalla de trabajo diario. Admin ve las dos vistas separadas por tipo
-// (mismo filtro PT/PI que ya usan Impresión/Formulación) en vez de la
-// vieja vista combinada.
+// Agenda primera en los perfiles de área; en Admin va primero el Lector
+// (decisión de Tomi, 10-ago). Admin ve las dos vistas de Agenda separadas
+// por tipo (mismo filtro PT/PI que ya usan Impresión/Formulación) en vez
+// de la vieja vista combinada.
 const TABS_ADMIN: TabDef[] = [
+  { id: 'lector', label: '📄 Lector de recetas' },
   { id: 'agenda-pt', label: '🗓️ Agenda PT' },
   { id: 'agenda-pi', label: '🗓️ Agenda PI' },
-  { id: 'lector', label: '📄 Lector de recetas' },
   { id: 'prod', label: '🖨️ En producción' },
-  { id: 'pt', label: '📋 Pendientes' },
   { id: 'preprod', label: '🧱 Pre-producción' },
+  { id: 'pt', label: '📋 Pendientes' },
   { id: 'pi', label: '🧪 Producto Intermedio' },
   { id: 'neces', label: '📊 Necesidades' },
   { id: 'terminados', label: '✅ Terminados' },
