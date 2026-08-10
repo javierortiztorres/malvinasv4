@@ -17,7 +17,7 @@
 export const SESSION_COOKIE = 'malvinas_session';
 const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30; // 30 días
 
-export type Rol = 'admin' | 'impresion' | 'formulacion';
+export type Rol = 'admin' | 'impresion' | 'formulacion' | 'atencion';
 
 export type SessionPayload = {
   uid: number;

@@ -8,7 +8,7 @@ import { getSession } from '@/lib/auth';
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (session.rol === 'impresion') {
+  if (session.rol === 'impresion' || session.rol === 'atencion') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
   const [row] = await db.select().from(registrosPi).where(eq(registrosPi.id, Number(params.id)));
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (session.rol === 'impresion') {
+  if (session.rol === 'impresion' || session.rol === 'atencion') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
   const id = Number(params.id);
@@ -45,7 +45,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (session.rol === 'impresion') {
+  if (session.rol === 'impresion' || session.rol === 'atencion') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
   await db.delete(registrosPi).where(eq(registrosPi.id, Number(params.id)));

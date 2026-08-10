@@ -11,6 +11,7 @@ const ROLES = [
   { id: 'admin', label: 'Admin' },
   { id: 'impresion', label: 'Impresión' },
   { id: 'formulacion', label: 'Formulación' },
+  { id: 'atencion', label: 'Atención al cliente' },
 ];
 
 export default function GestionUsuarios({ miId }: { miId: number }) {

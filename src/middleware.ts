@@ -23,6 +23,11 @@ export async function middleware(req: NextRequest) {
     if (session.rol === 'impresion' && pathname.startsWith('/registro-pi/')) {
       return NextResponse.redirect(new URL('/', req.url));
     }
+    // Atención al cliente cotiza y cobra: no tiene nada que hacer en los
+    // documentos legales de producción (ni PT ni PI).
+    if (session.rol === 'atencion' && (pathname.startsWith('/registro/') || pathname.startsWith('/registro-pi/'))) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
     return NextResponse.next();
   }
 
