@@ -251,8 +251,9 @@ export default function Cotizaciones({
         <div className="card p-10 text-center text-slate-500">
           {lista.length === 0 ? (
             <>
-              Todavía no hay cotizaciones. Leé una receta desde el <b>Lector de recetas</b>: entra acá sola,
-              lista para ponerle precio.
+              Todavía no hay cotizaciones. El circuito: la receta entra por el <b>Lector</b>, se revisa y
+              corrige en <b>Pendientes</b>, y desde ahí se manda acá con el botón <b>💰 Pendiente de pago</b> —
+              aparece arriba en &quot;Para cotizar&quot; y el motor le pone precio solo.
             </>
           ) : (
             'Nada por acá con este filtro.'
@@ -755,14 +756,19 @@ function DetalleCotizacion({
                 </div>
               </div>
               <div className="mt-3">
-                <label className="label">Link de pago (MercadoPago, pegado a mano)</label>
+                <label className="label">Link del checkout (sim.pill.ar) o de pago</label>
                 <input
                   className="input"
-                  placeholder="https://mpago.la/…"
+                  placeholder="https://sim.pill.ar/cotizacion/?p=…"
                   value={link}
                   disabled={bloqueada}
                   onChange={(e) => setLink(e.target.value)}
                 />
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  {transfNum != null
+                    ? <>Para generar el checkout en la web PILL.AR cargá <b>contado = {formatoPeso(transfNum)}</b> (la web muestra lista = contado ÷ 0,85). Con link cargado, el mensaje pasa al formato corto.</>
+                    : 'Con link cargado, el mensaje de WhatsApp pasa al formato corto (los precios los muestra el checkout).'}
+                </p>
               </div>
               <div className="mt-3">
                 <label className="label">Notas internas</label>

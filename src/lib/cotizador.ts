@@ -210,9 +210,12 @@ export function precioUnitarioConMarkup(d: CotizadorDroga, cfg: CotizadorConfig)
 // Convierte la dosis de la receta a la unidad en la que está el precio de
 // la droga. null = unidades incompatibles (se resuelve a mano).
 export function convertirDosis(dosis: number, unidadReceta: string, unidadDroga: string): number | null {
-  const u = (x: string) => normalizarNombre(x).replace('µ', 'u').replace('mcg', 'ug');
-  const ur = u(unidadReceta || 'mg');
-  const ud = u(unidadDroga || 'mg');
+  // ⚠️ El µ se reemplaza ANTES de normalizar: normalizarNombre() borra los
+  // símbolos no a-z, y "µg" quedaría como "g" (bug real del 11-ago: una
+  // dosis de B12 en µg se tomó como gramos → precio ×1.000.000).
+  const u = (x: string) => normalizarNombre(String(x || 'mg').replace(/µ/g, 'u').replace(/mcg/gi, 'ug'));
+  const ur = u(unidadReceta);
+  const ud = u(unidadDroga);
   if (ur === ud) return dosis;
   const factor: Record<string, number> = { g: 1000, mg: 1, ug: 0.001 };
   if (ur in factor && ud in factor) return (dosis * factor[ur]) / factor[ud];
@@ -380,6 +383,24 @@ export function mensajeSeguimiento(estado: EstadoEntregaAC, paciente: string): s
 // colegio de farmacéuticos, gratis >$200.000), el link entra acá.
 export function mensajeWhatsApp(cot: Cotizacion, regsDeLaCotizacion: Registro[]): string {
   const nombre = primerNombre(cot.paciente) || cot.paciente || '';
+
+  // FORMATO CORTO (11-ago): si hay link del checkout (la web de PILL.AR,
+  // sim.pill.ar), el mensaje solo abre la puerta — precios, envíos y cuotas
+  // los muestra el checkout. Es el formato que Tomi ya usa con esa web.
+  if (cot.linkPago) {
+    const deadlineCorto = regsDeLaCotizacion.map((r) => r.deadline).filter(Boolean).sort().pop();
+    const lineasCortas = [
+      `¡Hola ${nombre}! 👋 Te paso la cotización y el checkout de tu tratamiento personalizado con tecnología PILL.AR 💊`,
+      '',
+      '👇 Ingresá acá:',
+      cot.linkPago,
+    ];
+    if (deadlineCorto) {
+      lineasCortas.push('', `📦 *Estimamos tenerlo listo el ${fechaLargaES(deadlineCorto)}*`);
+    }
+    return lineasCortas.join('\n');
+  }
+
   const totalCapsulas = cot.lineas.reduce((acc, l) => acc + (l.nCapsulas ?? 0), 0);
   const nActivos = new Set(cot.lineas.flatMap((l) => l.activos.map((a) => a.nombre.toLowerCase()))).size;
   const deadline = regsDeLaCotizacion

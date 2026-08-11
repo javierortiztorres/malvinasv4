@@ -250,9 +250,10 @@ export default function Home() {
         <LectorRecetas catalogos={catalogos}
           onCreados={(primerId) => {
             recargar();
-            // Atención: lo que crea el Lector queda retenido en Pendiente de
-            // pago con su cotización creada — se sigue en Cotizaciones.
-            if (yo?.rol === 'atencion') { setTab('cotizaciones'); return; }
+            // Flujo (aclarado 11-ago): TODA receta entra a Pendientes para
+            // revisión/corrección; de ahí se pasa a cotizar con el botón 💰.
+            // Atención no ve Pendientes: sigue el pedido desde su Agenda.
+            if (yo?.rol === 'atencion') { setTab('agenda-ac'); return; }
             setTab('pt'); setFocoId(primerId);
           }} />
       )}
