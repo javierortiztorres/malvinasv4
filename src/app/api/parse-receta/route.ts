@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       resultadoRegex.formulas.length === 0;
 
     if (!necesitaIA) {
-      return NextResponse.json(resultadoRegex);
+      return NextResponse.json({ ...resultadoRegex, _textoExtraido: texto });
     }
 
     // Fallback: AI extractor con few-shot del corpus
@@ -66,8 +66,8 @@ export async function POST(req: NextRequest) {
     const resultadoIA = await parseRecetaIA(texto, TODOS_LOS_EJEMPLOS, { apiKey });
     const final = mergeResultados(resultadoRegex, resultadoIA);
 
-    // Marcar que el resultado fue asistido por IA
     final._fuenteIA = true;
+    final._textoExtraido = texto;
 
     return NextResponse.json(final);
   } catch (e) {
