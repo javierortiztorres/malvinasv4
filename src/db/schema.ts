@@ -291,6 +291,17 @@ export const usuarios = pgTable('usuarios', {
   uxUsuario: uniqueIndex('ux_usuarios_usuario').on(table.usuario),
 }));
 
+// Feedback pasivo del lector de recetas: captura correcciones del usuario
+export const parserFeedback = pgTable('parser_feedback', {
+  id: serial('id').primaryKey(),
+  textoOriginal: text('texto_original').notNull().default(''),
+  resultadoParser: jsonb('resultado_parser').notNull(),
+  resultadoFinal: jsonb('resultado_final').notNull(),
+  huboCorrecciones: boolean('hubo_correcciones').notNull().default(false),
+  fuenteIA: boolean('fuente_ia').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 export type Tinta = typeof tintas.$inferSelect;
 export type Registro = typeof registros.$inferSelect;
 export type RegistroPi = typeof registrosPi.$inferSelect;

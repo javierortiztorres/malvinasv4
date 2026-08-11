@@ -19,6 +19,7 @@ export default function LectorRecetas({
   const [texto, setTexto] = useState('');
   const [cargando, setCargando] = useState(false);
   const [receta, setReceta] = useState<RecetaParseada | null>(null);
+  const [recetaInicial, setRecetaInicial] = useState<RecetaParseada | null>(null);
   const [seleccion, setSeleccion] = useState<boolean[]>([]);
   const [error, setError] = useState('');
   const [arrastrando, setArrastrando] = useState(false);
@@ -48,6 +49,7 @@ export default function LectorRecetas({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setReceta(data);
+      setRecetaInicial(data);
       setSeleccion(data.formulas.map(() => true));
     } catch (e: any) {
       setError(e.message ?? 'Error al procesar la receta');
@@ -58,6 +60,21 @@ export default function LectorRecetas({
 
   async function crearRegistros() {
     if (!receta) return;
+
+    // Feedback pasivo: enviar en background sin bloquear el flujo principal
+    if (recetaInicial) {
+      fetch('/api/parser-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          textoOriginal: receta._textoExtraido ?? texto,
+          resultadoParser: recetaInicial,
+          resultadoFinal: receta,
+          fuenteIA: receta._fuenteIA ?? false,
+        }),
+      }).catch(() => {}); // silencioso, no bloquea
+    }
+
     setCargando(true);
     const grupo = `${receta.paciente}|${receta.dni}`;
     const fechaElab = hoyISO();
