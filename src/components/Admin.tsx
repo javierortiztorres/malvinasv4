@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { Catalogos } from '@/app/page';
 import type { Tinta, ExcipienteTinta, ParametrosImpresion } from '@/db/schema';
 import { fmtPct } from '@/lib/engine';
@@ -98,6 +98,9 @@ export default function Admin({ catalogos, onCambio }: { catalogos: Catalogos; o
           campos={[{ key: 'nombre', label: 'Nombre' }, { key: 'rol', label: 'produce | revisa' }]}
           rolesCanonicos={ROLES_OPERADOR} onCambio={onCambio} />
       </div>
+
+      {/* ---------- Configuración ---------- */}
+      <ConfiguracionPanel />
 
       {editando && (
         <TintaModal
@@ -504,6 +507,94 @@ function CatalogoSimple({
             onChange={(e) => setNuevo((n) => ({ ...n, [c.key]: e.target.value }))} />
         ))}
         <button className="btn-primary" onClick={agregar}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// =================== CONFIGURACIÓN ===================
+
+function ConfiguracionPanel() {
+  const CLAVE = 'openrouter_api_key';
+  const [valorMascarado, setValorMascarado] = useState<string | null>(null);
+  const [configurado, setConfigurado] = useState(false);
+  const [nuevo, setNuevo] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    fetch(`/api/configuracion?clave=${CLAVE}`)
+      .then((r) => r.json())
+      .then((d) => { setValorMascarado(d.valor); setConfigurado(d.configurado); });
+  }, []);
+
+  async function guardar() {
+    if (!nuevo.trim()) return;
+    setGuardando(true);
+    const res = await fetch('/api/configuracion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clave: CLAVE, valor: nuevo.trim() }),
+    });
+    setGuardando(false);
+    if (res.ok) {
+      setMsg('✓ Guardado');
+      setNuevo('');
+      const d = await fetch(`/api/configuracion?clave=${CLAVE}`).then((r) => r.json());
+      setValorMascarado(d.valor);
+      setConfigurado(d.configurado);
+      setTimeout(() => setMsg(''), 3000);
+    } else {
+      setMsg('Error al guardar');
+    }
+  }
+
+  async function borrar() {
+    if (!confirm('¿Eliminar la API Key de OpenRouter? El lector de recetas no podrá usar IA como respaldo.')) return;
+    await fetch(`/api/configuracion?clave=${CLAVE}`, { method: 'DELETE' });
+    setValorMascarado(null);
+    setConfigurado(false);
+    setMsg('Eliminada');
+    setTimeout(() => setMsg(''), 3000);
+  }
+
+  return (
+    <div className="card p-5">
+      <h3 className="section-title mb-3">⚙️ Configuración</h3>
+      <div className="space-y-3 max-w-lg">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            OpenRouter API Key
+            <span className="ml-2 text-xs font-normal text-slate-400">
+              (respaldo de IA en el lector de recetas)
+            </span>
+          </label>
+          {configurado && valorMascarado && (
+            <div className="mb-2 flex items-center gap-2">
+              <code className="text-sm bg-slate-100 px-2 py-1 rounded font-mono">{valorMascarado}</code>
+              <button className="text-xs text-red-500 hover:underline" onClick={borrar}>Eliminar</button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="password"
+              className="input flex-1"
+              placeholder={configurado ? 'Nueva key para reemplazar la actual' : 'sk-or-...'}
+              value={nuevo}
+              onChange={(e) => setNuevo(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && guardar()}
+            />
+            <button className="btn-primary" onClick={guardar} disabled={!nuevo.trim() || guardando}>
+              {guardando ? '…' : 'Guardar'}
+            </button>
+          </div>
+          {msg && <p className="mt-1 text-sm text-teal-700">{msg}</p>}
+          {!configurado && (
+            <p className="mt-1 text-xs text-amber-600">
+              Sin key configurada, el lector usa solo parser por regex (sin respaldo IA).
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

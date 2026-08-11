@@ -269,6 +269,12 @@ export const operadores = pgTable('operadores', {
   rol: text('rol').notNull().default('produce'),
 });
 
+// Configuración editable del sistema (clave/valor)
+export const configuracion = pgTable('configuracion', {
+  clave: text('clave').primaryKey(),
+  valor: text('valor').notNull(),
+});
+
 // Cuentas de login reales (B-30a) — un usuario y contraseña por persona,
 // con uno de 3 roles fijos. Totalmente aparte de `operadores` (quién firma
 // un documento PT/PI): esa tabla no participa del login.

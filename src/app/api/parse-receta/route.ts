@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { parseReceta } from '@/lib/parser';
+import { parseRecetaIA, mergeResultados } from '@/lib/parser-ai';
+import { TODOS_LOS_EJEMPLOS } from '@/lib/parser-examples';
+import { db } from '@/db';
+import { configuracion } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+
+async function getOpenRouterKey(): Promise<string | undefined> {
+  try {
+    const [row] = await db.select().from(configuracion).where(eq(configuracion.clave, 'openrouter_api_key'));
+    return row?.valor || process.env.OPENROUTER_API_KEY;
+  } catch {
+    return process.env.OPENROUTER_API_KEY;
+  }
+}
 
 export const runtime = 'nodejs';
 
@@ -33,7 +47,29 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    return NextResponse.json(parseReceta(texto));
+
+    const resultadoRegex = parseReceta(texto);
+
+    // Si el regex detectó todo bien, devolver directamente
+    const necesitaIA =
+      resultadoRegex.advertencias.length > 0 ||
+      !resultadoRegex.paciente ||
+      !resultadoRegex.medico ||
+      resultadoRegex.formulas.length === 0;
+
+    if (!necesitaIA) {
+      return NextResponse.json(resultadoRegex);
+    }
+
+    // Fallback: AI extractor con few-shot del corpus
+    const apiKey = await getOpenRouterKey();
+    const resultadoIA = await parseRecetaIA(texto, TODOS_LOS_EJEMPLOS, { apiKey });
+    const final = mergeResultados(resultadoRegex, resultadoIA);
+
+    // Marcar que el resultado fue asistido por IA
+    final._fuenteIA = true;
+
+    return NextResponse.json(final);
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: 'Error al procesar la receta' }, { status: 500 });

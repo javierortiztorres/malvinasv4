@@ -151,7 +151,8 @@ export default function Terminados({
                   </div>
                   <div className="flex gap-2">
                     <a className="btn-primary" href={`/registro/${r.id}/print`} target="_blank">📄 Documento</a>
-                    <button className="btn-ghost" onClick={() => setRotuloDe(r)}>🏷️ Rótulo</button>
+                    <a className="btn-ghost" href={`/registro/${r.id}/rotulo`} target="_blank">🏷️ Rótulo</a>
+                    <button className="btn-ghost" onClick={() => setRotuloDe(r)}>📋 Copiar rótulo</button>
                     <button className="btn-ghost" onClick={() => reabrir(`/api/registros/${r.id}`, r, true)}>↩ Reabrir</button>
                   </div>
                 </div>
