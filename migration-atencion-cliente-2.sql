@@ -31,3 +31,13 @@ CREATE TABLE IF NOT EXISTS cotizador_config (
   datos jsonb NOT NULL DEFAULT '{}',
   updated_at timestamp NOT NULL DEFAULT now()
 );
+
+-- (11-ago) El CHECK de roles de usuarios venía de la migración B-30a con
+-- los 3 roles viejos y rechazaba 'atencion' con un 500 silencioso.
+-- YA APLICADO en producción por la consola de Neon (11-ago); queda acá
+-- como registro y para entornos nuevos. Idempotente.
+-- DO $$ BEGIN
+-- ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;
+-- ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check
+--   CHECK (rol IN ('admin','impresion','formulacion','atencion'));
+-- END $$;

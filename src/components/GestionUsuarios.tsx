@@ -40,13 +40,18 @@ export default function GestionUsuarios({ miId }: { miId: number }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre, usuario, password, rol }),
       });
-      const data = await res.json();
+      // Un 500 sin JSON (crash del server) reventaba res.json() y el error
+      // se tragaba en silencio — así se escondió el usuarios_rol_check
+      // desactualizado (11-ago). Ahora SIEMPRE se muestra algo real.
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setNombre(''); setUsuario(''); setPassword(''); setRol('impresion');
         recargar();
       } else {
-        setError(data.error || 'No se pudo crear la cuenta');
+        setError(data.error || `No se pudo crear la cuenta (error ${res.status} del servidor)`);
       }
+    } catch {
+      setError('No se pudo crear la cuenta — revisá la conexión y volvé a intentar.');
     } finally {
       setCreando(false);
     }

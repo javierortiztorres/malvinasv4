@@ -326,7 +326,7 @@ function DetalleCotizacion({
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState('');
   const [copiado, setCopiado] = useState(false);
-  const [modal, setModal] = useState<'warning-precio' | 'sin-pago' | 'cancelar' | null>(null);
+  const [modal, setModal] = useState<'warning-precio' | 'sin-pago' | 'cancelar' | 'pagado' | null>(null);
   const [motivo, setMotivo] = useState('');
   // Motor: envío elegido, lista de drogas (para asignar a mano) y lo que
   // faltó en el último cálculo.
@@ -454,6 +454,19 @@ function DetalleCotizacion({
     onRefrescar();
   }
 
+  // Botón ✅ PAGADO (11-ago): la acción explícita — marca pagada y manda
+  // las fórmulas retenidas a Pendientes. El comprobante es aparte.
+  async function marcarPagada() {
+    setModal(null);
+    const res = await fetch(`/api/cotizaciones/${id}/pagada`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? 'No se pudo marcar como pagada');
+      return;
+    }
+    onRefrescar();
+  }
+
   async function devolverAPendientePago() {
     setError('');
     for (const r of liberados) {
@@ -561,6 +574,11 @@ function DetalleCotizacion({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button className="btn-ghost" onClick={onVolver}>← Todas las cotizaciones</button>
         <div className="flex flex-wrap gap-2">
+          {!pagada && (
+            <button className="btn-primary" onClick={() => setModal('pagado')}>
+              ✅ PAGADO{retenidos.length > 0 ? ' → a producción' : ''}
+            </button>
+          )}
           {!pagada && retenidos.length > 0 && (
             <button className="btn-ghost" onClick={() => setModal('sin-pago')}>
               🚚 A producción sin pago
@@ -841,9 +859,14 @@ function DetalleCotizacion({
                 </label>
               </div>
               <p className="mb-2 text-xs text-slate-500">
-                .jpg / .png / .pdf — al subirlo, la cotización pasa a <b>Pagada</b> y las fórmulas retenidas se
-                liberan a <b>Pendientes</b> (producción) solas.
+                .jpg / .png / .pdf — acá solo se <b>guarda el archivo</b>. Confirmar el pago y mandar a
+                producción es el botón <b>✅ PAGADO</b> (arriba). Podés subir el comprobante antes o después.
               </p>
+              {comprobantes.length > 0 && !pagada && (
+                <p className="mb-2 rounded-lg border-l-4 border-l-amber-500 bg-amber-50 p-2 text-xs font-medium text-amber-800">
+                  📌 Hay comprobante guardado y la cotización sigue <b>pendiente de pago</b> — confirmala con ✅ PAGADO.
+                </p>
+              )}
               {comprobantes.length === 0 ? (
                 <p className="text-sm text-slate-500">Sin comprobantes todavía.</p>
               ) : (
@@ -900,6 +923,34 @@ function DetalleCotizacion({
             <label className="label">Motivo (opcional, queda en el historial)</label>
             <input className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej: subió el costo del Minoxidil" />
           </div>
+        </ModalConfirmacion>
+      )}
+
+      {modal === 'pagado' && (
+        <ModalConfirmacion
+          titulo="✅ Marcar como PAGADA"
+          onCerrar={() => setModal(null)}
+          onConfirmar={marcarPagada}
+          textoConfirmar="Confirmar pago"
+        >
+          <p className="text-sm">
+            La cotización de <b>{cot.paciente}</b> ({formatoPeso(cot.precioTotal)}) queda marcada como{' '}
+            <b>PAGADA</b> — con tu nombre y la fecha en el historial.
+            {retenidos.length > 0 ? (
+              <>
+                {' '}
+                {retenidos.length === 1 ? 'La fórmula retenida pasa' : `Las ${retenidos.length} fórmulas retenidas pasan`} a{' '}
+                <b>📋 Pendientes</b> (producción).
+              </>
+            ) : (
+              <> Las fórmulas ya están en producción — solo se registra el pago.</>
+            )}
+            {comprobantes.length === 0 && (
+              <span className="mt-1 block text-xs text-slate-500">
+                Todavía no hay comprobante guardado — lo podés subir después, cuando llegue.
+              </span>
+            )}
+          </p>
         </ModalConfirmacion>
       )}
 

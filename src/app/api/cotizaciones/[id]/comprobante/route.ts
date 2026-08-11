@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { comprobantes, cotizaciones, registros } from '@/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { comprobantes, cotizaciones } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 
 function sinPermiso(rol: string): boolean {
@@ -13,12 +13,11 @@ const MIMES_VALIDOS = new Set(['image/jpeg', 'image/png', 'application/pdf']);
 // (+33%) esto deja margen. Las imágenes ya vienen comprimidas del cliente.
 const MAX_BASE64_CHARS = 4_800_000; // ~3.5 MB de archivo real
 
-// Subir el comprobante de pago de una cotización. Efectos:
-// 1. guarda el archivo (dentro de Neon, tabla aparte),
-// 2. marca la cotización como PAGADA (con fecha y quién lo subió),
-// 3. libera a Pendientes (producción) los registros que seguían retenidos
-//    en Pendiente de pago — si ya habían ido a producción con el botón
-//    "sin pago", no los toca: solo queda registrado el pago.
+// Subir el comprobante de pago de una cotización. Desde el 11-ago
+// (pedido de Tomi: "se manda solo y queda medio raro") esto SOLO guarda
+// el archivo — marcar PAGADA y mandar a producción es la acción explícita
+// del botón ✅ (endpoint /pagada). El comprobante se puede subir antes o
+// después de marcar el pago.
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -50,17 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .values({ cotizacionId: id, nombreArchivo, mime, tamanoBytes, datosBase64, subidoPor: session.nombre })
     .returning({ id: comprobantes.id });
 
-  const ahora = new Date();
-  const [cotActualizada] = await db
-    .update(cotizaciones)
-    .set({ estadoPago: 'pagada', pagadaEn: ahora, updatedAt: ahora })
-    .where(eq(cotizaciones.id, id))
-    .returning();
+  await db.update(cotizaciones).set({ updatedAt: new Date() }).where(eq(cotizaciones.id, id));
 
-  await db
-    .update(registros)
-    .set({ estado: 'pendiente', enProduccion: false, updatedAt: ahora })
-    .where(and(eq(registros.cotizacionId, id), eq(registros.estado, 'pendiente_pago')));
-
-  return NextResponse.json({ cotizacion: cotActualizada, comprobanteId: archivo.id });
+  return NextResponse.json({ comprobanteId: archivo.id, estadoPago: cot.estadoPago });
 }
