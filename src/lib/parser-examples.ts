@@ -158,7 +158,7 @@ Firmado electrónicamente.
     dni: '31456789',
     medico: 'Ramírez, Carlos Alberto',
     formulas: [
-      { activos: [
+      { titulo: '1', indicacion: 'A la noche', activos: [
         { activo: 'Melatonina', dosis: 3, unidad: 'mg' },
         { activo: 'Magnesio Bisglicinato', dosis: 200, unidad: 'mg' },
         { activo: 'Vitamina D3', dosis: 2000, unidad: 'UI' },
@@ -197,7 +197,7 @@ Firmado electrónicamente. Ley 27553
     dni: '12345678',
     medico: 'Fernández, Jorge Luis',
     formulas: [
-      { activos: [
+      { titulo: '1', indicacion: '', activos: [
         { activo: 'Calcio Citrato', dosis: 500, unidad: 'mg' },
         { activo: 'Vitamina D3', dosis: 1000, unidad: 'UI' },
         { activo: 'Vitamina K2', dosis: 90, unidad: 'µg' },
