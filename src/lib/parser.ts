@@ -24,6 +24,8 @@ export type RecetaParseada = {
   advertencias: string[];
   // true cuando el fallback de IA completó o corrigió campos
   _fuenteIA?: boolean;
+  // texto crudo extraído del PDF (para captura de feedback)
+  _textoExtraido?: string;
 };
 
 const UNIDADES = 'µg|μg|ug|mcg|u\\.i\\.|ui|mg|g|ml|cc|%';
