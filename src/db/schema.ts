@@ -348,6 +348,9 @@ export const cotizaciones = pgTable('cotizaciones', {
 
   precioTotal: real('precio_total'), // comercial vigente (suma de líneas o manual)
   precioTransferencia: real('precio_transferencia'), // con descuento por transferencia
+  // Descuento adicional a criterio del que cotiza (11-ago), en % (0-100):
+  // el motor lo aplica sobre la base antes del recargo de cuotas.
+  descuentoExtraPct: real('descuento_extra_pct').notNull().default(0),
   linkPago: text('link_pago').notNull().default(''), // link de MP pegado a mano (por ahora)
   notas: text('notas').notNull().default(''),
 

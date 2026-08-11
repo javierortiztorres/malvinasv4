@@ -10,12 +10,13 @@ import { useCerrarModal } from '@/hooks/useCerrarModal';
 // ---------------------------------------------------------------
 // Gestión de cotizaciones (branch atencion-cliente).
 //
-// El flujo completo de Atención: la receta leída por el Lector entra acá
-// retenida en "Pendiente de pago" con su cotización creada; se le pone
-// precio (a mano hasta que el motor del Excel esté portado), se copia el
-// mensaje de WhatsApp, y cuando llega el comprobante se sube y los
-// registros se liberan a Pendientes (producción). El botón "a producción
-// sin pago" cubre a los pacientes que pagan después.
+// El flujo completo de Atención: la receta entra por el Lector, se revisa
+// en Pendientes y desde ahí llega acá retenida en "Pendiente de pago" con
+// su cotización creada; el motor del Excel le pone precio (editable:
+// cápsulas, drogas, descuento extra), se copia el mensaje de WhatsApp y el
+// pago se confirma con el botón ✅ PAGADO, que libera las fórmulas a
+// Pendientes (producción). "A Pendientes sin pago" cubre a los pacientes
+// que pagan después. El 🧪 Simulador cotiza consultas sueltas sin guardar.
 // ---------------------------------------------------------------
 
 type ComprobanteMeta = {
@@ -101,6 +102,17 @@ export default function Cotizaciones({
   const [abiertaId, setAbiertaId] = useState<number | null>(null);
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [error, setError] = useState('');
+  // Drogas del cotizador: las usa el detalle (asignar/corregir drogas) y el
+  // Simulador — una sola carga acá para las dos pantallas.
+  const [drogas, setDrogas] = useState<CotizadorDroga[]>([]);
+  const [simulador, setSimulador] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/cotizador/drogas')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => Array.isArray(d) && setDrogas(d))
+      .catch(() => {});
+  }, []);
 
   const recargarLista = useCallback(async () => {
     try {
@@ -180,6 +192,7 @@ export default function Cotizaciones({
         id={abiertaId}
         detalle={detalle}
         rol={rol}
+        drogas={drogas}
         onVolver={() => setAbiertaId(null)}
         onRefrescar={refrescarTodo}
         onCerrada={() => {
@@ -227,7 +240,7 @@ export default function Cotizaciones({
           {(
             [
               ['pendientes', `💰 Pendientes de pago (${nPendientes})`],
-              ['sin_pago', `🚚 En producción sin pago (${nSinPago})`],
+              ['sin_pago', `🚚 En Pendientes sin pago (${nSinPago})`],
               ['pagadas', '✅ Pagadas'],
               ['todas', 'Todas'],
             ] as const
@@ -243,7 +256,20 @@ export default function Cotizaciones({
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setSimulador((s) => !s)}
+          className={`ml-auto rounded-xl px-3 py-1.5 text-xs font-semibold ${
+            simulador ? 'bg-violet-600 text-white' : 'border border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'
+          }`}
+          title="Cotización de prueba: calcula con el motor pero no guarda nada"
+        >
+          🧪 Simulador
+        </button>
       </div>
+
+      {/* Simulador (pedido 11-ago): "¿cuánto me saldría hacer esto?" de un
+          médico — calcula con drogas y parámetros vigentes SIN dejar rastro. */}
+      {simulador && <Simulador drogas={drogas} />}
 
       {cargando ? (
         <p className="text-slate-500">Cargando…</p>
@@ -286,7 +312,7 @@ export default function Cotizaciones({
                       <span className="badge bg-amber-100 text-amber-800">💰 Pendiente de pago</span>
                     )}
                     {c.enviadaSinPago && c.estadoPago !== 'pagada' && (
-                      <span className="badge bg-sky-100 text-sky-800">🚚 En producción sin pago</span>
+                      <span className="badge bg-sky-100 text-sky-800">🚚 En Pendientes sin pago</span>
                     )}
                     {c.precioTotal == null && <span className="badge bg-red-100 text-red-700">Sin precio</span>}
                   </div>
@@ -306,6 +332,7 @@ function DetalleCotizacion({
   id,
   detalle,
   rol,
+  drogas,
   onVolver,
   onRefrescar,
   onCerrada,
@@ -313,6 +340,7 @@ function DetalleCotizacion({
   id: number;
   detalle: Detalle | null;
   rol: string | undefined;
+  drogas: CotizadorDroga[];
   onVolver: () => void;
   onRefrescar: () => void;
   onCerrada: () => void;
@@ -328,10 +356,9 @@ function DetalleCotizacion({
   const [copiado, setCopiado] = useState(false);
   const [modal, setModal] = useState<'warning-precio' | 'sin-pago' | 'cancelar' | 'pagado' | null>(null);
   const [motivo, setMotivo] = useState('');
-  // Motor: envío elegido, lista de drogas (para asignar a mano) y lo que
-  // faltó en el último cálculo.
+  // Motor: envío elegido, descuento extra y lo que faltó en el último cálculo.
   const [envio, setEnvio] = useState<Envio>('sin');
-  const [drogas, setDrogas] = useState<CotizadorDroga[]>([]);
+  const [descuento, setDescuento] = useState('');
   const [faltantes, setFaltantes] = useState<string[]>([]);
   const [calculando, setCalculando] = useState(false);
 
@@ -341,6 +368,7 @@ function DetalleCotizacion({
       setTransf(detalle.cotizacion.precioTransferencia != null ? String(detalle.cotizacion.precioTransferencia) : '');
       setLink(detalle.cotizacion.linkPago ?? '');
       setNotas(detalle.cotizacion.notas ?? '');
+      setDescuento(detalle.cotizacion.descuentoExtraPct ? String(detalle.cotizacion.descuentoExtraPct) : '');
       const envioGuardado = (detalle.cotizacion.parametros as Record<string, unknown> | null)?.envio;
       if (envioGuardado === 'corto' || envioGuardado === 'largo') setEnvio(envioGuardado);
       const f = (detalle.cotizacion.parametros as Record<string, unknown> | null)?.faltantes;
@@ -348,12 +376,6 @@ function DetalleCotizacion({
       setInicializado(true);
     }
   }, [detalle, inicializado]);
-
-  useEffect(() => {
-    fetch('/api/cotizador/drogas')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => Array.isArray(d) && setDrogas(d));
-  }, []);
 
   if (!detalle) {
     return (
@@ -373,12 +395,29 @@ function DetalleCotizacion({
 
   const precioNum = precio.trim() === '' ? null : Number(precio.replace(',', '.'));
   const transfNum = transf.trim() === '' ? null : Number(transf.replace(',', '.'));
+  const descNum = (() => {
+    const d = Number(descuento.replace(',', '.'));
+    return Number.isFinite(d) && d > 0 ? Math.min(d, 100) : 0;
+  })();
   const precioCambia = precioNum !== cot.precioTotal;
   const hayCambios =
     precioCambia ||
     transfNum !== cot.precioTransferencia ||
     link.trim() !== (cot.linkPago ?? '') ||
-    notas !== (cot.notas ?? '');
+    notas !== (cot.notas ?? '') ||
+    descNum !== (cot.descuentoExtraPct ?? 0);
+
+  // DRIFT (caso BRUSCHI 11-ago): si el Admin editó la receta en Pendientes
+  // (cápsulas o composición) DESPUÉS de cotizar, el snapshot quedó viejo y
+  // el precio también — acá se detecta y la pantalla lo grita.
+  const desactualizadas = cot.lineas.filter((l) => {
+    const reg = regs.find((r) => r.id === l.registroId);
+    if (!reg) return false;
+    if ((reg.capsulasTotales ?? null) !== (l.nCapsulas ?? null)) return true;
+    const enReceta = (reg.formula ?? []).map((a) => `${a.activo}|${a.dosis}|${a.unidad}`).join('~');
+    const enSnapshot = l.activos.map((a) => `${a.nombre}|${a.dosis}|${a.unidad}`).join('~');
+    return enReceta !== enSnapshot;
+  });
 
   // Comparación con paciente recurrente: últimas cotizaciones con precio.
   const conPrecio = anteriores.filter((a) => a.precioTotal != null);
@@ -407,6 +446,7 @@ function DetalleCotizacion({
         linkPago: link,
         notas,
         motivo,
+        descuentoExtraPct: descNum,
       }),
     });
     setGuardando(false);
@@ -500,7 +540,7 @@ function DetalleCotizacion({
       const res = await fetch(`/api/cotizaciones/${id}/recotizar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ envio: envioElegido }),
+        body: JSON.stringify({ envio: envioElegido, descuentoExtraPct: descNum }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? 'No se pudo calcular');
@@ -537,6 +577,46 @@ function DetalleCotizacion({
     await calcularConMotor(envio);
   }
 
+  // Cápsulas editables (caso BRUSCHI): el cambio se escribe en el REGISTRO
+  // (la receta manda) y se recalcula al toque — así nunca más "edité a 180
+  // y me siguió cotizando 270". Si el registro ya no existe, se edita el
+  // snapshot de la línea.
+  async function guardarCapsulas(lineaIdx: number, valor: string) {
+    const n = Math.floor(Number(valor.replace(',', '.')));
+    const nuevas = Number.isFinite(n) && n > 0 ? n : null;
+    const linea = cot.lineas[lineaIdx];
+    if (!linea) return;
+    const reg = regs.find((r) => r.id === linea.registroId);
+    const actuales = reg ? reg.capsulasTotales ?? null : linea.nCapsulas ?? null;
+    if (nuevas === actuales) return;
+    setError('');
+    if (reg) {
+      const res = await fetch(`/api/registros/${reg.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ capsulasTotales: nuevas }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? 'No se pudo cambiar la cantidad de cápsulas');
+        return;
+      }
+    } else {
+      const lineas = cot.lineas.map((l, i) => (i !== lineaIdx ? l : { ...l, nCapsulas: nuevas }));
+      const res = await fetch(`/api/cotizaciones/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineas }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? 'No se pudo cambiar la cantidad de cápsulas');
+        return;
+      }
+    }
+    await calcularConMotor(envio);
+  }
+
   async function cancelar() {
     setModal(null);
     const res = await fetch(`/api/cotizaciones/${id}`, { method: 'DELETE' });
@@ -554,6 +634,7 @@ function DetalleCotizacion({
       precioTotal: precioNum ?? cot.precioTotal,
       precioTransferencia: transfNum ?? cot.precioTransferencia,
       linkPago: link || cot.linkPago,
+      descuentoExtraPct: descNum,
     };
     try {
       await navigator.clipboard.writeText(mensajeWhatsApp(cotParaMensaje, regs));
@@ -565,7 +646,12 @@ function DetalleCotizacion({
   }
 
   const mensajePreview = mensajeWhatsApp(
-    { ...cot, precioTotal: precioNum, precioTransferencia: transfNum ?? precioTransferenciaSugerido(precioNum) },
+    {
+      ...cot,
+      precioTotal: precioNum,
+      precioTransferencia: transfNum ?? precioTransferenciaSugerido(precioNum),
+      descuentoExtraPct: descNum,
+    },
     regs
   );
 
@@ -576,12 +662,12 @@ function DetalleCotizacion({
         <div className="flex flex-wrap gap-2">
           {!pagada && (
             <button className="btn-primary" onClick={() => setModal('pagado')}>
-              ✅ PAGADO{retenidos.length > 0 ? ' → a producción' : ''}
+              ✅ PAGADO{retenidos.length > 0 ? ' → a Pendientes' : ''}
             </button>
           )}
           {!pagada && retenidos.length > 0 && (
             <button className="btn-ghost" onClick={() => setModal('sin-pago')}>
-              🚚 A producción sin pago
+              📋 A Pendientes sin pago
             </button>
           )}
           {liberados.some((r) => estadoPT(r) === 'pendiente') && (
@@ -613,7 +699,7 @@ function DetalleCotizacion({
                 <span className="badge bg-amber-100 text-amber-800">💰 Pendiente de pago</span>
               )}
               {cot.enviadaSinPago && !pagada && (
-                <span className="badge bg-sky-100 text-sky-800">🚚 En producción sin pago</span>
+                <span className="badge bg-sky-100 text-sky-800">🚚 En Pendientes sin pago</span>
               )}
             </div>
           </div>
@@ -657,14 +743,60 @@ function DetalleCotizacion({
               </div>
             )}
 
+            {/* Aviso de receta cambiada después de cotizar (caso BRUSCHI) */}
+            {desactualizadas.length > 0 && (
+              <div className="rounded-xl border-l-4 border-l-red-500 bg-red-50 p-3 text-sm text-red-800">
+                <p className="font-bold">
+                  ⚠️ La receta cambió después de cotizar
+                  {desactualizadas.length === 1
+                    ? ` (fórmula ${desactualizadas[0].titulo || '—'})`
+                    : ` (${desactualizadas.length} fórmulas)`}
+                  .
+                </p>
+                <p className="mt-0.5 text-xs">
+                  El precio de abajo está calculado con la composición VIEJA — tocá{' '}
+                  <b>🧮 Calcular con el motor</b> para actualizar precio y composición.
+                </p>
+              </div>
+            )}
+
             {/* Composición (snapshot) + estado de producción + desglose */}
             <div className="space-y-2">
               {cot.lineas.map((l, i) => {
                 const reg = regs.find((r) => r.id === l.registroId);
+                const desactualizada = desactualizadas.includes(l);
+                const capsActuales = reg ? reg.capsulasTotales ?? null : l.nCapsulas ?? null;
                 return (
-                  <div key={i} className="rounded-xl border border-slate-200 p-3 text-sm">
-                    <div className="mb-1 flex items-center justify-between">
-                      <b>Fórmula {l.titulo || '—'}{l.nCapsulas ? ` · ${l.nCapsulas} cápsulas` : ''}</b>
+                  <div
+                    key={i}
+                    className={`rounded-xl border p-3 text-sm ${desactualizada ? 'border-red-300 bg-red-50/40' : 'border-slate-200'}`}
+                  >
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        <b>Fórmula {l.titulo || '—'}</b>
+                        {!bloqueada ? (
+                          <>
+                            <input
+                              key={`caps-${i}-${capsActuales ?? 'x'}`}
+                              className="input !w-20 !py-0.5 text-center text-sm font-bold"
+                              inputMode="numeric"
+                              defaultValue={capsActuales ?? ''}
+                              placeholder="cáps"
+                              title="Cantidad TOTAL de cápsulas — al salir del campo se guarda en la receta y se recalcula el precio"
+                              onBlur={(e) => guardarCapsulas(i, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                              }}
+                            />
+                            <span className="text-xs text-slate-500">cáps</span>
+                          </>
+                        ) : (
+                          l.nCapsulas != null && <span>· {l.nCapsulas} cápsulas</span>
+                        )}
+                        {desactualizada && (
+                          <span className="badge bg-red-100 text-red-700">receta cambiada</span>
+                        )}
+                      </span>
                       <span className="badge bg-slate-100 text-slate-700">
                         {reg ? (reg.entregadoEn ? '🔵 Entregado' : LABEL_ESTADO[estadoPT(reg)]) : 'registro borrado'}
                       </span>
@@ -675,24 +807,32 @@ function DetalleCotizacion({
                         return (
                           <li key={j} className="flex flex-wrap items-center gap-1.5">
                             <span>• {a.nombre}: {a.dosis} {a.unidad}</span>
-                            {droga ? (
+                            {drogas.length > 0 && !bloqueada ? (
+                              // Siempre editable (11-ago): si el sistema eligió
+                              // mal la droga, se corrige acá y recalcula solo.
+                              <>
+                                <select
+                                  className={`input !w-auto !py-0.5 text-xs ${droga ? '!border-slate-200 text-slate-600' : '!border-amber-400 font-medium text-amber-800'}`}
+                                  value={droga ? String(droga.id) : ''}
+                                  title="Droga del cotizador usada para esta línea — cambiala si el sistema eligió mal"
+                                  onChange={(e) => {
+                                    const v = Number(e.target.value);
+                                    if (Number.isInteger(v) && v > 0) asignarDroga(i, j, v);
+                                  }}
+                                >
+                                  <option value="" disabled>⚠ elegir droga…</option>
+                                  {drogas.filter((d) => d.activo || d.id === a.drogaId).map((d) => (
+                                    <option key={d.id} value={d.id}>{d.nombre} (${d.costoUnitario ?? '—'}/{d.unidad})</option>
+                                  ))}
+                                </select>
+                                {droga && a.costo != null && (
+                                  <span className="text-xs text-slate-500">{formatoPeso(a.costo)}</span>
+                                )}
+                              </>
+                            ) : droga ? (
                               <span className="text-xs text-slate-500">
                                 → {droga.nombre}{a.costo != null && <> · {formatoPeso(a.costo)}</>}
                               </span>
-                            ) : drogas.length > 0 && !bloqueada ? (
-                              <select
-                                className="input !w-auto !py-0.5 text-xs"
-                                value=""
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  if (Number.isInteger(v) && v > 0) asignarDroga(i, j, v);
-                                }}
-                              >
-                                <option value="">⚠ elegir droga…</option>
-                                {drogas.filter((d) => d.activo).map((d) => (
-                                  <option key={d.id} value={d.id}>{d.nombre} (${d.costoUnitario ?? '—'}/{d.unidad})</option>
-                                ))}
-                              </select>
                             ) : (
                               <span className="text-xs font-medium text-amber-700">⚠ sin droga en el cotizador</span>
                             )}
@@ -728,6 +868,19 @@ function DetalleCotizacion({
                       <option key={ev} value={ev}>{LABEL_ENVIO[ev]}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="label" title="Descuento adicional sobre el precio base, antes del recargo de lista — se aplica al calcular con el motor y sale en el mensaje">
+                    🎁 Desc. extra %
+                  </label>
+                  <input
+                    className="input !w-24 text-center"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={descuento}
+                    disabled={bloqueada}
+                    onChange={(e) => setDescuento(e.target.value)}
+                  />
                 </div>
                 <button
                   className="btn-primary"
@@ -956,15 +1109,14 @@ function DetalleCotizacion({
 
       {modal === 'sin-pago' && (
         <ModalConfirmacion
-          titulo="🚚 Mandar a producción sin pago"
+          titulo="📋 Mandar a Pendientes (sin pago)"
           onCerrar={() => setModal(null)}
           onConfirmar={aProduccionSinPago}
-          textoConfirmar="Mandar a producción"
+          textoConfirmar="Mandar a Pendientes"
         >
           <p className="text-sm">
             {retenidos.length} fórmula{retenidos.length !== 1 && 's'} de <b>{cot.paciente}</b> pasa
-            {retenidos.length === 1 ? '' : 'n'} a <b>Pendientes</b> aunque el pago no llegó (paciente que paga
-            después). La cotización queda esperando el comprobante — subilo cuando llegue, como siempre.
+            {retenidos.length === 1 ? '' : 'n'} a <b>Pendientes</b> aunque el pago no llegó (paciente que paga después). La cotización queda esperando la confirmación con ✅ PAGADO.
           </p>
         </ModalConfirmacion>
       )}
@@ -989,6 +1141,283 @@ function DetalleCotizacion({
             .{liberados.length > 0 && ' Las fórmulas que ya están en producción NO se tocan (solo se desvinculan).'}
           </p>
         </ModalConfirmacion>
+      )}
+    </div>
+  );
+}
+
+// ---------------- Simulador (cotización de prueba, SIN validez) ----------------
+//
+// Pedido de Tomi 11-ago: "a veces un médico me escribe y me dice che
+// ¿cuánto me saldría hacer esto? y eso no quiero que quede registrado en
+// el mismo lugar que los pacientes". Calcula con el motor real (drogas y
+// parámetros vigentes) vía /api/cotizador/simular y NO guarda nada.
+
+type ActivoSim = { drogaId: string; dosis: string; unidad: string };
+type LineaSim = { nCapsulas: string; activos: ActivoSim[] };
+type ResultadoSim = {
+  lineas: {
+    titulo: string;
+    nCapsulas: number | null;
+    activos: { nombre: string; dosis: number; unidad: string; costo: number | null }[];
+    costoExtra: number | null;
+    costoCapsulas: number | null;
+    costoEnvase: number | null;
+    costoTiempo: number | null;
+    precioSugerido: number | null;
+  }[];
+  faltantes: string[];
+  totales: { sugerido: number; precioTotal: number; precioTransferencia: number } | null;
+};
+
+const UNIDADES_SIM = ['mg', 'µg', 'g', 'UI'] as const;
+
+function Simulador({ drogas }: { drogas: CotizadorDroga[] }) {
+  const nuevoActivo = (): ActivoSim => ({ drogaId: '', dosis: '', unidad: 'mg' });
+  const nuevaLinea = (): LineaSim => ({ nCapsulas: '', activos: [nuevoActivo()] });
+  const [lineas, setLineas] = useState<LineaSim[]>([nuevaLinea()]);
+  const [envio, setEnvio] = useState<Envio>('sin');
+  const [descuento, setDescuento] = useState('');
+  const [resultado, setResultado] = useState<ResultadoSim | null>(null);
+  const [calculando, setCalculando] = useState(false);
+  const [error, setError] = useState('');
+  const [copiado, setCopiado] = useState(false);
+
+  // Cualquier cambio invalida el resultado anterior (nada de totales viejos).
+  function editar(fn: (ls: LineaSim[]) => LineaSim[]) {
+    setLineas(fn);
+    setResultado(null);
+  }
+
+  const hayActivos = lineas.some((l) => l.activos.some((a) => a.drogaId !== ''));
+
+  async function calcular() {
+    setCalculando(true);
+    setError('');
+    try {
+      const payload = {
+        envio,
+        descuentoExtraPct: Number(descuento.replace(',', '.')) || 0,
+        lineas: lineas
+          .map((l) => ({
+            nCapsulas: Number(l.nCapsulas.replace(',', '.')) || null,
+            activos: l.activos
+              .filter((a) => a.drogaId !== '')
+              .map((a) => {
+                const d = drogas.find((x) => x.id === Number(a.drogaId));
+                return {
+                  nombre: d?.nombre ?? '',
+                  dosis: Number(a.dosis.replace(',', '.')) || 0,
+                  unidad: a.unidad,
+                  drogaId: Number(a.drogaId),
+                };
+              }),
+          }))
+          .filter((l) => l.activos.length > 0),
+      };
+      const res = await fetch('/api/cotizador/simular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo simular');
+      setResultado(data);
+    } catch (e: any) {
+      setError(e.message ?? 'No se pudo simular');
+    } finally {
+      setCalculando(false);
+    }
+  }
+
+  async function copiarResumen() {
+    if (!resultado?.totales) return;
+    const partes: string[] = ['🧪 Cotización de PRUEBA — sin validez'];
+    resultado.lineas.forEach((l, i) => {
+      const comp = l.activos.map((a) => `${a.nombre} ${a.dosis} ${a.unidad}`).join(' + ');
+      partes.push(`Fórmula ${i + 1}: ${l.nCapsulas ?? '—'} cáps — ${comp}`);
+    });
+    if (envio !== 'sin') partes.push(`Envío: ${LABEL_ENVIO[envio]}`);
+    partes.push(`💰 Precio de lista (3 cuotas): ${formatoPeso(resultado.totales.precioTotal)}`);
+    partes.push(`💸 Transferencia: ${formatoPeso(resultado.totales.precioTransferencia)}`);
+    try {
+      await navigator.clipboard.writeText(partes.join('\n'));
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2500);
+    } catch {
+      setError('El navegador bloqueó el copiado — copiá los números a mano.');
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-violet-300 bg-violet-50/50 p-4">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-bold text-violet-900">🧪 Simulador — cotización de prueba</p>
+        <span className="badge bg-violet-100 text-violet-800">NO se guarda nada · sin validez</span>
+      </div>
+      <p className="mb-3 text-xs text-violet-800/80">
+        Para responder el &quot;¿cuánto me saldría?&quot; de un médico: calcula con las drogas y parámetros
+        vigentes del cotizador y no deja ningún registro en el sistema.
+      </p>
+
+      <div className="space-y-2">
+        {lineas.map((l, i) => (
+          <div key={i} className="rounded-xl border border-violet-200 bg-white p-3 text-sm">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <b>Fórmula {i + 1}</b>
+              <input
+                className="input !w-24 !py-1 text-center"
+                inputMode="numeric"
+                placeholder="cáps"
+                value={l.nCapsulas}
+                onChange={(e) => editar((ls) => ls.map((x, k) => (k !== i ? x : { ...x, nCapsulas: e.target.value })))}
+              />
+              <span className="text-xs text-slate-500">cápsulas totales</span>
+              {lineas.length > 1 && (
+                <button
+                  className="ml-auto text-xs text-red-500 hover:underline"
+                  onClick={() => editar((ls) => ls.filter((_, k) => k !== i))}
+                >
+                  ✕ quitar fórmula
+                </button>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              {l.activos.map((a, j) => (
+                <div key={j} className="flex flex-wrap items-center gap-1.5">
+                  <select
+                    className="input !w-auto grow !py-1 text-xs"
+                    value={a.drogaId}
+                    onChange={(e) =>
+                      editar((ls) =>
+                        ls.map((x, k) =>
+                          k !== i ? x : { ...x, activos: x.activos.map((y, m) => (m !== j ? y : { ...y, drogaId: e.target.value })) }
+                        )
+                      )
+                    }
+                  >
+                    <option value="">elegir droga…</option>
+                    {drogas.filter((d) => d.activo).map((d) => (
+                      <option key={d.id} value={d.id}>{d.nombre} (${d.costoUnitario ?? '—'}/{d.unidad})</option>
+                    ))}
+                  </select>
+                  <input
+                    className="input !w-20 !py-1 text-center text-xs"
+                    inputMode="decimal"
+                    placeholder="dosis"
+                    value={a.dosis}
+                    onChange={(e) =>
+                      editar((ls) =>
+                        ls.map((x, k) =>
+                          k !== i ? x : { ...x, activos: x.activos.map((y, m) => (m !== j ? y : { ...y, dosis: e.target.value })) }
+                        )
+                      )
+                    }
+                  />
+                  <select
+                    className="input !w-auto !py-1 text-xs"
+                    value={a.unidad}
+                    onChange={(e) =>
+                      editar((ls) =>
+                        ls.map((x, k) =>
+                          k !== i ? x : { ...x, activos: x.activos.map((y, m) => (m !== j ? y : { ...y, unidad: e.target.value })) }
+                        )
+                      )
+                    }
+                  >
+                    {UNIDADES_SIM.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <span className="text-xs text-slate-400">por cápsula</span>
+                  {l.activos.length > 1 && (
+                    <button
+                      className="text-xs text-red-400 hover:underline"
+                      onClick={() =>
+                        editar((ls) => ls.map((x, k) => (k !== i ? x : { ...x, activos: x.activos.filter((_, m) => m !== j) })))
+                      }
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {l.activos.length < 15 && (
+              <button
+                className="mt-2 text-xs font-semibold text-violet-700 hover:underline"
+                onClick={() => editar((ls) => ls.map((x, k) => (k !== i ? x : { ...x, activos: [...x.activos, nuevoActivo()] })))}
+              >
+                + agregar activo
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        {lineas.length < 5 && (
+          <button className="btn-ghost" onClick={() => editar((ls) => [...ls, nuevaLinea()])}>
+            + otra fórmula
+          </button>
+        )}
+        <div>
+          <label className="label">Envío</label>
+          <select className="input" value={envio} onChange={(e) => { setEnvio(e.target.value as Envio); setResultado(null); }}>
+            {(Object.keys(LABEL_ENVIO) as Envio[]).map((ev) => (
+              <option key={ev} value={ev}>{LABEL_ENVIO[ev]}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">🎁 Desc. extra %</label>
+          <input
+            className="input !w-24 text-center"
+            inputMode="decimal"
+            placeholder="0"
+            value={descuento}
+            onChange={(e) => { setDescuento(e.target.value); setResultado(null); }}
+          />
+        </div>
+        <button className="btn-primary" disabled={!hayActivos || calculando} onClick={calcular}>
+          {calculando ? 'Calculando…' : '🧮 Calcular (sin guardar)'}
+        </button>
+      </div>
+
+      {error && <p className="mt-2 text-sm font-medium text-red-600">{error}</p>}
+
+      {resultado && (
+        <div className="mt-3 rounded-xl border border-violet-200 bg-white p-3">
+          {resultado.faltantes.length > 0 && (
+            <div className="mb-2 rounded-lg border-l-4 border-l-amber-500 bg-amber-50 p-2.5 text-xs text-amber-800">
+              <b>No se pudo poner precio:</b>
+              <ul className="mt-0.5 list-inside list-disc">
+                {resultado.faltantes.map((f, i) => <li key={i}>{f}</li>)}
+              </ul>
+            </div>
+          )}
+          {resultado.lineas.map((l, i) => (
+            l.precioSugerido != null && (
+              <p key={i} className="text-xs text-slate-500">
+                Fórmula {i + 1} · Activos{' '}
+                {formatoPeso(l.activos.reduce((acc, a) => acc + (a.costo ?? 0), 0))} · Excipientes {formatoPeso(l.costoExtra)} · Cápsulas{' '}
+                {formatoPeso(l.costoCapsulas)} · Envase {formatoPeso(l.costoEnvase)} · Tiempo {formatoPeso(l.costoTiempo)} →{' '}
+                <b className="text-slate-700">Sugerido {formatoPeso(l.precioSugerido)}</b>
+              </p>
+            )
+          ))}
+          {resultado.totales && (
+            <div className="mt-2 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-2">
+              <p className="text-lg font-black">
+                💰 Lista: {formatoPeso(resultado.totales.precioTotal)}
+                <span className="ml-3 text-base font-bold text-green-700">
+                  💸 Transferencia: {formatoPeso(resultado.totales.precioTransferencia)}
+                </span>
+              </p>
+              <button className="btn-ghost ml-auto" onClick={copiarResumen}>
+                {copiado ? '✅ Copiado' : '📋 Copiar resumen'}
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

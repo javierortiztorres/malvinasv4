@@ -166,14 +166,36 @@ export function normalizarNombre(s: string): string {
     .trim();
 }
 
-// Matcheo receta → droga del cotizador. Reglas: nombre exacto gana
-// siempre; después keywords y nombres por FRASE COMPLETA con límites de
-// palabra (así "Vit. B12" nunca cae en la keyword "B1") y gana la frase
-// más específica (más larga).
+// Matcheo receta → droga del cotizador, en 3 niveles de confianza:
+// 1. nombre exacto normalizado (score 1000);
+// 2. FRASE COMPLETA con límites de palabra, nombre o keyword ("Vit. B12"
+//    nunca cae en la keyword "B1") — score 500 + largo de la frase;
+// 3. tokens COMPARTIDOS sin importar el orden ("Manganeso Quelado" ↔
+//    "Quelato de Manganeso", "Vit. B2 (Riboflavina)" ↔ "Riboflavina
+//    (Vitamina B2)") — score = suma de largos de los tokens compartidos,
+//    pidiendo al menos un token distintivo (no vale matchear solo por
+//    "vitamina") y un mínimo de evidencia.
+const TOKENS_GENERICOS = new Set(['vitamina', 'vit', 'acido', 'extracto', 'seco', 'quelado', 'quelato', 'sulfato', 'citrato', 'glicinato', 'gluconato']);
+const TOKENS_IGNORAR = new Set(['de', 'del', 'la', 'el', 'en', 'l']);
+
+function tokensDe(s: string): string[] {
+  return normalizarNombre(s)
+    .split(' ')
+    .filter((t) => !TOKENS_IGNORAR.has(t) && (t.length >= 3 || /\d/.test(t)));
+}
+
+const esFraseGenerica = (f: string): boolean =>
+  f.split(' ').every((w) => TOKENS_GENERICOS.has(w) || TOKENS_IGNORAR.has(w));
+
 export function matchDroga(activoReceta: string, drogas: CotizadorDroga[]): CotizadorDroga | null {
   const n = normalizarNombre(activoReceta);
   if (!n) return null;
   const nBordes = ` ${n} `;
+  const nTokens = new Set(tokensDe(activoReceta));
+  // Una receta hecha SOLO de palabras genéricas ("Vitamina", "Extracto
+  // seco") no puede reclamar una droga por contención: matchearía a
+  // cualquiera de su familia. Lo mismo una keyword genérica de la droga.
+  const recetaGenerica = esFraseGenerica(n);
   let mejor: { d: CotizadorDroga; score: number } | null = null;
   for (const d of drogas) {
     if (!d.activo) continue;
@@ -185,9 +207,25 @@ export function matchDroga(activoReceta: string, drogas: CotizadorDroga[]): Coti
       const frases = [dn, ...(d.keywords || '').split(',').map(normalizarNombre)].filter((f) => f.length >= 2);
       for (const f of frases) {
         const fBordes = ` ${f} `;
-        if (nBordes.includes(fBordes) || fBordes.includes(nBordes)) {
-          score = Math.max(score, f.length);
+        if (
+          (nBordes.includes(fBordes) && !esFraseGenerica(f)) ||
+          (fBordes.includes(nBordes) && !recetaGenerica)
+        ) {
+          score = Math.max(score, 500 + f.length);
         }
+      }
+      if (score === 0) {
+        // Nivel 3: tokens compartidos (nombre + keywords de la droga).
+        const dTokens = new Set([...tokensDe(d.nombre), ...(d.keywords || '').split(',').flatMap(tokensDe)]);
+        let suma = 0;
+        let distintivo = false;
+        nTokens.forEach((t) => {
+          if (dTokens.has(t)) {
+            suma += t.length;
+            if (!TOKENS_GENERICOS.has(t)) distintivo = true;
+          }
+        });
+        if (distintivo && suma >= 5) score = Math.min(suma, 400);
       }
     }
     if (score > 0 && (!mejor || score > mejor.score)) mejor = { d, score };
@@ -296,14 +334,19 @@ export function calcularLineas(
 }
 
 // Totales del pedido. null si alguna fórmula quedó sin precio.
+// descuentoExtraPct (0-100): rebaja adicional a criterio del que cotiza
+// (pedido de Tomi 11-ago) — se aplica sobre la base ANTES del recargo de
+// cuotas, así lista y transferencia bajan proporcionalmente.
 export function totalesDesdeLineas(
   lineas: LineaCotizacion[],
   cfg: CotizadorConfig,
-  envio: Envio
+  envio: Envio,
+  descuentoExtraPct = 0
 ): { sugerido: number; precioTotal: number; precioTransferencia: number } | null {
   if (lineas.length === 0 || lineas.some((l) => l.precioSugerido == null)) return null;
   const sugerido = lineas.reduce((acc, l) => acc + (l.precioSugerido ?? 0), 0) * (1 + cfg.cargaExtra);
-  const base = sugerido + montoEnvio(envio, cfg);
+  const desc = Math.min(Math.max(descuentoExtraPct, 0), 100) / 100;
+  const base = (sugerido + montoEnvio(envio, cfg)) * (1 - desc);
   const precioTotal = redondearPeso(base / (1 - cfg.descuentoTransferencia));
   const precioTransferencia = redondearPeso(base);
   return { sugerido: Math.round(sugerido), precioTotal, precioTransferencia };
@@ -433,6 +476,10 @@ export function mensajeWhatsApp(cot: Cotizacion, regsDeLaCotizacion: Registro[])
   lineas.push('');
   lineas.push(`💳 3 cuotas sin interés de ${formatoPeso(cuota)} (total ${formatoPeso(total)})`);
   if (cot.linkPago) lineas.push(cot.linkPago);
+  if ((cot.descuentoExtraPct ?? 0) > 0) {
+    lineas.push('');
+    lineas.push(`🎁 Incluye un ${cot.descuentoExtraPct}% de descuento adicional`);
+  }
   lineas.push('');
   if (deadline) lineas.push(`📦 *Fecha estimada de entrega: ${fechaLargaES(deadline)}*`);
   lineas.push('Cuando lo abones, mandame el comprobante y arrancamos con la producción 🚀');

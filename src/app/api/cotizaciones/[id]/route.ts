@@ -79,6 +79,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   // completas) y limpieza del flag al devolver a Pendiente de pago.
   if (Array.isArray(body.lineas)) patch.lineas = body.lineas;
   if (typeof body.enviadaSinPago === 'boolean') patch.enviadaSinPago = body.enviadaSinPago;
+  if (body.descuentoExtraPct !== undefined) {
+    const d = Number(body.descuentoExtraPct);
+    if (Number.isFinite(d) && d >= 0 && d <= 100) patch.descuentoExtraPct = d;
+  }
 
   const traePrecio = body.precioTotal !== undefined;
   const nuevoPrecio =

@@ -35,13 +35,17 @@ export type CotizacionCalculada = ResultadoLineas & {
 
 // Calcula precios para un juego de líneas con la config y la lista de
 // drogas VIGENTES. No escribe nada: cada ruta decide qué persistir.
-export async function cotizarLineas(lineasBase: LineaCotizacion[], envio: Envio): Promise<CotizacionCalculada> {
+export async function cotizarLineas(
+  lineasBase: LineaCotizacion[],
+  envio: Envio,
+  descuentoExtraPct = 0
+): Promise<CotizacionCalculada> {
   const [drogas, config] = await Promise.all([
     db.select().from(cotizadorDrogas),
     cargarConfig(),
   ]);
   const resultado = calcularLineas(lineasBase, drogas, config);
-  const totales = totalesDesdeLineas(resultado.lineas, config, envio);
+  const totales = totalesDesdeLineas(resultado.lineas, config, envio, descuentoExtraPct);
   return { ...resultado, config, totales };
 }
 

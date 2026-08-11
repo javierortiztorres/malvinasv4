@@ -30,6 +30,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const body = await req.json().catch(() => ({}));
   const envio: Envio = body?.envio === 'largo' || body?.envio === 'corto' ? body.envio : 'sin';
+  // Descuento extra: si viene en el body se actualiza; si no, se usa el
+  // guardado en la cotización.
+  const descCrudo = Number(body?.descuentoExtraPct);
+  const descuentoExtraPct = Number.isFinite(descCrudo)
+    ? Math.min(Math.max(descCrudo, 0), 100)
+    : cot.descuentoExtraPct ?? 0;
 
   // Composición fresca desde los registros vivos; si no queda ninguno
   // (borrados), se recalcula sobre el snapshot existente.
@@ -52,11 +58,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     })),
   }));
 
-  const calc = await cotizarLineas(base, envio);
+  const calc = await cotizarLineas(base, envio, descuentoExtraPct);
 
   const patch: Record<string, unknown> = {
     lineas: calc.lineas,
     parametros: snapshotParametros(calc, envio),
+    descuentoExtraPct,
     updatedAt: new Date(),
   };
 
@@ -69,7 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         usuario: session.nombre,
         precioTotal: calc.totales.precioTotal,
         precioTransferencia: calc.totales.precioTransferencia,
-        motivo: `Cálculo con motor — ${LABEL_ENVIO[envio]}`,
+        motivo: `Cálculo con motor — ${LABEL_ENVIO[envio]}${descuentoExtraPct > 0 ? ` — ${descuentoExtraPct}% off extra` : ''}`,
       };
       patch.historial = [...(cot.historial ?? []), entrada];
     }
