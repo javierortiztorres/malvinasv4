@@ -32,6 +32,10 @@ const UNIDADES = 'µg|μg|ug|mcg|u\\.i\\.|ui|mg|g|ml|cc|%';
 const RE_ACTIVO = new RegExp(`^[-•*]\\s*(.+?):\\s*([\\d.,]+)\\s*(${UNIDADES})(?:[/\\s][^\\s]*)?\\b`, 'i');
 // Formato nacional: "Componente: Melatonina 12 mg" (sin guion, dosis pegada al nombre)
 const RE_COMPONENTE = new RegExp(`^Componentes?\\s*:\\s*(.+?)\\s+([\\d.,]+)\\s*(${UNIDADES.replace(/\\\./g, '.')})\\b`, 'i');
+// Activo sin dos puntos: "- Resveratrol 200 mg" (fallback cuando no hay colon entre nombre y dosis)
+const RE_ACTIVO_SIN_COLON = new RegExp(`^[-•*]\\s*(.+?)\\s+([\\d.,]+)\\s*(${UNIDADES.replace(/\\\./g, '.')})\\b`, 'i');
+// Formato "Receta Magistral Electrónica": "60 unidades NOMBRE (200mg)" o "NOMBRE + NOMBRE (200mg / 200mg)"
+const RE_MAGISTRAL = new RegExp(`^(\\d+)\\s+unidades?\\s+(.+?)\\s*\\((\\d+(?:[.,]\\d+)?)\\s*(${UNIDADES.replace(/\\\./g, '.')})`, 'i');
 const RE_DURACION = /^Duraci[oó]n\s*:\s*(\d+)\s*d[ií]as?/i;
 const RE_TOTAL_CAPS = /^Total\s+de\s+c[aá]psulas\s*:\s*(\d+)/i;
 const RE_INDICACIONES = /^Indicaciones?\s*:\s*(.+)$/i;
@@ -46,7 +50,7 @@ const KEYWORDS_CORTE = [
   // --- formato nacional (MRx / recetario electrónico) ---
   'Fecha Órden', 'Fecha Orden', 'Órden Nro', 'Orden Nro', 'NroAfiliado', 'Nro Afiliado',
   'Obra Social:', 'OS:', 'Afiliado:', 'D.N.I.', 'DNI:', 'CUIL', 'Sexo:', 'Fecha Nacimiento',
-  'RP/', 'Tratamiento:', 'Componente', 'Duracion:', 'Duración:',
+  'RP/', 'Rp./', 'Tratamiento:', 'Componente', 'Duracion:', 'Duración:',
   'Total de capsulas', 'Total de cápsulas', 'TOTAL GENERAL',
   'Medico:', 'Médico:', 'REFEPS', 'Matricula:', 'Matrícula:', 'Profesion', 'Profesión',
   'Fecha y hora de emision', 'Fecha y hora de emisión', 'Firmado electr', 'Dr/a', 'Emitida:',
@@ -75,6 +79,11 @@ const KEYWORDS_CORTE = [
   // --- IOMA y otros colegios provinciales ---
   'Credencial:', 'Diagnóstico CIE:', 'Diagnostico CIE:', 'Nro Credencial:',
   'Provincia:', 'Partido:',
+  // --- Recetario electrónico nacional (MdS) ---
+  'Paciente:', 'Creada:', 'Válida desde:', 'Valida desde:',
+  'Diagnóstico •', 'Diagnostico •',
+  // --- Receta Magistral Electrónica ---
+  'Fórmulas Magistrales', 'Formulas Magistrales',
 ];
 
 // Convierte el texto "plano" del PDF en líneas lógicas que el parser entiende.
@@ -86,6 +95,8 @@ export function segmentarTexto(texto: string): string {
   }
   // 2) Cortar antes de cada ítem de fórmula " - Activo: ..."
   t = t.replace(/\s-\s(?=[^\s])/g, '\n- ');
+  // 2b) Cortar antes de "N unidades NOMBRE" (Receta Magistral Electrónica)
+  t = t.replace(/\b(\d+\s+unidades?\s+[A-ZÁÉÍÓÚÑ])/g, '\n$1');
   // 3) En líneas que no son ítems, cortar después de punto y aparte
   t = t
     .split('\n')
@@ -130,8 +141,11 @@ export function parseReceta(textoCrudo: string): RecetaParseada {
   const mFecha =
     texto.match(/FECHA\s+RECETA:\s*([\d/-]+)/i) ||
     texto.match(/Fecha\s+[ÓO]rden\s*:\s*([\d/-]+)/i) ||
-    texto.match(/Fecha y hora de emisi[oó]n\s*:\s*([\d/-]+)/i);
-  if (mFecha) res.fechaReceta = mFecha[1];
+    texto.match(/Fecha y hora de emisi[oó]n\s*:\s*([\d/-]+)/i) ||
+    // Receta Magistral Electrónica / recetario MdS — admite espacio antes del año ("03-08- 2026")
+    texto.match(/\bFecha\s*:\s*(\d{2}[/.-]\d{2}[/.-]\s*\d{4})/i) ||
+    texto.match(/\bCreada\s*:\s*(\d{2}[/.-]\d{2}[/.-]\s*\d{4})/i);
+  if (mFecha) res.fechaReceta = mFecha[1].replace(/\s+/g, '');
 
   const mNro =
     texto.match(/\bNRO:\s*(\d+)/i) || texto.match(/[ÓO]rden\s+Nro\s*:?\s*(\d+)/i);
@@ -166,6 +180,16 @@ export function parseReceta(textoCrudo: string): RecetaParseada {
     const candidato = todos.map((m) => m[1]).find(esNombre);
     if (candidato) res.paciente = limpiarNombre(candidato.replace(/\s+,/g, ','));
   }
+  // Fallback recetario electrónico MdS: "Paciente: NOMBRE Sexo:" o "Paciente: NOMBRE DNI:"
+  if (!res.paciente) {
+    const mPacNac = texto.match(/\bPaciente\s*:\s*(.+?)(?:\s+(?:Sexo|DNI)\s*:|$)/im);
+    if (mPacNac) res.paciente = limpiarNombre(mPacNac[1]);
+  }
+  // Fallback Receta Magistral: "Paciente NOMBRE DNI: NNNNN"
+  if (!res.paciente) {
+    const mPacMag = texto.match(/\bPaciente\s+(?!:)(.+?)\s+DNI\s*:/i);
+    if (mPacMag) res.paciente = limpiarNombre(mPacMag[1]);
+  }
   if (!res.dni) {
     // DNI puede venir con puntos: 28.456.789 → normalizar
     const mDni = texto.match(/D\.?\s?N\.?\s?I\.?\s*:?\s*([\d.]{7,11})/i);
@@ -185,9 +209,27 @@ export function parseReceta(textoCrudo: string): RecetaParseada {
     const mMed2 =
       texto.match(/^M[eé]dico\s*:\s*(.+)$/im) ||
       texto.match(/^Dr\/?a?\.?\s*:\s*(.+)$/im);
-    if (mMed2) res.medico = limpiarNombre(mMed2[1]);
+    if (mMed2) {
+      // Quitar credenciales pegadas: "LIC XXXXXX", "CUIPS XXXXXXX", "MP. NNNN"
+      res.medico = limpiarNombre(mMed2[1].replace(/\s+(?:LIC|CUIPS|MP\.?)\s+.*/i, ''));
+    }
     const mMat2 = texto.match(/^Matr[ií]cula\s*:\s*([A-Z]{0,4}\s?\d+)/im);
     if (mMat2) res.matricula = limpiarNombre(mMat2[1]);
+    // Recetario MdS: "Matrícula Prov.:NNNN"
+    if (!res.matricula) {
+      const mMatProv = texto.match(/Matr[ií]cula\s+Prov\.?\s*:\s*(\d+)/i);
+      if (mMatProv) res.matricula = mMatProv[1];
+    }
+    // Receta Magistral / recetario MdS: "MP. NNNN" o "MP NNNN" inline
+    if (!res.matricula) {
+      const mMPInline = texto.match(/\bMP\.?\s+(\d{4,6})\b/i);
+      if (mMPInline) res.matricula = mMPInline[1];
+    }
+    // Recetario MdS: nombre del médico en bloque "firmado electrónicamente por Dr(a?) NAME Dr(a?)."
+    if (!res.medico) {
+      const mFirmElec = texto.match(/firmado electr[oó]nicamente por Dr[a]?\s+(.+?)\s+Dr[a]?\./i);
+      if (mFirmElec) res.medico = limpiarNombre(mFirmElec[1].replace(/^Dr\.?\s+/i, ''));
+    }
     if (!res.medico && !res.matricula) advertencias.push('No pude detectar médico/matrícula.');
   }
 
@@ -195,8 +237,8 @@ export function parseReceta(textoCrudo: string): RecetaParseada {
   const iDx = lineas.findIndex((l) => /^DIAGN[ÓO]STICO/i.test(l));
   if (iDx >= 0) {
     const partes: string[] = [];
-    // ¿"DIAGNOSTICO : texto" en la misma línea?
-    const inline = lineas[iDx].replace(/^DIAGN[ÓO]STICO\s*:?\s*/i, '').trim();
+    // ¿"DIAGNOSTICO : texto" o "Diagnóstico • texto" en la misma línea?
+    const inline = lineas[iDx].replace(/^DIAGN[ÓO]STICO\s*[:\s•]\s*/i, '').trim();
     if (inline) partes.push(inline);
     const CORTE_DX = /^(FIRMA\s+Y\s+SELLOS|Tratamiento\s*:|RP\/|C[aá]psula\s|Componente|Duraci[oó]n\s*:|Total\s+de|TOTAL\s+GENERAL|M[eé]dico\s*:|REFEPS|Matr[ií]cula|Profesi[oó]n|Firmado|Fecha y hora|Indicaciones\s*:)/i;
     for (let i = iDx + 1; i < lineas.length; i++) {
@@ -220,7 +262,21 @@ export function parseReceta(textoCrudo: string): RecetaParseada {
   };
 
   for (const l of cuerpo) {
-    const mAct = l.match(RE_ACTIVO) ?? l.match(RE_COMPONENTE);
+    // Formato Receta Magistral: "60 unidades NOMBRE (200mg)" o "NOMBRE + NOMBRE (200mg / 200mg)"
+    const mMag = l.match(RE_MAGISTRAL);
+    if (mMag) {
+      if (!actual) actual = { titulo: '', activos: [], indicacion: '', dias: null, totalCapsulas: null };
+      const totalUn = parseInt(mMag[1], 10);
+      if (!actual.totalCapsulas) actual.totalCapsulas = totalUn;
+      const dosis = parseFloat(mMag[3].replace(',', '.'));
+      const unidad = normalizarUnidad(mMag[4]);
+      const nombres = mMag[2].split(/\s*\+\s*/);
+      for (const nombre of nombres) {
+        actual.activos.push({ activo: limpiarNombre(nombre), dosis, unidad });
+      }
+      continue;
+    }
+    const mAct = l.match(RE_ACTIVO) ?? l.match(RE_COMPONENTE) ?? l.match(RE_ACTIVO_SIN_COLON);
     if (mAct) {
       if (!actual) actual = { titulo: '', activos: [], indicacion: '', dias: null, totalCapsulas: null };
       actual.activos.push({

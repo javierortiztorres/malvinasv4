@@ -158,7 +158,7 @@ Firmado electrónicamente.
     dni: '31456789',
     medico: 'Ramírez, Carlos Alberto',
     formulas: [
-      { titulo: '1', indicacion: 'A la noche', activos: [
+      { titulo: 'Fórmula 1', indicacion: '', activos: [
         { activo: 'Melatonina', dosis: 3, unidad: 'mg' },
         { activo: 'Magnesio Bisglicinato', dosis: 200, unidad: 'mg' },
         { activo: 'Vitamina D3', dosis: 2000, unidad: 'UI' },
@@ -197,7 +197,7 @@ Firmado electrónicamente. Ley 27553
     dni: '12345678',
     medico: 'Fernández, Jorge Luis',
     formulas: [
-      { titulo: '1', indicacion: '', activos: [
+      { titulo: 'Fórmula 1', indicacion: '', activos: [
         { activo: 'Calcio Citrato', dosis: 500, unidad: 'mg' },
         { activo: 'Vitamina D3', dosis: 1000, unidad: 'UI' },
         { activo: 'Vitamina K2', dosis: 90, unidad: 'µg' },
@@ -206,9 +206,174 @@ Firmado electrónicamente. Ley 27553
   },
 };
 
+// --- Formato recetario electrónico MdS (Ministerio de Salud Nación) ---
+// Características: "Paciente:" para el nombre, "Matrícula Prov.:" para el médico,
+// "Creada:" para la fecha, "Rp./" (con punto), fórmula como "- NOMBRE DOSIS UNIT".
+
+export const EJEMPLO_MDS_1: EjemploParser = {
+  nombre: 'MdS — recetario electrónico — activo simple sin colon',
+  formato: 'MdS',
+  texto: `
+0156099999 24000000001 Lucas Martin Barbosa TRAUMATOLOGÍA Y ORTOPEDIA Matrícula Prov.:2723
+Creada: 05/08/2026 Válida desde: 05/08/2026
+Paciente: Garcia Maria Fernanda Sexo: Femenino DNI: 25000001 | CUIL: 27250000014
+F. Nacimiento: 10/03/1975 Cobertura pública exclusiva / Particulares
+Este documento ha sido firmado electrónicamente por Dr Dr Lucas Martin Barbosa Dr. Lucas M. BARBOSA TRAUMATOLOGIA Y ORTOPEDIA MP 2723 FIRMA Y SELLO 05/08/2026
+Rp./ - Biciglinato de Magnesio 850mg X 60 cápsulas
+Diagnóstico: Z76.9 - PERSONA EN CONTACTO CON LOS SERVICIOS DE SALUD EN CIRCUNSTANCIAS NO ESPECIFICADAS
+`,
+  esperado: {
+    paciente: 'Garcia Maria Fernanda',
+    dni: '25000001',
+    medico: 'Lucas Martin Barbosa',
+    matricula: '2723',
+    fechaReceta: '05/08/2026',
+    diagnostico: 'Z76.9 - PERSONA EN CONTACTO CON LOS SERVICIOS DE SALUD EN CIRCUNSTANCIAS NO ESPECIFICADAS',
+    formulas: [
+      { titulo: 'Fórmula 1', indicacion: '', activos: [
+        { activo: 'Biciglinato de Magnesio', dosis: 850, unidad: 'mg' },
+      ], dias: null, totalCapsulas: null },
+    ],
+  },
+};
+
+export const EJEMPLO_MDS_2: EjemploParser = {
+  nombre: 'MdS — recetario electrónico — fórmula CFC dentro de Rp./ con Cápsula N:',
+  formato: 'MdS',
+  texto: `
+0156099998 27000000001 Luisina Papa Cascé MÉDICA - DERMATOLOGIA Matrícula Prov.:40509
+Creada: 06/05/2026 Válida desde: 06/05/2026
+Paciente: Rodriguez Laura Sexo: Femenino DNI: 30000001 | CUIL: 27300000014
+F. Nacimiento: 02/01/1975
+Este documento ha sido firmado electrónicamente por Dr Luisina Papa Cascé Dra. Luisina Papa Cascé Médica dermatóloga MP 40509 ME 21002 FIRMA Y SELLO 06/05/2026
+Rp./ - Tratamiento personalizado con cápsulas multicapa de manufactura aditiva.
+Cápsula 1:
+- Vitamina A: 1000 UI
+- Vitamina B12: 500 µg
+- Vitamina D: 4000 UI
+- Vitamina K2: 100 mg
+- Coenzima Q10: 100 mg
+- Zinc: 30 mg
+- Selenio: 100 µg
+- Resveratrol 200 mg
+Indicaciones: A la mañana
+Duración: 30 días
+Diagnóstico: N951 - ESTADOS MENOPAUSICOS Y CLIMATERICOS FEMENINOS
+`,
+  esperado: {
+    paciente: 'Rodriguez Laura',
+    dni: '30000001',
+    medico: 'Luisina Papa Cascé',
+    matricula: '40509',
+    fechaReceta: '06/05/2026',
+    diagnostico: 'N951 - ESTADOS MENOPAUSICOS Y CLIMATERICOS FEMENINOS',
+    formulas: [
+      { titulo: 'Cápsula 1', indicacion: 'A la mañana', activos: [
+        { activo: 'Vitamina A', dosis: 1000, unidad: 'UI' },
+        { activo: 'Vitamina B12', dosis: 500, unidad: 'µg' },
+        { activo: 'Vitamina D', dosis: 4000, unidad: 'UI' },
+        { activo: 'Vitamina K2', dosis: 100, unidad: 'mg' },
+        { activo: 'Coenzima Q10', dosis: 100, unidad: 'mg' },
+        { activo: 'Zinc', dosis: 30, unidad: 'mg' },
+        { activo: 'Selenio', dosis: 100, unidad: 'µg' },
+        { activo: 'Resveratrol', dosis: 200, unidad: 'mg' },
+      ], dias: 30, totalCapsulas: null },
+    ],
+  },
+};
+
+// --- Formato Receta Magistral Electrónica ---
+// Características: "Paciente NOMBRE DNI:", "N unidades NOMBRE (DOSISunidad)",
+// "Diagnóstico •" (bullet), médico en línea "Médico: ... LIC ... MP. NNNN".
+
+export const EJEMPLO_MAGISTRAL_1: EjemploParser = {
+  nombre: 'Receta Magistral Electrónica — activos "N unidades NOMBRE (dosis)" con bullet en diagnóstico',
+  formato: 'Magistral',
+  texto: `
+Receta Magistral Electrónica ORIGINAL Nro: 00000000001028 Fecha: 29-04-2026 VTO: 29-05-2026
+Paciente Fernandez Gonzalez Mario DNI: 22000001 CUIL/T: 20220000013, Sexo: M, Nac: 10-05-1970
+Fórmulas Magistrales Cantidad Principio Activo Forma Farmacéutica Instrucciones de Uso Observaciones
+30 unidades RIBOFLAVINA (400mg) Cápsulas Tomar después del desayuno
+30 unidades MAGNESIO (400mg) Cápsulas Tomar después del desayuno Combinar ambos componentes en la misma cápsula
+Diagnóstico • cefalea en estudio (probable migraña)
+Médico: Marco Esteban Lisicki Martinez LIC 36050301 CUIPS 541094159416 MP. 36288 Córdoba Capital
+Este documento ha sido firmado electrónicamente y validado por Consejo de Médicos Prov.Cba.
+Número de Receta 00000000001028
+`,
+  esperado: {
+    paciente: 'Fernandez Gonzalez Mario',
+    dni: '22000001',
+    medico: 'Marco Esteban Lisicki Martinez',
+    matricula: '36288',
+    nroReceta: '00000000001028',
+    fechaReceta: '29-04-2026',
+    diagnostico: 'cefalea en estudio (probable migraña)',
+    formulas: [
+      { titulo: 'Fórmula 1', indicacion: '', activos: [
+        { activo: 'RIBOFLAVINA', dosis: 400, unidad: 'mg' },
+        { activo: 'MAGNESIO', dosis: 400, unidad: 'mg' },
+      ], dias: null, totalCapsulas: 30 },
+    ],
+  },
+};
+
+// --- CFC con múltiples fórmulas etiquetadas ---
+
+export const EJEMPLO_CFC_3: EjemploParser = {
+  nombre: 'CFC — múltiples fórmulas con etiquetas personalizadas (alopecia/mañana)',
+  formato: 'CFC',
+  texto: `
+OOSS: MAGISTRALES FECHA RECETA: 14-07-2026 NRO: 1200001
+Plan Medico: DISPENSA PROPIA
+APELLIDO Y NOMBRE DNI MAGISTRAL
+PEREZ, LUCAS 34000001 RECETA
+DETALLE DE FORMULA MAGISTRAL
+Tratamiento personalizado con cápsulas multicapa de manufactura aditiva.
+alopecia:
+- Vit. B1 (tiamina): 34 mg
+- Vit. K2: 355 µg
+- Aceite de pescado: 500.89 mg
+Indicaciones: A la noche
+Cápsulas multicapa de impresión 3D = cantidad suficiente para 90 días. HSA.
+mañana:
+- Vit. B6 (piridoxina): 34 mg
+- Aceite de pescado: 500.83 mg
+Indicaciones: A la mañana
+Cápsulas multicapa de impresión 3D = cantidad suficiente para 90 días. HSA.
+DIAGNOSTICO :
+Alopecia androgena
+FIRMA Y SELLOS MEDICO
+MATRICULA PROVINCIAL 11111 | APELLIDO Y NOMBRE: Lopez, Carlos
+ESPECIALIDAD: medico
+`,
+  esperado: {
+    paciente: 'PEREZ, LUCAS',
+    dni: '34000001',
+    medico: 'Lopez, Carlos',
+    matricula: '11111',
+    nroReceta: '1200001',
+    diagnostico: 'Alopecia androgena',
+    formulas: [
+      { titulo: 'alopecia', activos: [
+        { activo: 'Vit. B1 (tiamina)', dosis: 34, unidad: 'mg' },
+        { activo: 'Vit. K2', dosis: 355, unidad: 'µg' },
+        { activo: 'Aceite de pescado', dosis: 500.89, unidad: 'mg' },
+      ], indicacion: 'A la noche', dias: 90, totalCapsulas: null },
+      { titulo: 'mañana', activos: [
+        { activo: 'Vit. B6 (piridoxina)', dosis: 34, unidad: 'mg' },
+        { activo: 'Aceite de pescado', dosis: 500.83, unidad: 'mg' },
+      ], indicacion: 'A la mañana', dias: 90, totalCapsulas: null },
+    ],
+  },
+};
+
 export const TODOS_LOS_EJEMPLOS: EjemploParser[] = [
   EJEMPLO_CFC_1,
   EJEMPLO_CFC_2,
+  EJEMPLO_CFC_3,
   EJEMPLO_MRX_1,
   EJEMPLO_PAMI_1,
+  EJEMPLO_MDS_1,
+  EJEMPLO_MDS_2,
+  EJEMPLO_MAGISTRAL_1,
 ];

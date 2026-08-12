@@ -31,9 +31,13 @@ export async function middleware(req: NextRequest) {
   // pasar todavía. Si la consulta falla (DB caída, tabla no migrada aún)
   // se asume que NO hace falta setup — nunca se abre la app sin login.
   let necesitaSetup = false;
-  if (process.env.DATABASE_URL) {
+  const dbUrl = process.env.DATABASE_URL ?? '';
+  const esNeon = dbUrl.includes('neon.tech') || dbUrl.includes('neon.database');
+  if (esNeon) {
+    // Solo en Neon (edge-compatible). En Docker/local usa postgres-js vía TCP
+    // y el middleware corre en Edge, así que saltamos el chequeo.
     try {
-      const sql = neon(process.env.DATABASE_URL);
+      const sql = neon(dbUrl);
       const filas = await sql`SELECT 1 FROM usuarios LIMIT 1`;
       necesitaSetup = filas.length === 0;
     } catch (e) {
