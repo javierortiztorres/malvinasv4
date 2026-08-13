@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
     registroId: null,
     titulo: `Simulada ${i + 1}`,
     nCapsulas: Number(l?.nCapsulas) > 0 ? Math.floor(Number(l.nCapsulas)) : null,
+    // División de la dosis: igual que en las cotizaciones reales, la dosis
+    // es POR TOMA y se reparte en N cápsulas (1 a 6, default 1).
+    capsulasPorToma:
+      Number.isInteger(Number(l?.capsulasPorToma)) && Number(l?.capsulasPorToma) >= 1 && Number(l?.capsulasPorToma) <= 6
+        ? Number(l.capsulasPorToma)
+        : 1,
     activos: (Array.isArray(l?.activos) ? l.activos : []).slice(0, 15).map((a: Record<string, unknown>) => ({
       nombre: String(a?.nombre ?? ''),
       dosis: Number(a?.dosis) || 0,

@@ -4,7 +4,11 @@ import type { Cotizacion, CotizadorDroga, Registro } from '@/db/schema';
 import { colorDeGrupo } from '@/lib/colors';
 import { coincideFiltro } from '@/lib/utils';
 import { estadoPT, LABEL_ESTADO } from '@/lib/estadoPT';
-import { formatoPeso, mensajeWhatsApp, precioTransferenciaSugerido, LABEL_ENVIO, type Envio } from '@/lib/cotizador';
+import {
+  formatoPeso, mensajeWhatsApp, precioTransferenciaSugerido, normalizarNombre,
+  LABEL_ENVIO, type Envio,
+} from '@/lib/cotizador';
+import { calcularCapsula } from '@/lib/engine';
 import { useCerrarModal } from '@/hooks/useCerrarModal';
 
 // ---------------------------------------------------------------
@@ -414,6 +418,7 @@ function DetalleCotizacion({
     const reg = regs.find((r) => r.id === l.registroId);
     if (!reg) return false;
     if ((reg.capsulasTotales ?? null) !== (l.nCapsulas ?? null)) return true;
+    if ((reg.capsulasPorToma || 1) !== (l.capsulasPorToma ?? 1)) return true;
     const enReceta = (reg.formula ?? []).map((a) => `${a.activo}|${a.dosis}|${a.unidad}`).join('~');
     const enSnapshot = l.activos.map((a) => `${a.nombre}|${a.dosis}|${a.unidad}`).join('~');
     return enReceta !== enSnapshot;
@@ -591,10 +596,11 @@ function DetalleCotizacion({
     if (nuevas === actuales) return;
     setError('');
     if (reg) {
+      // aprobadas acompaña al total, igual que en el editor de registros.
       const res = await fetch(`/api/registros/${reg.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ capsulasTotales: nuevas }),
+        body: JSON.stringify({ capsulasTotales: nuevas, aprobadas: nuevas }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -611,6 +617,79 @@ function DetalleCotizacion({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? 'No se pudo cambiar la cantidad de cápsulas');
+        return;
+      }
+    }
+    await calcularConMotor(envio);
+  }
+
+  // División de la dosis — EL MISMO botón "Auto / forzar N" del editor de
+  // registros (pedido 11-ago): elegís en cuántas cápsulas por toma se
+  // reparte la dosis; el servidor recalcula capas, extrusiones y cápsulas
+  // totales (días × división) con la misma lógica de Malvinas, y acá se
+  // recotiza al toque.
+  async function cambiarDivision(registroId: number, valor: string) {
+    setError('');
+    const body = valor === 'auto' ? { modo: 'auto' } : { modo: 'forzar', capsulasPorToma: Number(valor) };
+    const res = await fetch(`/api/registros/${registroId}/division`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? 'No se pudo cambiar la división de cápsulas');
+      return;
+    }
+    await calcularConMotor(envio);
+  }
+
+  // Dosis editables (pedido 11-ago: "también ayuda si la receta tiene
+  // algún error"): el cambio se escribe en la FÓRMULA del registro (la
+  // receta manda, dosis POR TOMA) y se recotiza. Si el registro ya no
+  // existe o el activo no se encuentra, se edita el snapshot de la línea.
+  async function guardarDosis(lineaIdx: number, activoIdx: number, valor: string) {
+    const n = Number(valor.replace(',', '.'));
+    if (!Number.isFinite(n) || n <= 0) return;
+    const linea = cot.lineas[lineaIdx];
+    const activo = linea?.activos[activoIdx];
+    if (!activo || n === activo.dosis) return;
+    setError('');
+    const reg = regs.find((r) => r.id === linea.registroId);
+    const idxEnFormula = reg
+      ? (reg.formula ?? []).findIndex(
+          (a, j) =>
+            normalizarNombre(a.activo) === normalizarNombre(activo.nombre) &&
+            // con nombres repetidos, desempata la posición
+            ((reg.formula ?? []).filter((x) => normalizarNombre(x.activo) === normalizarNombre(activo.nombre)).length === 1 || j === activoIdx)
+        )
+      : -1;
+    if (reg && idxEnFormula >= 0) {
+      const formula = (reg.formula ?? []).map((a, j) => (j !== idxEnFormula ? a : { ...a, dosis: n }));
+      const res = await fetch(`/api/registros/${reg.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formula }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? 'No se pudo cambiar la dosis');
+        return;
+      }
+    } else {
+      const lineas = cot.lineas.map((l, i) =>
+        i !== lineaIdx
+          ? l
+          : { ...l, activos: l.activos.map((a, j) => (j !== activoIdx ? a : { ...a, dosis: n })) }
+      );
+      const res = await fetch(`/api/cotizaciones/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineas }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? 'No se pudo cambiar la dosis');
         return;
       }
     }
@@ -766,13 +845,21 @@ function DetalleCotizacion({
                 const reg = regs.find((r) => r.id === l.registroId);
                 const desactualizada = desactualizadas.includes(l);
                 const capsActuales = reg ? reg.capsulasTotales ?? null : l.nCapsulas ?? null;
+                // División de la dosis: mismo modelo que el registro. Para el
+                // rótulo "Auto (N)" se calcula la división automática con el
+                // motor de cápsulas de Malvinas sobre las capas reales.
+                const division = reg ? reg.capsulasPorToma || 1 : l.capsulasPorToma ?? 1;
+                const autoDiv = reg
+                  ? calcularCapsula(reg.capas ?? [], { manual: false, capsulasPorToma: 1 }).capsulasPorTomaAuto
+                  : null;
+                const dias = (reg ? reg.dias : l.dias) ?? null;
                 return (
                   <div
                     key={i}
                     className={`rounded-xl border p-3 text-sm ${desactualizada ? 'border-red-300 bg-red-50/40' : 'border-slate-200'}`}
                   >
                     <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5">
+                      <span className="flex flex-wrap items-center gap-1.5">
                         <b>Fórmula {l.titulo || '—'}</b>
                         {!bloqueada ? (
                           <>
@@ -793,6 +880,26 @@ function DetalleCotizacion({
                         ) : (
                           l.nCapsulas != null && <span>· {l.nCapsulas} cápsulas</span>
                         )}
+                        {reg && !bloqueada && (
+                          // El MISMO selector del editor de registros: en
+                          // cuántas cápsulas por toma se divide la dosis.
+                          <select
+                            className="input !w-auto !py-0.5 text-xs"
+                            value={reg.capsulasPorTomaManual ? String(reg.capsulasPorToma) : 'auto'}
+                            title="División de la dosis: la dosis por toma se reparte en N cápsulas iguales — cápsulas totales = días × N. Cambiar recalcula receta y precio."
+                            onChange={(e) => cambiarDivision(reg.id, e.target.value)}
+                          >
+                            <option value="auto">Auto ({autoDiv ?? 1}/toma)</option>
+                            {[1, 2, 3, 4, 5, 6].map((n) => (
+                              <option key={n} value={n}>forzar {n}/toma</option>
+                            ))}
+                          </select>
+                        )}
+                        {dias != null && (
+                          <span className="text-xs text-slate-400">
+                            = {dias} días × {division}/toma
+                          </span>
+                        )}
                         {desactualizada && (
                           <span className="badge bg-red-100 text-red-700">receta cambiada</span>
                         )}
@@ -806,7 +913,30 @@ function DetalleCotizacion({
                         const droga = a.drogaId != null ? drogas.find((d) => d.id === a.drogaId) : null;
                         return (
                           <li key={j} className="flex flex-wrap items-center gap-1.5">
-                            <span>• {a.nombre}: {a.dosis} {a.unidad}</span>
+                            <span className="flex items-center gap-1">
+                              • {a.nombre}:
+                              {!bloqueada ? (
+                                <input
+                                  key={`dosis-${i}-${j}-${a.dosis}`}
+                                  className="input !w-16 !py-0 text-center text-xs font-semibold"
+                                  inputMode="decimal"
+                                  defaultValue={a.dosis}
+                                  title="Dosis POR TOMA — al salir del campo se corrige en la receta y se recalcula el precio"
+                                  onBlur={(e) => guardarDosis(i, j, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                  }}
+                                />
+                              ) : (
+                                <span>{a.dosis}</span>
+                              )}
+                              <span>{a.unidad}</span>
+                              {division > 1 && (
+                                <span className="text-[11px] text-slate-400">
+                                  ({Math.round((a.dosis / division) * 1000) / 1000} {a.unidad}/cáps)
+                                </span>
+                              )}
+                            </span>
                             {drogas.length > 0 && !bloqueada ? (
                               // Siempre editable (11-ago): si el sistema eligió
                               // mal la droga, se corrige acá y recalcula solo.
@@ -1154,7 +1284,7 @@ function DetalleCotizacion({
 // parámetros vigentes) vía /api/cotizador/simular y NO guarda nada.
 
 type ActivoSim = { drogaId: string; dosis: string; unidad: string };
-type LineaSim = { nCapsulas: string; activos: ActivoSim[] };
+type LineaSim = { nCapsulas: string; capsulasPorToma: string; activos: ActivoSim[] };
 type ResultadoSim = {
   lineas: {
     titulo: string;
@@ -1174,7 +1304,7 @@ const UNIDADES_SIM = ['mg', 'µg', 'g', 'UI'] as const;
 
 function Simulador({ drogas }: { drogas: CotizadorDroga[] }) {
   const nuevoActivo = (): ActivoSim => ({ drogaId: '', dosis: '', unidad: 'mg' });
-  const nuevaLinea = (): LineaSim => ({ nCapsulas: '', activos: [nuevoActivo()] });
+  const nuevaLinea = (): LineaSim => ({ nCapsulas: '', capsulasPorToma: '1', activos: [nuevoActivo()] });
   const [lineas, setLineas] = useState<LineaSim[]>([nuevaLinea()]);
   const [envio, setEnvio] = useState<Envio>('sin');
   const [descuento, setDescuento] = useState('');
@@ -1201,6 +1331,7 @@ function Simulador({ drogas }: { drogas: CotizadorDroga[] }) {
         lineas: lineas
           .map((l) => ({
             nCapsulas: Number(l.nCapsulas.replace(',', '.')) || null,
+            capsulasPorToma: Number(l.capsulasPorToma) || 1,
             activos: l.activos
               .filter((a) => a.drogaId !== '')
               .map((a) => {
@@ -1273,6 +1404,16 @@ function Simulador({ drogas }: { drogas: CotizadorDroga[] }) {
                 onChange={(e) => editar((ls) => ls.map((x, k) => (k !== i ? x : { ...x, nCapsulas: e.target.value })))}
               />
               <span className="text-xs text-slate-500">cápsulas totales</span>
+              <select
+                className="input !w-auto !py-1 text-xs"
+                value={l.capsulasPorToma}
+                title="En cuántas cápsulas por toma se reparte la dosis (la dosis se carga POR TOMA)"
+                onChange={(e) => editar((ls) => ls.map((x, k) => (k !== i ? x : { ...x, capsulasPorToma: e.target.value })))}
+              >
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>{n}/toma</option>
+                ))}
+              </select>
               {lineas.length > 1 && (
                 <button
                   className="ml-auto text-xs text-red-500 hover:underline"
@@ -1304,7 +1445,7 @@ function Simulador({ drogas }: { drogas: CotizadorDroga[] }) {
                   <input
                     className="input !w-20 !py-1 text-center text-xs"
                     inputMode="decimal"
-                    placeholder="dosis"
+                    placeholder="dosis/toma"
                     value={a.dosis}
                     onChange={(e) =>
                       editar((ls) =>
@@ -1327,7 +1468,7 @@ function Simulador({ drogas }: { drogas: CotizadorDroga[] }) {
                   >
                     {UNIDADES_SIM.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
-                  <span className="text-xs text-slate-400">por cápsula</span>
+                  <span className="text-xs text-slate-400">por toma</span>
                   {l.activos.length > 1 && (
                     <button
                       className="text-xs text-red-400 hover:underline"

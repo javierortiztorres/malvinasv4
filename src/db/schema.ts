@@ -307,9 +307,17 @@ export type LineaCotizacion = {
   registroId: number | null; // registro PT asociado (null si se borró)
   titulo: string; // "A", "B"… (tituloFormula)
   nCapsulas: number | null;
+  // División de la dosis (mismo modelo que el registro): la dosis de los
+  // activos es POR TOMA y capsulasPorToma la reparte en N cápsulas iguales
+  // (nCapsulas = días × capsulasPorToma). El motor cobra los activos por
+  // dosis/capsulasPorToma × nCapsulas — así forzar 2 cápsulas no duplica
+  // el costo de activos (caso BRUSCHI 11-ago). Opcional: líneas viejas sin
+  // el campo se calculan con divisor 1 (compatibles).
+  capsulasPorToma?: number | null;
+  dias?: number | null; // días de tratamiento del registro (informativo)
   // drogaId: con qué droga del cotizador se matcheó este activo (null =
   // sin matchear; se elige a mano en la pantalla). costo = subtotal del
-  // activo (precio unitario con markup topeado × dosis × cápsulas).
+  // activo (precio unitario con markup topeado × dosis/toma ÷ división × cápsulas).
   activos: { nombre: string; dosis: number; unidad: string; costo: number | null; drogaId?: number | null }[];
   costoCapsulas: number | null;
   costoEnvase: number | null;

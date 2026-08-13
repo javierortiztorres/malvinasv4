@@ -35,6 +35,10 @@ export function lineasDesdeRegistros(regs: Registro[]): LineaCotizacion[] {
     registroId: r.id,
     titulo: r.tituloFormula || '',
     nCapsulas: r.capsulasTotales ?? null,
+    // La dosis de la fórmula es POR TOMA (igual que en el registro):
+    // capsulasPorToma viaja a la línea para que el motor reparta bien.
+    capsulasPorToma: r.capsulasPorToma || 1,
+    dias: r.dias ?? null,
     activos: (r.formula ?? []).map((a) => ({
       nombre: a.activo,
       dosis: a.dosis,
@@ -276,6 +280,12 @@ export function calcularLineas(
   const lineas = lineasBase.map((l) => {
     const titulo = l.titulo ? `Fórmula ${l.titulo}` : 'Fórmula';
     const nCaps = l.nCapsulas;
+    // División de la dosis (caso BRUSCHI): la dosis es POR TOMA y se
+    // reparte en capsulasPorToma cápsulas — el costo del activo se cobra
+    // por dosis/división × cápsulas totales, así el total de materia prima
+    // no cambia al dividir en más cápsulas (solo suben cápsulas/envase/
+    // tiempo). Líneas viejas sin el campo: divisor 1 (igual que antes).
+    const division = l.capsulasPorToma && l.capsulasPorToma > 0 ? l.capsulasPorToma : 1;
     if (!nCaps || nCaps <= 0) {
       faltantes.push(`${titulo}: falta el Nº de cápsulas`);
       return { ...l };
@@ -301,7 +311,7 @@ export function calcularLineas(
         ok = false;
         return { ...a, drogaId: droga.id, costo: null };
       }
-      const costo = unitario * dosisConv * nCaps;
+      const costo = unitario * (dosisConv / division) * nCaps;
       costoActivos += costo;
       return { ...a, drogaId: droga.id, costo: Math.round(costo * 100) / 100 };
     });
