@@ -12,11 +12,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // El aviso de pago del checkout propio (webhook de Mercado Pago →
-  // pillar-checkout → acá) llega SIN cookie de sesión: la ruta se
-  // autentica sola con el secreto compartido (x-checkout-secret,
-  // comparación timing-safe) — ver pagada-externa/route.ts.
-  if (/^\/api\/cotizaciones\/\d+\/pagada-externa$/.test(pathname)) {
+  // Rutas del checkout propio, que llegan SIN cookie de sesión y se
+  // autentican solas con el secreto compartido: pagada-externa (aviso de
+  // pago, header x-checkout-secret) y checkout-data (datos del link corto,
+  // firma HMAC en la query) — ver sus route.ts.
+  if (/^\/api\/cotizaciones\/\d+\/(pagada-externa|checkout-data)$/.test(pathname)) {
     return NextResponse.next();
   }
 
