@@ -1,0 +1,373 @@
+[
+ {
+  "nombre": "Aceite de Pescado",
+  "unidad": "mg",
+  "costoUnitario": 0.040954,
+  "precioComercialUnitario": 1.178571,
+  "keywords": ""
+ },
+ {
+  "nombre": "Amitriptilina",
+  "unidad": "mg",
+  "costoUnitario": 1.623692,
+  "precioComercialUnitario": 0.7106,
+  "keywords": ""
+ },
+ {
+  "nombre": "Ashwagandha Extracto Seco",
+  "unidad": "mg",
+  "costoUnitario": 0.60928,
+  "precioComercialUnitario": 0.308411,
+  "keywords": ""
+ },
+ {
+  "nombre": "Calcio pantotenato",
+  "unidad": "mg",
+  "costoUnitario": 0.222515,
+  "precioComercialUnitario": 0.2376,
+  "keywords": ""
+ },
+ {
+  "nombre": "Citrato de Magnesio",
+  "unidad": "mg",
+  "costoUnitario": 0.060126,
+  "precioComercialUnitario": 1.561538,
+  "keywords": ""
+ },
+ {
+  "nombre": "Cobre",
+  "unidad": "mg",
+  "costoUnitario": 0.068,
+  "precioComercialUnitario": 136.111111,
+  "keywords": ""
+ },
+ {
+  "nombre": "Cobre Gluconato",
+  "unidad": "mg",
+  "costoUnitario": 0.098868,
+  "precioComercialUnitario": 2.99,
+  "keywords": ""
+ },
+ {
+  "nombre": "Coenzima Q10",
+  "unidad": "mg",
+  "costoUnitario": 1.936,
+  "precioComercialUnitario": 2.083333,
+  "keywords": ""
+ },
+ {
+  "nombre": "CROMO",
+  "unidad": "ug",
+  "costoUnitario": 0.002,
+  "precioComercialUnitario": 1.193333,
+  "keywords": ""
+ },
+ {
+  "nombre": "Cromo tripicolinato",
+  "unidad": "mg",
+  "costoUnitario": 0.712,
+  "precioComercialUnitario": 13.79,
+  "keywords": ""
+ },
+ {
+  "nombre": "DEHIDROEPIANDROSTERONA (DHEA)",
+  "unidad": "mg",
+  "costoUnitario": 2.563937,
+  "precioComercialUnitario": 29.078222,
+  "keywords": "DHEA"
+ },
+ {
+  "nombre": "Dutasteride",
+  "unidad": "mg",
+  "costoUnitario": 28.21977,
+  "precioComercialUnitario": 2488.888889,
+  "keywords": ""
+ },
+ {
+  "nombre": "GABA (Ácido gamma-aminobutírico)",
+  "unidad": "mg",
+  "costoUnitario": 0.214634,
+  "precioComercialUnitario": 1.231904,
+  "keywords": "Ácido gamma-aminobutírico"
+ },
+ {
+  "nombre": "Ginkgo Biloba",
+  "unidad": "mg",
+  "costoUnitario": 0.251865,
+  "precioComercialUnitario": 0.635965,
+  "keywords": ""
+ },
+ {
+  "nombre": "Glicinato de Hierro",
+  "unidad": "mg",
+  "costoUnitario": 0.013656,
+  "precioComercialUnitario": 19.309816,
+  "keywords": ""
+ },
+ {
+  "nombre": "Glicinato de Magnesio",
+  "unidad": "mg",
+  "costoUnitario": 0.099653,
+  "precioComercialUnitario": 1.050667,
+  "keywords": ""
+ },
+ {
+  "nombre": "Idebenona",
+  "unidad": "mg",
+  "costoUnitario": 3.55,
+  "precioComercialUnitario": 44.444444,
+  "keywords": ""
+ },
+ {
+  "nombre": "LAVANDA",
+  "unidad": "mg",
+  "costoUnitario": 0.199185,
+  "precioComercialUnitario": 2.991987,
+  "keywords": ""
+ },
+ {
+  "nombre": "L-cistina",
+  "unidad": "mg",
+  "costoUnitario": 0.089911,
+  "precioComercialUnitario": 1.793333,
+  "keywords": ""
+ },
+ {
+  "nombre": "L-Metionina",
+  "unidad": "mg",
+  "costoUnitario": 0.047095,
+  "precioComercialUnitario": 3.453111,
+  "keywords": ""
+ },
+ {
+  "nombre": "Melatonina",
+  "unidad": "mg",
+  "costoUnitario": 0.679432,
+  "precioComercialUnitario": 89.0,
+  "keywords": ""
+ },
+ {
+  "nombre": "Minoxidil",
+  "unidad": "mg",
+  "costoUnitario": 4.102262,
+  "precioComercialUnitario": 213.333333,
+  "keywords": ""
+ },
+ {
+  "nombre": "PREGNENOLONA",
+  "unidad": "mg",
+  "costoUnitario": 2.182297,
+  "precioComercialUnitario": 7.3,
+  "keywords": ""
+ },
+ {
+  "nombre": "Progesterona",
+  "unidad": "mg",
+  "costoUnitario": 1.044254,
+  "precioComercialUnitario": 14.0,
+  "keywords": ""
+ },
+ {
+  "nombre": "Quelato de Manganeso",
+  "unidad": "mg",
+  "costoUnitario": 0.217705,
+  "precioComercialUnitario": 27.233255,
+  "keywords": ""
+ },
+ {
+  "nombre": "RESVERATROL",
+  "unidad": "mg",
+  "costoUnitario": 1.302103,
+  "precioComercialUnitario": 1.091954,
+  "keywords": ""
+ },
+ {
+  "nombre": "Riboflavina (Vitamina B2)",
+  "unidad": "mg",
+  "costoUnitario": 0.249351,
+  "precioComercialUnitario": 3.63,
+  "keywords": "Vitamina B2"
+ },
+ {
+  "nombre": "Selenio",
+  "unidad": "ug",
+  "costoUnitario": 0.018625,
+  "precioComercialUnitario": 2.25,
+  "keywords": ""
+ },
+ {
+  "nombre": "Colina Bitartrato",
+  "unidad": "mg",
+  "costoUnitario": 0.1,
+  "precioComercialUnitario": 0.755208,
+  "keywords": ""
+ },
+ {
+  "nombre": "Teanina L",
+  "unidad": "mg",
+  "costoUnitario": 0.142364,
+  "precioComercialUnitario": 2.428819,
+  "keywords": ""
+ },
+ {
+  "nombre": "Triptófano",
+  "unidad": "mg",
+  "costoUnitario": 0.077002,
+  "precioComercialUnitario": 1.472222,
+  "keywords": ""
+ },
+ {
+  "nombre": "Vitamina A",
+  "unidad": "UI",
+  "costoUnitario": 0.037234,
+  "precioComercialUnitario": 0.05,
+  "keywords": "vit A"
+ },
+ {
+  "nombre": "Vitamina B1 (tiamina)",
+  "unidad": "mg",
+  "costoUnitario": 0.291183,
+  "precioComercialUnitario": 4.059433,
+  "keywords": "tiamina, vit B1, B1"
+ },
+ {
+  "nombre": "Vitamina B12",
+  "unidad": "ug",
+  "costoUnitario": 0.013036,
+  "precioComercialUnitario": 0.430101,
+  "keywords": "vit B12, B12"
+ },
+ {
+  "nombre": "Vitamina B6 (piridoxina)",
+  "unidad": "mg",
+  "costoUnitario": 0.271242,
+  "precioComercialUnitario": 4.309147,
+  "keywords": "piridoxina, vit B6, B6"
+ },
+ {
+  "nombre": "Vitamina B9 (ácido fólico)",
+  "unidad": "mg",
+  "costoUnitario": 0.577158,
+  "precioComercialUnitario": 369.02,
+  "keywords": "ácido fólico, vit B9, B9"
+ },
+ {
+  "nombre": "Vitamina C",
+  "unidad": "mg",
+  "costoUnitario": 0.032,
+  "precioComercialUnitario": 0.383333,
+  "keywords": "vit C"
+ },
+ {
+  "nombre": "Vitamina D",
+  "unidad": "UI",
+  "costoUnitario": 0.02,
+  "precioComercialUnitario": 0.048242,
+  "keywords": "vit D"
+ },
+ {
+  "nombre": "Vitamina E",
+  "unidad": "mg",
+  "costoUnitario": 0.126,
+  "precioComercialUnitario": 0.1,
+  "keywords": "vit E"
+ },
+ {
+  "nombre": "Vitamina K2",
+  "unidad": "ug",
+  "costoUnitario": 0.002,
+  "precioComercialUnitario": 1.478417,
+  "keywords": "vit K2, K2"
+ },
+ {
+  "nombre": "Zinc Sulfato",
+  "unidad": "mg",
+  "costoUnitario": 0.080412,
+  "precioComercialUnitario": 0.643939,
+  "keywords": ""
+ },
+ {
+  "nombre": "N- Acetilcisteina",
+  "unidad": "mg",
+  "costoUnitario": 0.234011,
+  "precioComercialUnitario": 0.66,
+  "keywords": ""
+ },
+ {
+  "nombre": "Nicotinamida",
+  "unidad": "mg",
+  "costoUnitario": 0.07737,
+  "precioComercialUnitario": 2.433333,
+  "keywords": ""
+ },
+ {
+  "nombre": "Biotina",
+  "unidad": "mg",
+  "costoUnitario": 3.20178,
+  "precioComercialUnitario": 63.333333,
+  "keywords": ""
+ },
+ {
+  "nombre": "Silimarina",
+  "unidad": "mg",
+  "costoUnitario": 0.41,
+  "precioComercialUnitario": 1.266667,
+  "keywords": ""
+ },
+ {
+  "nombre": "Glicina",
+  "unidad": "mg",
+  "costoUnitario": 0.1,
+  "precioComercialUnitario": 0.993333,
+  "keywords": ""
+ },
+ {
+  "nombre": "Finasteride",
+  "unidad": "mg",
+  "costoUnitario": 7.4,
+  "precioComercialUnitario": 300.0,
+  "keywords": ""
+ },
+ {
+  "nombre": "L-Carnitina",
+  "unidad": "mg",
+  "costoUnitario": 0.11,
+  "precioComercialUnitario": 0.5531,
+  "keywords": ""
+ },
+ {
+  "nombre": "5HTP (hidroxitriptofano)",
+  "unidad": "mg",
+  "costoUnitario": 0.694354,
+  "precioComercialUnitario": 11.333333,
+  "keywords": "hidroxitriptofano, 5-htp, 5 htp, 5-hidroxitriptofano"
+ },
+ {
+  "nombre": "Echinacea",
+  "unidad": "mg",
+  "costoUnitario": 0.176,
+  "precioComercialUnitario": 1.75,
+  "keywords": ""
+ },
+ {
+  "nombre": "L-Taurina",
+  "unidad": "mg",
+  "costoUnitario": 0.09,
+  "precioComercialUnitario": 0.9,
+  "keywords": ""
+ },
+ {
+  "nombre": "Zinc quelado",
+  "unidad": "mg",
+  "costoUnitario": 0.186,
+  "precioComercialUnitario": 19.791667,
+  "keywords": ""
+ },
+ {
+  "nombre": "l-glutamina",
+  "unidad": "mg",
+  "costoUnitario": 0.03,
+  "precioComercialUnitario": 0.304167,
+  "keywords": ""
+ }
+]

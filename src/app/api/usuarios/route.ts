@@ -5,7 +5,7 @@ import { db } from '@/db';
 import { usuarios } from '@/db/schema';
 import { getSession } from '@/lib/auth';
 
-const ROLES_VALIDOS = ['admin', 'impresion', 'formulacion'];
+const ROLES_VALIDOS = ['admin', 'impresion', 'formulacion', 'atencion'];
 
 // Gestión de usuarios: solo rol admin, chequeado acá en el servidor (no
 // alcanza con ocultar el botón en el cliente).

@@ -22,6 +22,14 @@ export type EventoAgenda = {
   titulo: string;
   subtitulo?: string;
   original: unknown;
+  // Clases CSS que REEMPLAZAN el semáforo de urgencia por deadline. Lo usa
+  // la Agenda de Atención al cliente (colores por ESTADO del pedido:
+  // rojo/amarillo/verde/azul/gris) — las agendas de PT/PI no lo mandan y
+  // siguen con el semáforo de siempre.
+  clase?: string;
+  // false = no cuenta para el badge de "vencidas" aunque el deadline haya
+  // pasado (p.ej. pedidos ya entregados en la Agenda de Atención).
+  vencible?: boolean;
 };
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -69,7 +77,7 @@ function EventoPill({ evento, onClick }: { evento: EventoAgenda; onClick: () => 
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       title={`${evento.titulo || 'SIN NOMBRE'} · ${evento.subtitulo || ''}`}
-      className={`block w-full truncate rounded-md border px-1.5 py-0.5 text-left text-xs font-semibold ${claseUrgencia(dias)}`}
+      className={`block w-full truncate rounded-md border px-1.5 py-0.5 text-left text-xs font-semibold ${evento.clase ?? claseUrgencia(dias)}`}
     >
       {evento.titulo || 'SIN NOMBRE'}
       {evento.subtitulo && <span className="font-normal opacity-75"> · {evento.subtitulo}</span>}
@@ -93,7 +101,7 @@ export default function Agenda({
   const conFecha = eventos.filter((r) => r.deadline);
   const sinFecha = eventos.filter((r) => !r.deadline);
   const vencidas = conFecha
-    .filter((r) => (diasHasta(r.deadline) ?? 0) < 0)
+    .filter((r) => r.vencible !== false && (diasHasta(r.deadline) ?? 0) < 0)
     .sort((a, b) => (diasHasta(a.deadline) ?? 0) - (diasHasta(b.deadline) ?? 0));
 
   const porFecha = new Map<string, EventoAgenda[]>();

@@ -5,5 +5,9 @@
 node_modules/
 .next/
 dist/
+out/
+.vercel/
 
 tsconfig.tsbuildinfo
+*.tsbuildinfo
+.DS_Store

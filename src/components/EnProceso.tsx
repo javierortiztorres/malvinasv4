@@ -24,6 +24,7 @@ export default function EnProceso({
   focoInicialId,
   onFocoConsumido,
   rol,
+  pagos,
 }: {
   registros: Registro[];
   catalogos: Catalogos;
@@ -38,6 +39,10 @@ export default function EnProceso({
   focoInicialId?: number | null;
   onFocoConsumido?: () => void;
   rol?: string;
+  // Estado de pago por cotización ({cotizacionId: 'pendiente'|'pagada'}) —
+  // pedido de Tomi 11-ago: ver en Pendientes si un pedido está pago o no.
+  // Vacío para roles que no ven cotizaciones (Impresión/Formulación).
+  pagos?: Record<number, string>;
 }) {
   const [abiertoId, setAbiertoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState('');
@@ -152,6 +157,9 @@ export default function EnProceso({
             <BotonesMovimiento registro={abierto} rol={rol} moviendo={moviendoId === abierto.id} onMover={moverA} />
           </div>
           <BadgeDevuelto registro={abierto} />
+          <div className="px-5 pt-3">
+            <BadgePago registro={abierto} pagos={pagos} />
+          </div>
           <RegistroEditor
             key={abierto.id}
             registro={abierto}
@@ -222,6 +230,7 @@ export default function EnProceso({
               <p>Médico <b>{r.medico || '—'}</b></p>
               <p>Lote <b>{formatoLote(r.lotePrefijo, r.loteNumero)}</b></p>
               <DeadlineBadge deadline={r.deadline} />
+              <BadgePago registro={r} pagos={pagos} />
               {r.devueltoPor && (
                 <p className="text-xs font-semibold text-amber-700">
                   ↩ Devuelto por {r.devueltoPor}{r.devueltoEn && ` · ${fechaHoraAR(datetimeLocalDeFecha(r.devueltoEn))}`}
@@ -270,6 +279,20 @@ function ordenSecundario(a: Registro, b: Registro): number {
 
 // Semáforo de fecha límite de entrega: rojo ≤3 días (o vencida),
 // amarillo ≤5 días, gris el resto. No se muestra si no hay deadline.
+// Chip de estado de pago (11-ago): visible en las tarjetas de Pendientes /
+// Pre-producción / Producción para los roles que ven cotizaciones. Sin
+// cotización asociada no muestra nada (registros viejos o cargados directo).
+function BadgePago({ registro, pagos }: { registro: Registro; pagos?: Record<number, string> }) {
+  if (!registro.cotizacionId || !pagos) return null;
+  const estado = pagos[registro.cotizacionId];
+  if (!estado) return null;
+  return estado === 'pagada' ? (
+    <p><span className="badge bg-green-100 text-green-800">✅ Pagado</span></p>
+  ) : (
+    <p><span className="badge bg-amber-100 text-amber-800">💰 Pendiente de pago</span></p>
+  );
+}
+
 function DeadlineBadge({ deadline }: { deadline: string }) {
   const dias = diasHasta(deadline);
   if (dias === null) return null;

@@ -17,6 +17,9 @@ import Necesidades from '@/components/Necesidades';
 import Estadistica from '@/components/Estadistica';
 import Admin from '@/components/Admin';
 import GestionUsuarios from '@/components/GestionUsuarios';
+import Cotizaciones from '@/components/Cotizaciones';
+import AgendaAtencion from '@/components/AgendaAtencion';
+import CotizadorGestion from '@/components/CotizadorGestion';
 
 export type Catalogos = {
   tintas: Tinta[];
@@ -33,6 +36,9 @@ export default function Home() {
   const [tab, setTab] = useState<string>('agenda');
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [registrosPi, setRegistrosPi] = useState<RegistroPi[]>([]);
+  // Estado de pago por cotización (pedido 11-ago: verlo en Pendientes).
+  // Para Impresión/Formulación el endpoint da 403 y el mapa queda vacío.
+  const [pagos, setPagos] = useState<Record<number, string>>({});
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [online, setOnline] = useState(true);
   const [yo, setYo] = useState<Yo | null>(null);
@@ -67,14 +73,20 @@ export default function Home() {
 
   const recargar = useCallback(async () => {
     try {
-      const [r, rpi, c] = await Promise.all([
+      const [r, rpi, c, cots] = await Promise.all([
         fetch('/api/registros').then((x) => x.json()),
         fetch('/api/registros-pi').then((x) => x.json()),
         fetch('/api/catalogos').then((x) => x.json()),
+        fetch('/api/cotizaciones').then((x) => (x.ok ? x.json() : [])).catch(() => []),
       ]);
       if (Array.isArray(r)) setRegistros(r);
       if (Array.isArray(rpi)) setRegistrosPi(rpi);
       if (c && !c.error) setCatalogos(c);
+      if (Array.isArray(cots)) {
+        const mapa: Record<number, string> = {};
+        for (const cot of cots) mapa[cot.id] = cot.estadoPago;
+        setPagos(mapa);
+      }
       setOnline(true);
     } catch {
       setOnline(false);
@@ -109,6 +121,7 @@ export default function Home() {
   // mismo texto libre de siempre.
   const ptTerm = registros.filter((r) => estadoPT(r) === 'terminado');
   const ptProceso = registros.filter((r) => estadoPT(r) !== 'terminado');
+  const pendientesPago = ptProceso.filter((r) => estadoPT(r) === 'pendiente_pago');
   const pendientes = ptProceso.filter((r) => estadoPT(r) === 'pendiente');
   const preProduccion = ptProceso.filter((r) => estadoPT(r) === 'pre_produccion');
   const enProduccion = ptProceso.filter((r) => estadoPT(r) === 'en_produccion');
@@ -198,6 +211,7 @@ export default function Home() {
             : t.id === 'pt' ? pendientes.length
             : t.id === 'preprod' ? preProduccion.length
             : t.id === 'pi' ? piProceso.length
+            : t.id === 'cotizaciones' ? pendientesPago.length
             : t.id === 'agenda' || t.id === 'agenda-pt' ? vencidasCount
             : 0;
           return (
@@ -236,23 +250,38 @@ export default function Home() {
       {tab === 'agenda-pi' && catalogos && permitido.has('agenda-pi') && (
         <Agenda eventos={eventosPI} onIrAEvento={() => irATabSiPermitido('pi')} onIrASinFecha={() => irATabSiPermitido('pi')} />
       )}
+      {/* Agenda de Atención al cliente: por pedido, coloreada por estado de
+          entrega (rojo/amarillo/verde/azul/gris) — ver AgendaAtencion. */}
+      {tab === 'agenda-ac' && permitido.has('agenda-ac') && (
+        <AgendaAtencion registros={registros} onCambio={recargar} />
+      )}
       {tab === 'lector' && catalogos && permitido.has('lector') && (
         <LectorRecetas catalogos={catalogos}
-          onCreados={(primerId) => { recargar(); setTab('pt'); setFocoId(primerId); }} />
+          onCreados={(primerId) => {
+            recargar();
+            // Flujo (aclarado 11-ago): TODA receta entra a Pendientes para
+            // revisión/corrección; de ahí se pasa a cotizar con el botón 💰.
+            // Atención no ve Pendientes: sigue el pedido desde su Agenda.
+            if (yo?.rol === 'atencion') { setTab('agenda-ac'); return; }
+            setTab('pt'); setFocoId(primerId);
+          }} />
+      )}
+      {tab === 'cotizaciones' && permitido.has('cotizaciones') && (
+        <Cotizaciones registros={registros} rol={yo?.rol} onCambio={recargar} />
       )}
       {tab === 'prod' && catalogos && permitido.has('prod') && (
         <EnProceso registros={enProduccion} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistro} estadoActual="en_produccion" rol={yo?.rol}
+          onActualizado={actualizarRegistro} estadoActual="en_produccion" rol={yo?.rol} pagos={pagos}
           focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
       )}
       {tab === 'pt' && catalogos && permitido.has('pt') && (
         <EnProceso registros={pendientes} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistro} estadoActual="pendiente" rol={yo?.rol}
+          onActualizado={actualizarRegistro} estadoActual="pendiente" rol={yo?.rol} pagos={pagos}
           focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
       )}
       {tab === 'preprod' && catalogos && permitido.has('preprod') && (
         <EnProceso registros={preProduccion} catalogos={catalogos} onCambio={recargar}
-          onActualizado={actualizarRegistro} estadoActual="pre_produccion" rol={yo?.rol}
+          onActualizado={actualizarRegistro} estadoActual="pre_produccion" rol={yo?.rol} pagos={pagos}
           focoInicialId={focoId} onFocoConsumido={() => setFocoId(null)} />
       )}
       {tab === 'pi' && catalogos && permitido.has('pi') && (
@@ -271,6 +300,7 @@ export default function Home() {
         <Estadistica registros={ptTerm} registrosPi={piTerm} />
       )}
       {tab === 'gestion' && catalogos && permitido.has('gestion') && <Admin catalogos={catalogos} onCambio={recargar} />}
+      {tab === 'cotizador' && permitido.has('cotizador') && <CotizadorGestion />}
       {tab === 'usuarios' && permitido.has('usuarios') && <GestionUsuarios miId={yo!.uid} />}
       {!catalogos && <p className="text-slate-500">Cargando…</p>}
     </main>

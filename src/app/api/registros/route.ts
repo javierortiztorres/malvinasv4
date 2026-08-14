@@ -60,6 +60,11 @@ export async function POST(req: NextRequest) {
   const items = Array.isArray(body) ? body : [body];
   const creados = [];
   for (const item of items) {
+    // Flujo aclarado por Tomi (11-ago): TODA receta —también las que lee
+    // Atención— entra a PENDIENTES, ahí se revisa/corrige, y recién después
+    // se pasa a Pendiente de pago (botón 💰) donde se cotiza. Nada nace
+    // cotizado: la revisión va primero porque "si la receta se leyó mal,
+    // va a cotizar mal".
     if (!item.deadline) {
       item.deadline = await calcularDeadlineAuto();
     }
@@ -76,5 +81,6 @@ export async function POST(req: NextRequest) {
         await db.insert(pacientes).values({ nombre: item.paciente, dni: item.dni ?? '' });
     }
   }
+
   return NextResponse.json(creados);
 }

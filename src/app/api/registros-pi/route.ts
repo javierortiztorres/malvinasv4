@@ -16,7 +16,7 @@ function esConflictoDeUnicidad(e: unknown): boolean {
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (session.rol === 'impresion') {
+  if (session.rol === 'impresion' || session.rol === 'atencion') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
   const estado = req.nextUrl.searchParams.get('estado');
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (session.rol === 'impresion') {
+  if (session.rol === 'impresion' || session.rol === 'atencion') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
   const body = await req.json();

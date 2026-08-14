@@ -12,6 +12,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // El aviso de pago del checkout propio (webhook de Mercado Pago →
+  // pillar-checkout → acá) llega SIN cookie de sesión: la ruta se
+  // autentica sola con el secreto compartido (x-checkout-secret,
+  // comparación timing-safe) — ver pagada-externa/route.ts.
+  if (/^\/api\/cotizaciones\/\d+\/pagada-externa$/.test(pathname)) {
+    return NextResponse.next();
+  }
+
   const session = await verificarSesionToken(req.cookies.get(SESSION_COOKIE)?.value);
   if (session) {
     // Documentos PT/PI (B-30b): navegación directa a la URL no debe saltarse
@@ -21,6 +29,11 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/', req.url));
     }
     if (session.rol === 'impresion' && pathname.startsWith('/registro-pi/')) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+    // Atención al cliente cotiza y cobra: no tiene nada que hacer en los
+    // documentos legales de producción (ni PT ni PI).
+    if (session.rol === 'atencion' && (pathname.startsWith('/registro/') || pathname.startsWith('/registro-pi/'))) {
       return NextResponse.redirect(new URL('/', req.url));
     }
     return NextResponse.next();
