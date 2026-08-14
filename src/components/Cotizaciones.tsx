@@ -364,6 +364,11 @@ function DetalleCotizacion({
   // cápsula nueva (índices de la fórmula del registro).
   const [separarId, setSepararId] = useState<number | null>(null);
   const [sepSel, setSepSel] = useState<number[]>([]);
+  // ⚠️ TODOS los hooks van acá arriba, ANTES del return de "Cargando…":
+  // un useState después de ese early-return rompe la regla de hooks y
+  // tira React #310 al llegar el detalle (pantalla blanca — pasó en
+  // producción el 14-ago con el estado del botón de generar link).
+  const [generandoLink, setGenerandoLink] = useState(false);
   // Motor: envío elegido, descuento extra y lo que faltó en el último cálculo.
   const [envio, setEnvio] = useState<Envio>('sin');
   const [descuento, setDescuento] = useState('');
@@ -738,7 +743,6 @@ function DetalleCotizacion({
 
   // Genera el link FIRMADO del checkout propio (pillar-checkout) y lo
   // deja en el campo — reemplaza el circuito de pedirle el link al CEO.
-  const [generandoLink, setGenerandoLink] = useState(false);
   async function generarLinkCheckout() {
     setGenerandoLink(true);
     setError('');
