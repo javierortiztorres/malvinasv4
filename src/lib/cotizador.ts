@@ -151,10 +151,14 @@ export function configCompleta(datos: Record<string, number> | null | undefined)
 }
 
 export type Envio = 'sin' | 'corto' | 'largo';
+// Semántica aclarada por Tomi (12-ago): el retiro por el Colegio de
+// Farmacéuticos es GRATUITO (convenio: se avisa en qué farmacia de la
+// localidad retirar); "corto" es envío a domicilio DENTRO de Córdoba
+// capital y "largo" a domicilio FUERA de Córdoba capital.
 export const LABEL_ENVIO: Record<Envio, string> = {
-  sin: 'Sin envío (retira)',
-  corto: 'Envío corto (Colegio de Farmacéuticos)',
-  largo: 'Envío largo (a domicilio)',
+  sin: 'Sin envío — retiro (farmacia / Colegio, gratis)',
+  corto: 'Envío en Córdoba capital',
+  largo: 'Envío fuera de Córdoba capital',
 };
 
 export function montoEnvio(envio: Envio, cfg: CotizadorConfig): number {
@@ -447,6 +451,8 @@ export function mensajeWhatsApp(cot: Cotizacion, regsDeLaCotizacion: Registro[])
       '',
       '👇 Ingresá acá:',
       cot.linkPago,
+      '',
+      'En el link elegís cómo recibirlo (retiro sin cargo en una farmacia o envío a domicilio) y cómo pagarlo 💳',
     ];
     if (deadlineCorto) {
       lineasCortas.push('', `📦 *Estimamos tenerlo listo el ${fechaLargaES(deadlineCorto)}*`);

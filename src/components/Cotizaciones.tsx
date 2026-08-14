@@ -360,6 +360,10 @@ function DetalleCotizacion({
   const [copiado, setCopiado] = useState(false);
   const [modal, setModal] = useState<'warning-precio' | 'sin-pago' | 'cancelar' | 'pagado' | null>(null);
   const [motivo, setMotivo] = useState('');
+  // Separar activos (12-ago): registro elegido y qué activos se van a la
+  // cápsula nueva (índices de la fórmula del registro).
+  const [separarId, setSepararId] = useState<number | null>(null);
+  const [sepSel, setSepSel] = useState<number[]>([]);
   // Motor: envío elegido, descuento extra y lo que faltó en el último cálculo.
   const [envio, setEnvio] = useState<Envio>('sin');
   const [descuento, setDescuento] = useState('');
@@ -644,6 +648,31 @@ function DetalleCotizacion({
     await calcularConMotor(envio);
   }
 
+  // Separar activos en otra cápsula (12-ago): los elegidos se van a un
+  // REGISTRO NUEVO (misma receta/estado/cotización) con dosis enteras y
+  // división automática — ej. Vit C 500 sola (90 cáps) + el resto (90).
+  async function separarActivos() {
+    const reg = regs.find((x) => x.id === separarId);
+    if (!reg) return;
+    const total = (reg.formula ?? []).length;
+    if (sepSel.length === 0 || sepSel.length >= total) return;
+    setError('');
+    const res = await fetch(`/api/registros/${reg.id}/separar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ indices: sepSel }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSepararId(null);
+      setError(data.error ?? 'No se pudo separar los activos');
+      return;
+    }
+    setSepararId(null);
+    setSepSel([]);
+    await calcularConMotor(envio);
+  }
+
   // Dosis editables (pedido 11-ago: "también ayuda si la receta tiene
   // algún error"): el cambio se escribe en la FÓRMULA del registro (la
   // receta manda, dosis POR TOMA) y se recotiza. Si el registro ya no
@@ -899,6 +928,18 @@ function DetalleCotizacion({
                           <span className="text-xs text-slate-400">
                             = {dias} días × {division}/toma
                           </span>
+                        )}
+                        {reg && !bloqueada && (reg.formula ?? []).length >= 2 && (
+                          <button
+                            className="text-xs font-semibold text-profundo hover:underline"
+                            title="Repartir los ACTIVOS en cápsulas distintas (dosis enteras): los elegidos se van a una fórmula nueva en Pendientes"
+                            onClick={() => {
+                              setSepararId(reg.id);
+                              setSepSel([]);
+                            }}
+                          >
+                            ✂️ Separar activos
+                          </button>
                         )}
                         {desactualizada && (
                           <span className="badge bg-red-100 text-red-700">receta cambiada</span>
@@ -1250,6 +1291,50 @@ function DetalleCotizacion({
           </p>
         </ModalConfirmacion>
       )}
+
+      {separarId != null &&
+        (() => {
+          const reg = regs.find((x) => x.id === separarId);
+          if (!reg) return null;
+          const total = (reg.formula ?? []).length;
+          const valido = sepSel.length > 0 && sepSel.length < total;
+          return (
+            <ModalConfirmacion
+              titulo="✂️ Separar activos en otra cápsula"
+              onCerrar={() => setSepararId(null)}
+              onConfirmar={separarActivos}
+              textoConfirmar={valido ? `Separar ${sepSel.length} activo${sepSel.length !== 1 ? 's' : ''}` : 'Elegí qué separar'}
+            >
+              <p className="text-sm">
+                Los activos que marques se van a una <b>fórmula nueva</b> (cápsula aparte) en el mismo
+                estado y la misma cotización. Cada fórmula queda con la <b>dosis entera</b> de sus
+                activos y su división automática — ej.: Vit. C 500 sola en una cápsula y el resto en
+                otra. Las cápsulas totales de cada una se recalculan ({reg.dias ? `${reg.dias} días × división` : 'según la división'}).
+              </p>
+              <div className="max-h-60 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                {(reg.formula ?? []).map((a, j) => (
+                  <label key={j} className="flex items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={sepSel.includes(j)}
+                      onChange={(e) =>
+                        setSepSel((s) => (e.target.checked ? [...s, j] : s.filter((x) => x !== j)))
+                      }
+                    />
+                    <span>
+                      {a.activo}: <b>{a.dosis} {a.unidad}</b>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {sepSel.length >= total && total > 0 && (
+                <p className="text-xs font-medium text-amber-700">
+                  Tenés que dejar al menos un activo en la fórmula original.
+                </p>
+              )}
+            </ModalConfirmacion>
+          );
+        })()}
 
       {modal === 'cancelar' && (
         <ModalConfirmacion

@@ -35,8 +35,8 @@ const CAMPOS_CONFIG: { clave: keyof CotizadorConfig; label: string; ayuda: strin
   { clave: 'markupPackaging', label: 'Markup packaging', ayuda: 'el envase lleva ×2, no el markup general' },
   { clave: 'capsPorEnvase', label: 'Cápsulas por envase', ayuda: '1 envase cada N cápsulas, redondeo para arriba (Excel: 90)' },
   { clave: 'costoCaja', label: 'Caja secundaria ($)', ayuda: 'una por fórmula (Excel: 4150)' },
-  { clave: 'envioCorto', label: 'Envío corto ($)', ayuda: 'Colegio de Farmacéuticos — más barato, más lento' },
-  { clave: 'envioLargo', label: 'Envío largo ($)', ayuda: 'a domicilio — más caro, más rápido' },
+  { clave: 'envioCorto', label: 'Envío Córdoba capital ($)', ayuda: 'a domicilio dentro de Córdoba capital (el retiro por Colegio es gratis)' },
+  { clave: 'envioLargo', label: 'Envío fuera de Córdoba ($)', ayuda: 'a domicilio fuera de Córdoba capital' },
 ];
 
 export default function CotizadorGestion() {
