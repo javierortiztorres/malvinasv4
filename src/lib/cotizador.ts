@@ -69,7 +69,7 @@ export function fechaLargaES(iso: string): string {
   return `${dias[f.getUTCDay()]} ${d} de ${meses[m - 1]}`;
 }
 
-function primerNombre(paciente: string): string {
+export function primerNombre(paciente: string): string {
   const limpio = (paciente || '').trim();
   if (!limpio) return '';
   // "APELLIDO, NOMBRE" → NOMBRE; si no hay coma, la primera palabra.

@@ -736,6 +736,25 @@ function DetalleCotizacion({
     onCerrada();
   }
 
+  // Genera el link FIRMADO del checkout propio (pillar-checkout) y lo
+  // deja en el campo — reemplaza el circuito de pedirle el link al CEO.
+  const [generandoLink, setGenerandoLink] = useState(false);
+  async function generarLinkCheckout() {
+    setGenerandoLink(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/cotizaciones/${id}/link-checkout`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo generar el link');
+      setLink(data.link);
+      onRefrescar();
+    } catch (e: any) {
+      setError(e.message ?? 'No se pudo generar el link');
+    } finally {
+      setGenerandoLink(false);
+    }
+  }
+
   async function copiarMensaje() {
     const cotParaMensaje: Cotizacion = {
       ...cot,
@@ -1098,18 +1117,29 @@ function DetalleCotizacion({
                 </div>
               </div>
               <div className="mt-3">
-                <label className="label">Link del checkout (sim.pill.ar) o de pago</label>
+                <div className="flex items-end justify-between gap-2">
+                  <label className="label">Link del checkout</label>
+                  <button
+                    className="btn-ghost !py-1 text-xs"
+                    disabled={bloqueada || generandoLink || precioNum == null}
+                    title="Genera el link firmado del checkout PILL.AR con los precios de esta cotización (calculala SIN envío: el paciente lo elige en el link)"
+                    onClick={generarLinkCheckout}
+                  >
+                    {generandoLink ? 'Generando…' : '🔗 Generar link del checkout'}
+                  </button>
+                </div>
                 <input
                   className="input"
-                  placeholder="https://sim.pill.ar/cotizacion/?p=…"
+                  placeholder="Generalo con el botón, o pegá uno a mano"
                   value={link}
                   disabled={bloqueada}
                   onChange={(e) => setLink(e.target.value)}
                 />
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  {transfNum != null
-                    ? <>Para generar el checkout en la web PILL.AR cargá <b>contado = {formatoPeso(transfNum)}</b> (la web muestra lista = contado ÷ 0,85). Con link cargado, el mensaje pasa al formato corto.</>
-                    : 'Con link cargado, el mensaje de WhatsApp pasa al formato corto (los precios los muestra el checkout).'}
+                  El link lleva los precios de la cotización <b>sin envío</b> — el paciente elige envío
+                  (Colegio gratis / Córdoba / fuera) y medio de pago en el checkout. Si paga por
+                  Mercado Pago, la cotización se marca <b>PAGADA sola</b>. Con link cargado, el
+                  mensaje pasa al formato corto.
                 </p>
               </div>
               <div className="mt-3">
