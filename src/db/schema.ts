@@ -199,6 +199,17 @@ export const registros = pgTable('registros', {
 
   fotos: jsonb('fotos').$type<string[]>().notNull().default([]), // registro fotográfico OPCIONAL
 
+  // Archivado (v2.1.3, reemplaza al borrado físico): un registro archivado
+  // no aparece en listas, estadísticas, necesidades ni agendas, pero
+  // conserva TODOS sus datos y su número de lote (la numeración nunca se
+  // reutiliza — los MAX de lote miran también los archivados a propósito).
+  // Motivo: los borrados físicos dejaban huecos que rompían la coincidencia
+  // de datos al migrar desde el Malvinas viejo. Se restaura desde la solapa
+  // 🗃️ Archivados (desarchivar = solo Admin).
+  archivado: boolean('archivado').notNull().default(false),
+  archivadoEn: timestamp('archivado_en', { withTimezone: true }),
+  archivadoPor: text('archivado_por'),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
@@ -246,6 +257,13 @@ export const registrosPi = pgTable('registros_pi', {
 
   fechaElab: text('fecha_elab').notNull().default(''),
   fechaVto: text('fecha_vto').notNull().default(''),
+
+  // Archivado (v2.1.3): mismo mecanismo que en `registros` — ver el
+  // comentario de ahí. El "Deshacer" de Necesidades también archiva (ya no
+  // borra) el lote recién creado.
+  archivado: boolean('archivado').notNull().default(false),
+  archivadoEn: timestamp('archivado_en', { withTimezone: true }),
+  archivadoPor: text('archivado_por'),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

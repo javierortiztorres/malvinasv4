@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const todos = await db.select().from(registros);
   const objetivo = todos.filter(
     (r) =>
+      !r.archivado &&
       estadoPT(r) === 'en_produccion' &&
       (r.capas ?? []).some((c) => coincideLotePI(c.lote, pi.poe, pi.loteNumero))
   );

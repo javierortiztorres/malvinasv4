@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { registrosPi } from '@/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 
 const REINTENTOS_LOTE = 3;
@@ -20,9 +20,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
   const estado = req.nextUrl.searchParams.get('estado');
+  // Archivado (v2.1.3): igual que en /api/registros — la lista normal
+  // excluye archivados; ?archivados=1 devuelve solo los archivados.
+  const soloArchivados = req.nextUrl.searchParams.get('archivados') === '1';
+  const porArchivo = eq(registrosPi.archivado, soloArchivados);
   const q = estado
-    ? db.select().from(registrosPi).where(eq(registrosPi.estado, estado)).orderBy(desc(registrosPi.createdAt))
-    : db.select().from(registrosPi).orderBy(desc(registrosPi.createdAt));
+    ? db.select().from(registrosPi).where(and(eq(registrosPi.estado, estado), porArchivo)).orderBy(desc(registrosPi.createdAt))
+    : db.select().from(registrosPi).where(porArchivo).orderBy(desc(registrosPi.createdAt));
   return NextResponse.json(await q);
 }
 

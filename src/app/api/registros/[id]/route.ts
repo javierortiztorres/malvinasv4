@@ -56,6 +56,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   delete body.id;
   delete body.createdAt;
+  // El estado de archivado SOLO se cambia por /archivar: el autosave manda
+  // la fila completa y una copia vieja en otra pestaña podría des-archivar
+  // (o re-archivar) sin querer con el last-write-wins.
+  delete body.archivado;
+  delete body.archivadoEn;
+  delete body.archivadoPor;
   body.updatedAt = new Date();
 
   if (terminar) {
@@ -123,12 +129,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (session.rol === 'formulacion') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
-  }
-  await db.delete(registros).where(eq(registros.id, Number(params.id)));
-  return NextResponse.json({ ok: true });
-}
+// El DELETE se quitó a propósito (v2.1.3): los registros ya no se eliminan,
+// se ARCHIVAN — ver ./archivar/route.ts. Los borrados físicos dejaban
+// huecos que rompían la coincidencia de datos al migrar desde el Malvinas
+// viejo. Sin el export, Next devuelve 405 a cualquier DELETE.

@@ -212,7 +212,8 @@ const BASE_REGISTRO: Registro = {
   entregadoEn: null, entregadoPor: null, noProducibleMotivo: null,
   fechaHoraInicio: '', fechaHoraFin: '', operador: '', supervisor: '',
   fechaElab: '', fechaVto: '', devueltoPor: null, devueltoEn: null,
-  fotos: [], createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
+  fotos: [], archivado: false, archivadoEn: null, archivadoPor: null,
+  createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
 } as Registro;
 const Reg = (p: Partial<Registro>): Registro => ({ ...BASE_REGISTRO, ...p });
 const CAPA_BASE: CapaTinta = {

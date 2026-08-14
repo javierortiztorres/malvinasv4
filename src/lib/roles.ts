@@ -23,6 +23,10 @@ const TABS_ADMIN: TabDef[] = [
   { id: 'neces', label: '📊 Necesidades' },
   { id: 'terminados', label: '✅ Terminados' },
   { id: 'estadistica', label: '📈 Estadística' },
+  // Archivados (v2.1.3): lo que antes se "eliminaba" ahora se archiva y
+  // vive acá. Cualquier rol con acceso a PT/PI puede archivar desde su
+  // pantalla; VER y desarchivar es de Admin.
+  { id: 'archivados', label: '🗃️ Archivados' },
   { id: 'gestion', label: '🗂️ Gestión' },
   { id: 'cotizador', label: '⚙️ Cotizador' },
   { id: 'usuarios', label: '👤 Usuarios' },

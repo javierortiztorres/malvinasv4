@@ -28,6 +28,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   delete body.id;
   delete body.createdAt;
+  // El estado de archivado SOLO se cambia por /archivar (ver el comentario
+  // en el PUT de /api/registros/[id]).
+  delete body.archivado;
+  delete body.archivadoEn;
+  delete body.archivadoPor;
   body.updatedAt = new Date();
 
   if (terminar) {
@@ -42,12 +47,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(row);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (session.rol === 'impresion' || session.rol === 'atencion') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
-  }
-  await db.delete(registrosPi).where(eq(registrosPi.id, Number(params.id)));
-  return NextResponse.json({ ok: true });
-}
+// El DELETE se quitó a propósito (v2.1.3): los lotes de PI ya no se
+// eliminan, se ARCHIVAN — ver ./archivar/route.ts. Sin el export, Next
+// devuelve 405 a cualquier DELETE. (El único delete que queda en PI es el
+// rollback interno del POST cuando no se pudo numerar el lote recién
+// insertado: esa fila nunca llegó a existir para nadie.)

@@ -336,9 +336,20 @@ function PiEditor({
     }
   }
 
-  async function eliminar() {
-    if (!confirm(`¿Eliminar la producción de ${limpiarNombreTinta(r.tintaNombre)}?`)) return;
-    await fetch(`/api/registros-pi/${r.id}`, { method: 'DELETE' });
+  // Archivar (v2.1.3, reemplaza a Eliminar): el lote no se borra ni libera
+  // su número — deja de aparecer y el Admin puede restaurarlo desde
+  // 🗃️ Archivados.
+  async function archivar() {
+    if (!confirm(`¿Archivar la producción de ${limpiarNombreTinta(r.tintaNombre)}?\n\nNo se borra nada: deja de aparecer en las listas y el Admin puede restaurarla desde 🗃️ Archivados.`)) return;
+    const res = await fetch(`/api/registros-pi/${r.id}/archivar`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archivado: true }),
+    });
+    if (!res.ok) {
+      alert('No se pudo archivar la producción. Probá de nuevo.');
+      return;
+    }
     localStorage.removeItem(DRAFT_KEY(r.id));
     onCambio();
   }
@@ -358,7 +369,7 @@ function PiEditor({
               ⚠ Devolver PT que usan este lote
             </button>
           )}
-          <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar</button>
+          <button className="text-amber-700 hover:underline" onClick={archivar} title="No se borra nada: el Admin puede restaurarla desde 🗃️ Archivados">🗃️ Archivar</button>
         </div>
       </div>
       {sesionVencida && (

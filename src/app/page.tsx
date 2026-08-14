@@ -15,6 +15,7 @@ import ProductoIntermedio from '@/components/ProductoIntermedio';
 import Terminados from '@/components/Terminados';
 import Necesidades from '@/components/Necesidades';
 import Estadistica from '@/components/Estadistica';
+import Archivados from '@/components/Archivados';
 import Admin from '@/components/Admin';
 import GestionUsuarios from '@/components/GestionUsuarios';
 import Cotizaciones from '@/components/Cotizaciones';
@@ -298,6 +299,12 @@ export default function Home() {
       )}
       {tab === 'estadistica' && permitido.has('estadistica') && (
         <Estadistica registros={ptTerm} registrosPi={piTerm} />
+      )}
+      {/* Archivados (v2.1.3): hace su propio fetch con ?archivados=1 — el
+          store global de esta página los excluye a propósito, así ninguna
+          otra solapa (ni estadísticas ni necesidades) los cuenta. */}
+      {tab === 'archivados' && permitido.has('archivados') && (
+        <Archivados rol={yo?.rol} onCambio={recargar} />
       )}
       {tab === 'gestion' && catalogos && permitido.has('gestion') && <Admin catalogos={catalogos} onCambio={recargar} />}
       {tab === 'cotizador' && permitido.has('cotizador') && <CotizadorGestion />}
