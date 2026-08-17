@@ -12,14 +12,23 @@ import type { Registro } from '@/db/schema';
 // PR no esté mergeado/desplegado) se rompa por datos reescritos a mano.
 // ---------------------------------------------------------------
 
-export type EstadoActivo = 'pendiente' | 'pre_produccion' | 'en_produccion';
+// pendiente_pago (branch atencion-cliente): el escalón ANTERIOR a
+// Pendientes — la receta ya se leyó y cotizó pero el pago no llegó. Sale de
+// ahí al subir el comprobante o con el botón "a producción sin pago".
+export type EstadoActivo = 'pendiente_pago' | 'pendiente' | 'pre_produccion' | 'en_produccion';
 export type EstadoPT = EstadoActivo | 'terminado';
 
-const RANGO: Record<EstadoActivo, number> = { pendiente: 0, pre_produccion: 1, en_produccion: 2 };
+const RANGO: Record<EstadoActivo, number> = {
+  pendiente_pago: 0,
+  pendiente: 1,
+  pre_produccion: 2,
+  en_produccion: 3,
+};
 
-export const ESTADOS_ACTIVOS: EstadoActivo[] = ['pendiente', 'pre_produccion', 'en_produccion'];
+export const ESTADOS_ACTIVOS: EstadoActivo[] = ['pendiente_pago', 'pendiente', 'pre_produccion', 'en_produccion'];
 
 export const LABEL_ESTADO: Record<EstadoPT, string> = {
+  pendiente_pago: '💰 Pendiente de pago',
   pendiente: '📋 Pendientes',
   pre_produccion: '🧱 Pre-producción',
   en_produccion: '🖨️ En producción',
@@ -31,6 +40,7 @@ export const LABEL_ESTADO: Record<EstadoPT, string> = {
 // ('en_proceso' + en_produccion boolean, o cualquier valor desconocido).
 export function estadoPT(r: Pick<Registro, 'estado' | 'enProduccion'>): EstadoPT {
   if (r.estado === 'terminado') return 'terminado';
+  if (r.estado === 'pendiente_pago') return 'pendiente_pago';
   if (r.estado === 'pre_produccion') return 'pre_produccion';
   if (r.estado === 'pendiente') return 'pendiente';
   if (r.estado === 'en_produccion') return 'en_produccion';
@@ -66,6 +76,14 @@ export function puedeTransicionar(rol: string, actual: EstadoActivo, destino: Es
   if (rol === 'formulacion') {
     return actual === 'en_produccion' && destino === 'pre_produccion';
   }
+  // Atención al cliente: libera a producción (pago recibido o "pagan
+  // después") y puede devolver a Pendiente de pago si liberó por error.
+  // Nunca toca Pre-producción ni Producción.
+  if (rol === 'atencion') {
+    if (actual === 'pendiente_pago' && destino === 'pendiente') return true;
+    if (actual === 'pendiente' && destino === 'pendiente_pago') return true;
+    return false;
+  }
   return false;
 }
 
@@ -76,6 +94,7 @@ export function destinosDisponibles(rol: string, actual: EstadoActivo): EstadoAc
 // Qué solapa muestra cada estado activo (null para terminado: tiene su
 // propia solapa aparte, no navega por acá).
 const TAB_POR_ESTADO: Record<EstadoActivo, string> = {
+  pendiente_pago: 'cotizaciones',
   pendiente: 'pt',
   pre_produccion: 'preprod',
   en_produccion: 'prod',

@@ -390,12 +390,18 @@ export default function Necesidades({
     setProduciendo(null);
   }
 
-  // Deshacer: elimina el lote de PI recién creado desde este dashboard
+  // Deshacer: ARCHIVA el lote de PI recién creado desde este dashboard
+  // (v2.1.3 — ya no se elimina nada; el número de lote queda reservado y el
+  // Admin puede restaurarlo desde 🗃️ Archivados si el deshacer fue un error).
   async function deshacer(key: string) {
     const h = hechos[key];
     if (!h) return;
     try {
-      const res = await fetch(`/api/registros-pi/${h.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/registros-pi/${h.id}/archivar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archivado: true }),
+      });
       if (!res.ok) throw new Error();
       setHechos((prev) => {
         const { [key]: _, ...resto } = prev;
@@ -403,7 +409,7 @@ export default function Necesidades({
       });
       onCambio();
     } catch {
-      alert('No se pudo deshacer. Podés eliminarlo desde la solapa Producto Intermedio.');
+      alert('No se pudo deshacer. Podés archivarlo desde la solapa Producto Intermedio.');
     }
   }
 

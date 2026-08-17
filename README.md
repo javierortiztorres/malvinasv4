@@ -1,4 +1,36 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.1.3 (14-ago-2026) — Archivar en lugar de Eliminar (PT y PI)
+
+Los borrados físicos dejaban huecos que rompieron la coincidencia de datos
+al migrar desde el Malvinas viejo. Desde esta versión **no se elimina
+ningún registro**: se archiva.
+
+1. **"Eliminar" ya no existe** en el editor de PT ni en PI: el botón ahora
+   es **🗃️ Archivar** (mismos roles que antes podían eliminar). El
+   "Deshacer" de Necesidades también archiva el lote recién creado en vez
+   de borrarlo.
+2. **Los endpoints `DELETE /api/registros/[id]` y
+   `DELETE /api/registros-pi/[id]` se quitaron** (405). Archivar/desarchivar
+   va por `PUT /api/{registros|registros-pi}/[id]/archivar` con
+   `{ archivado: true|false }`. Desarchivar es **solo Admin** (revalidado en
+   el server). El PUT normal ignora los campos de archivado: el autosave de
+   una pestaña vieja no puede des-archivar por accidente.
+3. **Los archivados no cuentan en nada**: quedan fuera de las listas
+   (`GET` excluye `archivado=true` por defecto), y con eso fuera de
+   Pendientes/Producción/Terminados, estadísticas, necesidades, agendas y
+   del cálculo de deadline automático. **La numeración de lote sí los
+   sigue viendo**: los MAX de lote (PT y PI) no filtran por archivado, así
+   un número usado jamás se reutiliza.
+4. **Solapa nueva 🗃️ Archivados** (Admin): PT y PI archivados con búsqueda,
+   quién y cuándo archivó, documento (si estaba terminado) y botón
+   **↩️ Desarchivar** — el registro vuelve a la solapa que le corresponde
+   por su estado, con lote y datos intactos.
+5. Esquema: `archivado boolean NOT NULL DEFAULT false`, `archivado_en
+   timestamptz`, `archivado_por text` en `registros` y `registros_pi` —
+   ver `migration-v2.1.3.sql` (idempotente, correr ANTES del deploy).
+6. La API v1 (solo lectura, del programador) no se tocó: devuelve también
+   los archivados, con el campo `archivado` visible para poder filtrarlos.
+
 ## v2.0.34 (04-ago-2026) — 3 correcciones en Estadística tras verificación (B-19.6.2)
 
 1. **Se sacaron los párrafos explicativos de metodología de TODA la solapa

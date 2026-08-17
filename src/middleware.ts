@@ -12,6 +12,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Rutas del checkout propio, que llegan SIN cookie de sesión y se
+  // autentican solas con el secreto compartido: pagada-externa (aviso de
+  // pago, header x-checkout-secret) y checkout-data (datos del link corto,
+  // firma HMAC en la query) — ver sus route.ts.
+  if (/^\/api\/cotizaciones\/\d+\/(pagada-externa|checkout-data)$/.test(pathname)) {
+    return NextResponse.next();
+  }
+
   const session = await verificarSesionToken(req.cookies.get(SESSION_COOKIE)?.value);
   if (session) {
     // Documentos PT/PI (B-30b): navegación directa a la URL no debe saltarse
@@ -21,6 +29,11 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/', req.url));
     }
     if (session.rol === 'impresion' && pathname.startsWith('/registro-pi/')) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+    // Atención al cliente cotiza y cobra: no tiene nada que hacer en los
+    // documentos legales de producción (ni PT ni PI).
+    if (session.rol === 'atencion' && (pathname.startsWith('/registro/') || pathname.startsWith('/registro-pi/'))) {
       return NextResponse.redirect(new URL('/', req.url));
     }
     return NextResponse.next();

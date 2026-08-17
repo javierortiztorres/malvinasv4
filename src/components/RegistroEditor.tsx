@@ -191,9 +191,21 @@ export default function RegistroEditor({
     }
   }
 
-  async function eliminar() {
-    if (!confirm(`¿Eliminar el registro de ${r.paciente}?`)) return;
-    await fetch(`/api/registros/${r.id}`, { method: 'DELETE' });
+  // Archivar (v2.1.3, reemplaza a Eliminar): el registro no se borra — deja
+  // de aparecer en listas/estadísticas/necesidades y el Admin puede
+  // restaurarlo desde 🗃️ Archivados. Los borrados físicos rompían la
+  // coincidencia de datos al migrar desde el Malvinas viejo.
+  async function archivar() {
+    if (!confirm(`¿Archivar el registro de ${r.paciente}?\n\nNo se borra nada: deja de aparecer en las listas y el Admin puede restaurarlo desde 🗃️ Archivados.`)) return;
+    const res = await fetch(`/api/registros/${r.id}/archivar`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archivado: true }),
+    });
+    if (!res.ok) {
+      alert('No se pudo archivar el registro. Probá de nuevo.');
+      return;
+    }
     localStorage.removeItem(DRAFT_KEY(r.id));
     onCambio();
   }
@@ -214,7 +226,7 @@ export default function RegistroEditor({
       <div className="space-y-5">
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span>{estadoSync}</span>
-          <button className="text-red-600 hover:underline" onClick={eliminar}>Eliminar registro</button>
+          <button className="text-amber-700 hover:underline" onClick={archivar} title="No se borra nada: el Admin puede restaurarlo desde 🗃️ Archivados">🗃️ Archivar registro</button>
         </div>
         {sesionVencida && (
           <p className="rounded bg-red-100 p-2 text-sm font-semibold text-red-700">

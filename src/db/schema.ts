@@ -184,7 +184,31 @@ export const registros = pgTable('registros', {
   devueltoPor: text('devuelto_por'),
   devueltoEn: timestamp('devuelto_en', { withTimezone: true }),
 
+  // Cotización a la que pertenece este registro (branch atencion-cliente).
+  // Nullable: los registros creados sin pasar por Atención no tienen una.
+  cotizacionId: integer('cotizacion_id'),
+
+  // Entrega al paciente (Agenda de Atención al cliente, color azul): la
+  // marca Atención cuando el pedido salió/se retiró. Aparte del flujo de
+  // producción — un registro terminado puede tardar días en entregarse.
+  entregadoEn: timestamp('entregado_en', { withTimezone: true }),
+  entregadoPor: text('entregado_por'),
+  // "No se puede producir" (gris en la Agenda AC). Null = producible.
+  // Cómo lo marcan Formulación/Impresión se define más adelante.
+  noProducibleMotivo: text('no_producible_motivo'),
+
   fotos: jsonb('fotos').$type<string[]>().notNull().default([]), // registro fotográfico OPCIONAL
+
+  // Archivado (v2.1.3, reemplaza al borrado físico): un registro archivado
+  // no aparece en listas, estadísticas, necesidades ni agendas, pero
+  // conserva TODOS sus datos y su número de lote (la numeración nunca se
+  // reutiliza — los MAX de lote miran también los archivados a propósito).
+  // Motivo: los borrados físicos dejaban huecos que rompían la coincidencia
+  // de datos al migrar desde el Malvinas viejo. Se restaura desde la solapa
+  // 🗃️ Archivados (desarchivar = solo Admin).
+  archivado: boolean('archivado').notNull().default(false),
+  archivadoEn: timestamp('archivado_en', { withTimezone: true }),
+  archivadoPor: text('archivado_por'),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -233,6 +257,13 @@ export const registrosPi = pgTable('registros_pi', {
 
   fechaElab: text('fecha_elab').notNull().default(''),
   fechaVto: text('fecha_vto').notNull().default(''),
+
+  // Archivado (v2.1.3): mismo mecanismo que en `registros` — ver el
+  // comentario de ahí. El "Deshacer" de Necesidades también archiva (ya no
+  // borra) el lote recién creado.
+  archivado: boolean('archivado').notNull().default(false),
+  archivadoEn: timestamp('archivado_en', { withTimezone: true }),
+  archivadoPor: text('archivado_por'),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -302,7 +333,121 @@ export const parserFeedback = pgTable('parser_feedback', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+// ---------- Cotizaciones (branch atencion-cliente) ----------
+
+// Una línea de cotización = una fórmula/cápsula de la receta (hasta 3 en el
+// cotizador de Tomi). La composición sale de los registros PT asociados; los
+// costos los completa el motor de cotización (o a mano hasta que esté).
+export type LineaCotizacion = {
+  registroId: number | null; // registro PT asociado (null si se borró)
+  titulo: string; // "A", "B"… (tituloFormula)
+  nCapsulas: number | null;
+  // División de la dosis (mismo modelo que el registro): la dosis de los
+  // activos es POR TOMA y capsulasPorToma la reparte en N cápsulas iguales
+  // (nCapsulas = días × capsulasPorToma). El motor cobra los activos por
+  // dosis/capsulasPorToma × nCapsulas — así forzar 2 cápsulas no duplica
+  // el costo de activos (caso BRUSCHI 11-ago). Opcional: líneas viejas sin
+  // el campo se calculan con divisor 1 (compatibles).
+  capsulasPorToma?: number | null;
+  dias?: number | null; // días de tratamiento del registro (informativo)
+  // drogaId: con qué droga del cotizador se matcheó este activo (null =
+  // sin matchear; se elige a mano en la pantalla). costo = subtotal del
+  // activo (precio unitario con markup topeado × dosis/toma ÷ división × cápsulas).
+  activos: { nombre: string; dosis: number; unidad: string; costo: number | null; drogaId?: number | null }[];
+  costoCapsulas: number | null;
+  costoEnvase: number | null;
+  costoTiempo: number | null;
+  costoExtra: number | null;
+  precioSugerido: number | null; // lo calcula el motor
+  precioComercial: number | null; // el que se cobra (editable)
+};
+
+// Registro inmutable de cada precio que tuvo la cotización: el primero al
+// cotizar y uno por cada cambio posterior (con quién y cuándo). Es la
+// trazabilidad que pidió Tomi: "que se guarde un registro del precio al
+// momento de cotizar, y si se cambia que aparezca un warning".
+export type VersionCotizacion = {
+  fecha: string; // ISO con hora
+  usuario: string;
+  precioTotal: number | null;
+  precioTransferencia: number | null;
+  motivo: string; // '' en la primera; después, el motivo del cambio
+};
+
+export const cotizaciones = pgTable('cotizaciones', {
+  id: serial('id').primaryKey(),
+  // pendiente | pagada — el estado de PRODUCCIÓN vive en registros.estado
+  // (pendiente_pago → pendiente…): son dos dimensiones independientes,
+  // porque una cotización puede irse a producción sin estar paga.
+  estadoPago: text('estado_pago').notNull().default('pendiente'),
+  paciente: text('paciente').notNull().default(''),
+  dni: text('dni').notNull().default(''),
+  grupoPaciente: text('grupo_paciente').notNull().default(''),
+
+  lineas: jsonb('lineas').$type<LineaCotizacion[]>().notNull().default([]),
+  // Snapshot de los parámetros/costos del cotizador usados al calcular
+  // (markup, precios vigentes, etc.) — congela el contexto del precio.
+  parametros: jsonb('parametros').$type<Record<string, unknown>>().notNull().default({}),
+
+  precioTotal: real('precio_total'), // comercial vigente (suma de líneas o manual)
+  precioTransferencia: real('precio_transferencia'), // con descuento por transferencia
+  // Descuento adicional a criterio del que cotiza (11-ago), en % (0-100):
+  // el motor lo aplica sobre la base antes del recargo de cuotas.
+  descuentoExtraPct: real('descuento_extra_pct').notNull().default(0),
+  linkPago: text('link_pago').notNull().default(''), // link de MP pegado a mano (por ahora)
+  notas: text('notas').notNull().default(''),
+
+  historial: jsonb('historial').$type<VersionCotizacion[]>().notNull().default([]),
+
+  // Marca del botón "mandar a producción sin pago" (pacientes que pagan después)
+  enviadaSinPago: boolean('enviada_sin_pago').notNull().default(false),
+  cotizadoPor: text('cotizado_por').notNull().default(''),
+  pagadaEn: timestamp('pagada_en', { withTimezone: true }),
+
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Comprobantes de pago (.jpg/.pdf) — guardados DENTRO de Neon (decisión de
+// Tomi 10-ago: todo en un solo lugar). Tabla aparte para que las listas de
+// cotizaciones nunca carguen los archivos: el base64 solo viaja cuando se
+// abre/descarga un comprobante puntual.
+export const comprobantes = pgTable('comprobantes', {
+  id: serial('id').primaryKey(),
+  cotizacionId: integer('cotizacion_id').notNull(),
+  nombreArchivo: text('nombre_archivo').notNull().default(''),
+  mime: text('mime').notNull().default(''),
+  tamanoBytes: integer('tamano_bytes').notNull().default(0),
+  datosBase64: text('datos_base64').notNull().default(''),
+  subidoPor: text('subido_por').notNull().default(''),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Motor del cotizador (branch atencion-cliente, migración 2): lista de
+// costos de drogas + parámetros generales, portados del Excel de Tomi.
+export const cotizadorDrogas = pgTable('cotizador_drogas', {
+  id: serial('id').primaryKey(),
+  nombre: text('nombre').notNull(),
+  keywords: text('keywords').notNull().default(''), // sinónimos para matchear la receta
+  unidad: text('unidad').notNull().default('mg'), // mg | ug | UI (unidad del precio)
+  costoUnitario: real('costo_unitario'), // costo real por unidad (col E del Excel)
+  precioComercialUnitario: real('precio_comercial_unitario'), // tope comercial (col D)
+  activo: boolean('activo').notNull().default(true),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uxNombre: uniqueIndex('ux_cotizador_drogas_nombre').on(sql`lower(${table.nombre})`),
+}));
+
+export const cotizadorConfig = pgTable('cotizador_config', {
+  id: integer('id').primaryKey(), // única fila: id = 1
+  datos: jsonb('datos').$type<Record<string, number>>().notNull().default({}),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export type Tinta = typeof tintas.$inferSelect;
 export type Registro = typeof registros.$inferSelect;
 export type RegistroPi = typeof registrosPi.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
+export type Cotizacion = typeof cotizaciones.$inferSelect;
+export type Comprobante = typeof comprobantes.$inferSelect;
+export type CotizadorDroga = typeof cotizadorDrogas.$inferSelect;

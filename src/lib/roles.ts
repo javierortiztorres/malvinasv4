@@ -12,8 +12,10 @@ export type TabDef = { id: string; label: string };
 // de la vieja vista combinada.
 const TABS_ADMIN: TabDef[] = [
   { id: 'lector', label: '📄 Lector de recetas' },
+  { id: 'cotizaciones', label: '💰 Cotizaciones' },
   { id: 'agenda-pt', label: '🗓️ Agenda PT' },
   { id: 'agenda-pi', label: '🗓️ Agenda PI' },
+  { id: 'agenda-ac', label: '🗓️ Agenda AC' },
   { id: 'prod', label: '🖨️ En producción' },
   { id: 'preprod', label: '🧱 Pre-producción' },
   { id: 'pt', label: '📋 Pendientes' },
@@ -21,7 +23,12 @@ const TABS_ADMIN: TabDef[] = [
   { id: 'neces', label: '📊 Necesidades' },
   { id: 'terminados', label: '✅ Terminados' },
   { id: 'estadistica', label: '📈 Estadística' },
+  // Archivados (v2.1.3): lo que antes se "eliminaba" ahora se archiva y
+  // vive acá. Cualquier rol con acceso a PT/PI puede archivar desde su
+  // pantalla; VER y desarchivar es de Admin.
+  { id: 'archivados', label: '🗃️ Archivados' },
   { id: 'gestion', label: '🗂️ Gestión' },
+  { id: 'cotizador', label: '⚙️ Cotizador' },
   { id: 'usuarios', label: '👤 Usuarios' },
 ];
 
@@ -38,10 +45,22 @@ const TABS_FORMULACION: TabDef[] = [
   { id: 'terminados', label: '✅ Terminados' },
 ];
 
+// Atención al cliente (branch atencion-cliente): recibe la receta, la lee
+// con el MISMO lector, cotiza, gestiona el cobro y la ENTREGA. Lo que crea
+// entra en "Pendiente de pago" y recién pasa a Pendientes (producción) al
+// subir el comprobante o con el botón de enviar sin pago. Su Agenda va
+// primera (regla 12: perfiles de área arrancan en la Agenda).
+const TABS_ATENCION: TabDef[] = [
+  { id: 'agenda-ac', label: '🗓️ Agenda' },
+  { id: 'lector', label: '📄 Lector de recetas' },
+  { id: 'cotizaciones', label: '💰 Cotizaciones' },
+];
+
 export const TABS_POR_ROL: Record<Rol, TabDef[]> = {
   admin: TABS_ADMIN,
   impresion: TABS_IMPRESION,
   formulacion: TABS_FORMULACION,
+  atencion: TABS_ATENCION,
 };
 
 // Firma de una capa sin `ref` (posición, se recalcula al reordenar) ni

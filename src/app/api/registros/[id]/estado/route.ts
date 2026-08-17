@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { estadoPT, esAvance, puedeTransicionar, ahoraDatetimeLocal, type EstadoActivo } from '@/lib/estadoPT';
 
-const DESTINOS_VALIDOS = new Set<EstadoActivo>(['pendiente', 'pre_produccion', 'en_produccion']);
+const DESTINOS_VALIDOS = new Set<EstadoActivo>(['pendiente_pago', 'pendiente', 'pre_produccion', 'en_produccion']);
 
 // Movimiento manual bidireccional Pendientes ↔ Pre-producción ↔ En
 // producción (B-31). Endpoint aparte del PUT genérico: acá vive el control

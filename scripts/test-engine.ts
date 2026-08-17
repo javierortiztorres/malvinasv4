@@ -208,10 +208,12 @@ const BASE_REGISTRO: Registro = {
   lotePrefijo: 'PT001', loteNumero: 1,
   capas: [], proceso: { temperatura: '', tiempoMezclado: '', tiempoReposo: '', otros: '' },
   controles: { peso: true, visual: true, otroControl: '', vestimenta: true, higiene: true },
-  aprobadas: null, rechazadas: 0,
+  aprobadas: null, rechazadas: 0, cotizacionId: null,
+  entregadoEn: null, entregadoPor: null, noProducibleMotivo: null,
   fechaHoraInicio: '', fechaHoraFin: '', operador: '', supervisor: '',
   fechaElab: '', fechaVto: '', devueltoPor: null, devueltoEn: null,
-  fotos: [], createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
+  fotos: [], archivado: false, archivadoEn: null, archivadoPor: null,
+  createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
 } as Registro;
 const Reg = (p: Partial<Registro>): Registro => ({ ...BASE_REGISTRO, ...p });
 const CAPA_BASE: CapaTinta = {

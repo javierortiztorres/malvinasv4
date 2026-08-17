@@ -15,7 +15,11 @@ const CAPACIDAD_POR_SEMANA = 10;
 async function calcularDeadlineAuto(): Promise<string> {
   let candidato = addDiasHabilesISO(hoyISO(), 5);
   for (;;) {
-    const delDia = await db.select({ id: registros.id }).from(registros).where(eq(registros.deadline, candidato));
+    // Los archivados no consumen capacidad del laboratorio.
+    const delDia = await db
+      .select({ id: registros.id })
+      .from(registros)
+      .where(and(eq(registros.deadline, candidato), eq(registros.archivado, false)));
     if (delDia.length >= CAPACIDAD_POR_DIA) {
       candidato = addDiasHabilesISO(candidato, 1);
       continue;
@@ -25,7 +29,7 @@ async function calcularDeadlineAuto(): Promise<string> {
     const deLaSemana = await db
       .select({ id: registros.id })
       .from(registros)
-      .where(and(gte(registros.deadline, inicioSem), lte(registros.deadline, finSem)));
+      .where(and(gte(registros.deadline, inicioSem), lte(registros.deadline, finSem), eq(registros.archivado, false)));
     if (deLaSemana.length + 1 > CAPACIDAD_POR_SEMANA) {
       candidato = addDiasHabilesISO(candidato, 1);
       continue;
@@ -44,9 +48,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
   const estado = req.nextUrl.searchParams.get('estado');
+  // Archivado (v2.1.3): la lista normal EXCLUYE los archivados — así quedan
+  // afuera de todas las solapas, estadísticas, necesidades y agendas sin
+  // tocar cada consumidor. Con ?archivados=1 devuelve SOLO los archivados
+  // (lo usa la solapa 🗃️ Archivados).
+  const soloArchivados = req.nextUrl.searchParams.get('archivados') === '1';
+  const porArchivo = eq(registros.archivado, soloArchivados);
   const q = estado
-    ? db.select().from(registros).where(eq(registros.estado, estado)).orderBy(desc(registros.createdAt))
-    : db.select().from(registros).orderBy(desc(registros.createdAt));
+    ? db.select().from(registros).where(and(eq(registros.estado, estado), porArchivo)).orderBy(desc(registros.createdAt))
+    : db.select().from(registros).where(porArchivo).orderBy(desc(registros.createdAt));
   return NextResponse.json(await q);
 }
 
@@ -60,6 +70,11 @@ export async function POST(req: NextRequest) {
   const items = Array.isArray(body) ? body : [body];
   const creados = [];
   for (const item of items) {
+    // Flujo aclarado por Tomi (11-ago): TODA receta —también las que lee
+    // Atención— entra a PENDIENTES, ahí se revisa/corrige, y recién después
+    // se pasa a Pendiente de pago (botón 💰) donde se cotiza. Nada nace
+    // cotizado: la revisión va primero porque "si la receta se leyó mal,
+    // va a cotizar mal".
     if (!item.deadline) {
       item.deadline = await calcularDeadlineAuto();
     }
@@ -76,5 +91,6 @@ export async function POST(req: NextRequest) {
         await db.insert(pacientes).values({ nombre: item.paciente, dni: item.dni ?? '' });
     }
   }
+
   return NextResponse.json(creados);
 }
