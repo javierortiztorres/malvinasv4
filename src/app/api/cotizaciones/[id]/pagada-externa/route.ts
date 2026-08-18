@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { cotizaciones, registros, type VersionCotizacion } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { formatoPeso } from '@/lib/cotizador';
+import { cargarConfig } from '@/lib/cotizadorServer';
 
 // Aviso de PAGO APROBADO desde el checkout propio (webhook de Mercado
 // Pago → pillar-checkout → acá). Autenticado con el secreto compartido
@@ -63,7 +64,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   ]
     .filter(Boolean)
     .join(' · ');
+  // Envío en $: explícito si el checkout lo manda; si no, se mapea el
+  // NOMBRE que ya viene en el aviso ('colegio' gratis / 'cordoba' /
+  // 'fuera') con los costos de la config del cotizador.
   const envioMontoBody = Number(body?.envioMonto);
+  let envioMonto: number | null =
+    Number.isFinite(envioMontoBody) && envioMontoBody >= 0 ? envioMontoBody : null;
+  const envioNombre = String(body?.envio ?? '');
+  if (envioMonto === null && ['colegio', 'cordoba', 'fuera'].includes(envioNombre)) {
+    const cfg = await cargarConfig();
+    envioMonto = envioNombre === 'cordoba' ? cfg.envioCorto : envioNombre === 'fuera' ? cfg.envioLargo : 0;
+  }
   const celular = typeof body?.celular === 'string' ? body.celular.trim().slice(0, 60) : '';
   const direccion = typeof body?.direccion === 'string' ? body.direccion.trim().slice(0, 300) : '';
 
@@ -75,7 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       historial: [...(cot.historial ?? []), entrada],
       ...(Number.isFinite(monto) ? { montoCobrado: monto } : {}),
       medioPago,
-      ...(Number.isFinite(envioMontoBody) && envioMontoBody >= 0 ? { envioMonto: envioMontoBody } : {}),
+      ...(envioMonto !== null ? { envioMonto } : {}),
       ...(celular ? { celular } : {}),
       ...(direccion ? { direccionEnvio: direccion } : {}),
       updatedAt: ahora,
