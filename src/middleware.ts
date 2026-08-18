@@ -14,9 +14,10 @@ export async function middleware(req: NextRequest) {
 
   // Rutas del checkout propio, que llegan SIN cookie de sesión y se
   // autentican solas con el secreto compartido: pagada-externa (aviso de
-  // pago, header x-checkout-secret) y checkout-data (datos del link corto,
-  // firma HMAC en la query) — ver sus route.ts.
-  if (/^\/api\/cotizaciones\/\d+\/(pagada-externa|checkout-data)$/.test(pathname)) {
+  // pago, header x-checkout-secret), contacto-externa (celular/dirección
+  // que el paciente escribe al pagar, v2.2.0) y checkout-data (datos del
+  // link corto, firma HMAC en la query) — ver sus route.ts.
+  if (/^\/api\/cotizaciones\/\d+\/(pagada-externa|contacto-externa|checkout-data)$/.test(pathname)) {
     return NextResponse.next();
   }
 
