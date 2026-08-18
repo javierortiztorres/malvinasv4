@@ -42,6 +42,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       estadoPago: 'pagada',
       pagadaEn: ahora,
       historial: [...(cot.historial ?? []), entrada],
+      // Seguimiento (v2.2.0): el pago manual casi siempre es transferencia
+      // al alias → se precarga el precio de transferencia como monto
+      // cobrado (editable después en 📒 Seguimiento, solo Admin). El medio
+      // NO se inventa: queda vacío para que lo complete quien sabe.
+      ...(cot.montoCobrado == null && cot.precioTransferencia != null
+        ? { montoCobrado: cot.precioTransferencia }
+        : {}),
       updatedAt: ahora,
     })
     .where(eq(cotizaciones.id, id))

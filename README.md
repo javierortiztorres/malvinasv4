@@ -1,4 +1,40 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.2.0 (18-ago-2026) — Solapa 📒 Seguimiento (solo Admin) + recetas guardadas
+
+Una fila por pedido **pagado** (el más nuevo arriba) con todo el circuito
+comercial: paciente, fecha de pago, médico, receta, monto cobrado,
+comprobante/medio de pago, **ticket farmacia (sin envío)**, celular,
+dirección de envío y estado de producción.
+
+1. **Solapa nueva 📒 Seguimiento, SOLO Admin** (server revalida en
+   `GET /api/seguimiento`; los demás roles ni la ven ni pueden pedirla).
+   Buscador; celular, dirección, medio de pago, monto cobrado y envío se
+   editan **en la misma tabla** (guardan al salir de la celda, vía
+   `PATCH /api/cotizaciones/[id]/seguimiento` con whitelist).
+2. **La receta ahora SE GUARDA** (cambio de política pedido por Tomi 18-ago: antes
+   se procesaba en memoria y se descartaba). El Lector guarda el PDF al
+   crear los registros (tabla `recetas` en Neon, mismo patrón que
+   comprobantes: el base64 solo viaja por `GET /api/recetas/[id]`), queda
+   vinculado a registros (`registros.receta_id`) y al pedido
+   (`recetas.cotizacion_id`). En Seguimiento: **📄 Ver** + **📎 Subir** a
+   mano (PDF o foto) para pedidos viejos o recetas por WhatsApp.
+3. **Ticket farmacia = monto cobrado − envío.** El envío sale de la columna
+   explícita (`envio_monto`, editable) o se deriva del snapshot de la
+   cotización (`parametros.envio` + costos congelados al cotizar).
+4. **Datos de pago estructurados**: `pagada-externa` (checkout) ahora
+   guarda monto cobrado, "Mercado Pago · N cuotas · método", envío y —
+   cuando el checkout los pida — celular y dirección. El ✅ PAGADO manual
+   precarga el monto con el precio de transferencia (editable); el medio
+   no se inventa. Para pedidos viejos, el medio se muestra desde el
+   historial ("PAGADA por Mercado Pago…").
+5. **Celular y dirección también en el detalle de la cotización** (los
+   carga Atención; header del detalle). Roles: Atención edita solo
+   celular/dirección; los datos de cobro, solo Admin.
+6. Esquema: 5 columnas en `cotizaciones` + `registros.receta_id` + tabla
+   `recetas` — `migration-v2.2.0.sql` (idempotente, correr ANTES del
+   deploy). Falta el paso 2 en `pillar-checkout`: formulario de
+   celular/dirección en el checkout (bundle aparte).
+
 ## v2.1.3 (14-ago-2026) — Archivar en lugar de Eliminar (PT y PI)
 
 Los borrados físicos dejaban huecos que rompieron la coincidencia de datos

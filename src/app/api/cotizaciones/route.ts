@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { cotizaciones, registros } from '@/db/schema';
+import { cotizaciones, recetas, registros } from '@/db/schema';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { lineasDesdeRegistros } from '@/lib/cotizador';
@@ -86,6 +86,13 @@ export async function POST(req: NextRequest) {
     .update(registros)
     .set({ estado: 'pendiente_pago', enProduccion: false, cotizacionId: cot.id, updatedAt: new Date() })
     .where(inArray(registros.id, filas.map((r) => r.id)));
+
+  // Si las fórmulas nacieron de una receta guardada (v2.2.0), la receta
+  // queda vinculada también al pedido recién creado.
+  const recetaId = filas.find((r) => r.recetaId != null)?.recetaId;
+  if (recetaId != null) {
+    await db.update(recetas).set({ cotizacionId: cot.id }).where(eq(recetas.id, recetaId));
+  }
 
   return NextResponse.json(cot);
 }

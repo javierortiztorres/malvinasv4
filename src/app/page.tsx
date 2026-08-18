@@ -16,6 +16,7 @@ import Terminados from '@/components/Terminados';
 import Necesidades from '@/components/Necesidades';
 import Estadistica from '@/components/Estadistica';
 import Archivados from '@/components/Archivados';
+import Seguimiento from '@/components/Seguimiento';
 import Admin from '@/components/Admin';
 import GestionUsuarios from '@/components/GestionUsuarios';
 import Cotizaciones from '@/components/Cotizaciones';
@@ -270,6 +271,9 @@ export default function Home() {
       {tab === 'cotizaciones' && permitido.has('cotizaciones') && (
         <Cotizaciones registros={registros} rol={yo?.rol} onCambio={recargar} />
       )}
+      {/* Seguimiento (v2.2.0): solo Admin; hace su propio fetch, la tabla
+          vive fuera del store global. */}
+      {tab === 'seguimiento' && permitido.has('seguimiento') && <Seguimiento />}
       {tab === 'prod' && catalogos && permitido.has('prod') && (
         <EnProceso registros={enProduccion} catalogos={catalogos} onCambio={recargar}
           onActualizado={actualizarRegistro} estadoActual="en_produccion" rol={yo?.rol} pagos={pagos}

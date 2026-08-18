@@ -51,12 +51,33 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     motivo: detalle,
   };
 
+  // Seguimiento (v2.2.0): además del historial-texto, los datos del pago
+  // quedan estructurados para la solapa 📒 — monto real cobrado, medio,
+  // envío elegido en el checkout y (cuando el checkout los pida) celular
+  // y dirección de envío del paciente.
+  const cuotasN = Number(body?.cuotas);
+  const medioPago = [
+    'Mercado Pago',
+    Number.isFinite(cuotasN) && cuotasN > 1 ? `${cuotasN} cuotas` : null,
+    body?.metodo ? String(body.metodo).slice(0, 40) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const envioMontoBody = Number(body?.envioMonto);
+  const celular = typeof body?.celular === 'string' ? body.celular.trim().slice(0, 60) : '';
+  const direccion = typeof body?.direccion === 'string' ? body.direccion.trim().slice(0, 300) : '';
+
   const [cotActualizada] = await db
     .update(cotizaciones)
     .set({
       estadoPago: 'pagada',
       pagadaEn: ahora,
       historial: [...(cot.historial ?? []), entrada],
+      ...(Number.isFinite(monto) ? { montoCobrado: monto } : {}),
+      medioPago,
+      ...(Number.isFinite(envioMontoBody) && envioMontoBody >= 0 ? { envioMonto: envioMontoBody } : {}),
+      ...(celular ? { celular } : {}),
+      ...(direccion ? { direccionEnvio: direccion } : {}),
       updatedAt: ahora,
     })
     .where(eq(cotizaciones.id, id))
