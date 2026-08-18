@@ -1,4 +1,26 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.2.1 (18-ago-2026) — Comprobante de transferencia desde el checkout
+
+El paciente que paga por transferencia sube su comprobante en el checkout
+y queda guardado en el pedido. **No marca pagada** (decisión de Tomi:
+"Atención verifica y confirma"): la plata se chequea en el banco y se
+confirma con el botón ✅ PAGADO de siempre.
+
+1. Ruta nueva `POST /api/cotizaciones/[id]/comprobante-externa` (secreto
+   compartido, mismo esquema que pagada/contacto-externa; middleware
+   ampliado): valida .jpg/.png/.pdf ≤ ~3,5 MB, guarda en `comprobantes`
+   con `subidoPor = "Paciente (checkout)"` y deja rastro en el historial.
+   409 si la cotización ya estaba paga.
+2. **Aviso bien visible**: badge violeta "📎 Comprobante recibido —
+   verificar" en la tarjeta de la lista de Cotizaciones (pendientes con
+   comprobante) y en el header del detalle. La lista ahora trae
+   `comprobantesCount` (solo el conteo, nunca los archivos).
+3. `checkout-data` expone `comprobanteRecibido` para que el checkout
+   muestre "en verificación" al reabrir el link.
+4. Al confirmar con ✅ PAGADO, si hay comprobante del paciente se precarga
+   `medioPago = "Transferencia (alias)"` (además del monto, v2.2.0).
+5. Sin migración de esquema.
+
 ## v2.2.0 (18-ago-2026) — Solapa 📒 Seguimiento (solo Admin) + recetas guardadas
 
 Una fila por pedido **pagado** (el más nuevo arriba) con todo el circuito

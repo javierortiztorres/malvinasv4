@@ -39,6 +39,10 @@ type Detalle = {
   anteriores: Cotizacion[];
 };
 
+// La lista trae además el conteo de comprobantes (v2.2.1) para el aviso
+// "📎 Comprobante recibido" — el archivo en sí nunca viaja en la lista.
+type CotizacionLista = Cotizacion & { comprobantesCount?: number };
+
 function fechaHora(v: string | Date | null | undefined): string {
   if (!v) return '—';
   const f = new Date(v);
@@ -99,7 +103,7 @@ export default function Cotizaciones({
   rol: string | undefined;
   onCambio: () => void; // recarga las listas globales de page.tsx
 }) {
-  const [lista, setLista] = useState<Cotizacion[]>([]);
+  const [lista, setLista] = useState<CotizacionLista[]>([]);
   const [cargando, setCargando] = useState(true);
   const [filtro, setFiltro] = useState('');
   const [vista, setVista] = useState<'todas' | 'pendientes' | 'pagadas' | 'sin_pago'>('pendientes');
@@ -317,6 +321,11 @@ export default function Cotizaciones({
                     )}
                     {c.enviadaSinPago && c.estadoPago !== 'pagada' && (
                       <span className="badge bg-sky-100 text-sky-800">🚚 En Pendientes sin pago</span>
+                    )}
+                    {/* v2.2.1: el paciente subió su comprobante desde el
+                        checkout — verificar la plata y confirmar con ✅ PAGADO */}
+                    {c.estadoPago !== 'pagada' && ((c as CotizacionLista).comprobantesCount ?? 0) > 0 && (
+                      <span className="badge bg-violet-100 font-bold text-violet-800">📎 Comprobante recibido — verificar</span>
                     )}
                     {c.precioTotal == null && <span className="badge bg-red-100 text-red-700">Sin precio</span>}
                   </div>
@@ -865,6 +874,9 @@ function DetalleCotizacion({
                 <span className="badge bg-green-100 text-green-800">✅ Pagada {cot.pagadaEn ? `· ${fechaHora(cot.pagadaEn)}` : ''}</span>
               ) : (
                 <span className="badge bg-amber-100 text-amber-800">💰 Pendiente de pago</span>
+              )}
+              {!pagada && detalle.comprobantes.length > 0 && (
+                <span className="badge bg-violet-100 font-bold text-violet-800">📎 Comprobante recibido — verificar y ✅ PAGADO</span>
               )}
               {cot.enviadaSinPago && !pagada && (
                 <span className="badge bg-sky-100 text-sky-800">🚚 En Pendientes sin pago</span>

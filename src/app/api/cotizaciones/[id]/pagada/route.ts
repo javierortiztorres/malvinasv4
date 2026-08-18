@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { cotizaciones, registros, type VersionCotizacion } from '@/db/schema';
+import { comprobantes, cotizaciones, registros, type VersionCotizacion } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 
@@ -26,6 +26,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const ahora = new Date();
 
+  // Si el paciente subió su comprobante desde el checkout (v2.2.1), el
+  // medio de pago se precarga solo al confirmar: transferencia al alias.
+  const [compPaciente] = await db
+    .select({ id: comprobantes.id })
+    .from(comprobantes)
+    .where(and(eq(comprobantes.cotizacionId, id), eq(comprobantes.subidoPor, 'Paciente (checkout)')))
+    .limit(1);
+
   // Trazabilidad en el mismo historial de la cotización: quién la marcó
   // pagada y cuándo, con los precios vigentes en ese momento.
   const entrada: VersionCotizacion = {
@@ -49,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       ...(cot.montoCobrado == null && cot.precioTransferencia != null
         ? { montoCobrado: cot.precioTransferencia }
         : {}),
+      ...(compPaciente && !cot.medioPago ? { medioPago: 'Transferencia (alias)' } : {}),
       updatedAt: ahora,
     })
     .where(eq(cotizaciones.id, id))
