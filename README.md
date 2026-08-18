@@ -1,4 +1,16 @@
 # M.A.L.V.I.N.A.S 2.0 — Nueva Farmacia Badra (PILL.AR)
+## v2.2.2 (18-ago-2026) — Link del checkout más corto + "Resto de la provincia"
+
+1. **Firma del link corto truncada a 12 hex** (era 32 — "el link sigue
+   largo y se presta sospechoso"): `/c/14/a1b2c3d4e5f6`. 48 bits siguen
+   siendo inadivinables online y el checkout valida cada carga contra
+   Malvinas. **Los links viejos de 32 siguen valiendo** (checkout-data
+   acepta ambas longitudes, comparación timing-safe). El acortón grande
+   pendiente es el dominio: cuando esté el DNS de pill.ar, cambiar
+   `CHECKOUT_URL` y los links quedan tipo `c.pill.ar/c/14/a1b2c3d4e5f6`.
+2. `LABEL_ENVIO.largo` → **"Envío resto de la provincia"** (solo trabajan
+   en Córdoba por ahora); el checkout v2.3.1 muestra lo mismo.
+
 ## v2.2.1 (18-ago-2026) — Comprobante de transferencia desde el checkout
 
 El paciente que paga por transferencia sube su comprobante en el checkout
