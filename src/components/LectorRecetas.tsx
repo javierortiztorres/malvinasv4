@@ -17,6 +17,10 @@ export default function LectorRecetas({
 }) {
   const [modo, setModo] = useState<'pdf' | 'texto'>('pdf');
   const [texto, setTexto] = useState('');
+  // El PDF original se retiene para GUARDARLO junto a los registros al
+  // crearlos (v2.2.0 — decisión de Tomi 14-ago: antes no se guardaba
+  // nada; ahora la receta queda como respaldo del pedido en Seguimiento).
+  const [archivoPdf, setArchivoPdf] = useState<File | null>(null);
   const [cargando, setCargando] = useState(false);
   const [receta, setReceta] = useState<RecetaParseada | null>(null);
   const [recetaInicial, setRecetaInicial] = useState<RecetaParseada | null>(null);
@@ -31,9 +35,41 @@ export default function LectorRecetas({
       setError('El archivo tiene que ser un PDF. Para recetas por foto usá "Pegar texto".');
       return;
     }
+    setArchivoPdf(file);
     const form = new FormData();
     form.append('file', file);
     procesar(form);
+  }
+
+  // Guarda el PDF de la receta vinculado a los registros recién creados.
+  // Best-effort: si falla (peso, red) NO frena el flujo de producción —
+  // avisa y la receta se puede subir después a mano desde 📒 Seguimiento.
+  async function guardarRecetaPdf(registroIds: number[]) {
+    if (!archivoPdf || registroIds.length === 0) return;
+    try {
+      const datosBase64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+        r.onerror = reject;
+        r.readAsDataURL(archivoPdf);
+      });
+      const res = await fetch('/api/recetas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          registroIds,
+          nombreArchivo: archivoPdf.name,
+          mime: 'application/pdf',
+          datosBase64,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(`La receta se leyó bien pero el PDF no se pudo guardar (${data?.error ?? 'error'}). Podés subirlo a mano desde 📒 Seguimiento.`);
+      }
+    } catch {
+      alert('La receta se leyó bien pero el PDF no se pudo guardar. Podés subirlo a mano desde 📒 Seguimiento.');
+    }
   }
 
   async function procesar(body: FormData | string) {
@@ -127,13 +163,18 @@ export default function LectorRecetas({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(items),
     });
-    setCargando(false);
     if (res.ok) {
       const creados = await res.json();
+      // La receta se guarda ANTES de navegar (así el alert de un fallo no
+      // queda huérfano), pero sin frenar la creación si falla.
+      await guardarRecetaPdf(creados.map((c: { id: number }) => c.id).filter((n: number) => n != null));
+      setCargando(false);
       setReceta(null);
       setTexto('');
+      setArchivoPdf(null);
       if (creados[0]?.id != null) onCreados(creados[0].id);
     } else {
+      setCargando(false);
       setError('No se pudieron crear los registros');
     }
   }
@@ -191,7 +232,7 @@ export default function LectorRecetas({
               {arrastrando ? 'Soltá el PDF acá' : 'Elegí o arrastrá el PDF de la receta'}
             </span>
             <span className="text-sm text-slate-500">
-              Se procesa en memoria: no se guarda ninguna imagen ni archivo.
+              El PDF queda guardado junto al pedido como respaldo (se ve en 📒 Seguimiento).
             </span>
             <input type="file" accept="application/pdf" className="hidden"
               onChange={(e) => { procesarArchivo(e.target.files?.[0]); e.target.value = ''; }} />

@@ -158,7 +158,9 @@ export type Envio = 'sin' | 'corto' | 'largo';
 export const LABEL_ENVIO: Record<Envio, string> = {
   sin: 'Sin envío — retiro (farmacia / Colegio, gratis)',
   corto: 'Envío en Córdoba capital',
-  largo: 'Envío fuera de Córdoba capital',
+  // "Resto de la provincia" (Tomi 18-ago): por ahora solo trabajan en
+  // Córdoba — no hay envíos fuera de la provincia.
+  largo: 'Envío resto de la provincia',
 };
 
 export function montoEnvio(envio: Envio, cfg: CotizadorConfig): number {

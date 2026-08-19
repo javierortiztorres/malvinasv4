@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { cotizaciones, registros } from '@/db/schema';
+import { comprobantes, cotizaciones, registros } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { primerNombre } from '@/lib/cotizador';
 import { cargarConfig } from '@/lib/cotizadorServer';
@@ -33,9 +33,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'La cotización todavía no tiene precio' }, { status: 409 });
   }
 
-  const [cfg, regs] = await Promise.all([
+  const [cfg, regs, comps] = await Promise.all([
     cargarConfig(),
     db.select({ deadline: registros.deadline }).from(registros).where(eq(registros.cotizacionId, id)),
+    db.select({ id: comprobantes.id }).from(comprobantes).where(eq(comprobantes.cotizacionId, id)),
   ]);
   const deadline = regs.map((r) => r.deadline).filter(Boolean).sort().pop();
 
@@ -49,5 +50,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     el: cfg.envioLargo,
     ...(deadline ? { d: deadline } : {}),
     pagada: cot.estadoPago === 'pagada',
+    // v2.2.1: el checkout muestra "comprobante recibido, en verificación"
+    // si el paciente ya subió uno y el pago aún no fue confirmado.
+    comprobanteRecibido: comps.length > 0,
   });
 }

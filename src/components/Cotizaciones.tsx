@@ -39,6 +39,10 @@ type Detalle = {
   anteriores: Cotizacion[];
 };
 
+// La lista trae además el conteo de comprobantes (v2.2.1) para el aviso
+// "📎 Comprobante recibido" — el archivo en sí nunca viaja en la lista.
+type CotizacionLista = Cotizacion & { comprobantesCount?: number };
+
 function fechaHora(v: string | Date | null | undefined): string {
   if (!v) return '—';
   const f = new Date(v);
@@ -99,7 +103,7 @@ export default function Cotizaciones({
   rol: string | undefined;
   onCambio: () => void; // recarga las listas globales de page.tsx
 }) {
-  const [lista, setLista] = useState<Cotizacion[]>([]);
+  const [lista, setLista] = useState<CotizacionLista[]>([]);
   const [cargando, setCargando] = useState(true);
   const [filtro, setFiltro] = useState('');
   const [vista, setVista] = useState<'todas' | 'pendientes' | 'pagadas' | 'sin_pago'>('pendientes');
@@ -318,6 +322,11 @@ export default function Cotizaciones({
                     {c.enviadaSinPago && c.estadoPago !== 'pagada' && (
                       <span className="badge bg-sky-100 text-sky-800">🚚 En Pendientes sin pago</span>
                     )}
+                    {/* v2.2.1: el paciente subió su comprobante desde el
+                        checkout — verificar la plata y confirmar con ✅ PAGADO */}
+                    {c.estadoPago !== 'pagada' && ((c as CotizacionLista).comprobantesCount ?? 0) > 0 && (
+                      <span className="badge bg-violet-100 font-bold text-violet-800">📎 Comprobante recibido — verificar</span>
+                    )}
                     {c.precioTotal == null && <span className="badge bg-red-100 text-red-700">Sin precio</span>}
                   </div>
                 </div>
@@ -374,6 +383,12 @@ function DetalleCotizacion({
   const [descuento, setDescuento] = useState('');
   const [faltantes, setFaltantes] = useState<string[]>([]);
   const [calculando, setCalculando] = useState(false);
+  // Seguimiento (v2.2.0): celular y dirección de envío del pedido — los
+  // carga Atención acá (o el Admin en 📒 Seguimiento; el checkout los va a
+  // completar solo cuando el paciente pague por ahí). Guardan al salir del
+  // campo por PATCH /seguimiento (el PUT general no toca estos campos).
+  const [celular, setCelular] = useState('');
+  const [direccionEnvio, setDireccionEnvio] = useState('');
 
   useEffect(() => {
     if (detalle && !inicializado) {
@@ -386,9 +401,23 @@ function DetalleCotizacion({
       if (envioGuardado === 'corto' || envioGuardado === 'largo') setEnvio(envioGuardado);
       const f = (detalle.cotizacion.parametros as Record<string, unknown> | null)?.faltantes;
       if (Array.isArray(f)) setFaltantes(f as string[]);
+      setCelular(detalle.cotizacion.celular ?? '');
+      setDireccionEnvio(detalle.cotizacion.direccionEnvio ?? '');
       setInicializado(true);
     }
   }, [detalle, inicializado]);
+
+  // Guarda celular/dirección al salir del campo, solo si cambió.
+  async function guardarContacto(campo: 'celular' | 'direccionEnvio', valor: string) {
+    const actual = (detalle?.cotizacion as unknown as Record<string, unknown>)?.[campo] ?? '';
+    if (valor.trim() === String(actual).trim()) return;
+    const res = await fetch(`/api/cotizaciones/${id}/seguimiento`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [campo]: valor }),
+    });
+    if (res.ok) onRefrescar();
+  }
 
   if (!detalle) {
     return (
@@ -822,12 +851,32 @@ function DetalleCotizacion({
               <p className="mt-1 text-sm font-semibold">
                 DNI {cot.dni || '—'} · Cotización #{cot.id} · {fechaHora(cot.createdAt)} · por {cot.cotizadoPor || '—'}
               </p>
+              {/* Celular y dirección de envío (v2.2.0) — van a 📒 Seguimiento */}
+              <div className="mt-2 flex flex-wrap gap-2 text-sm font-normal">
+                <input
+                  className="w-44 rounded-lg border border-black/10 bg-white/70 px-2 py-1 focus:bg-white focus:outline-none"
+                  placeholder="📱 Celular"
+                  value={celular}
+                  onChange={(e) => setCelular(e.target.value)}
+                  onBlur={(e) => guardarContacto('celular', e.target.value)}
+                />
+                <input
+                  className="min-w-[240px] flex-1 rounded-lg border border-black/10 bg-white/70 px-2 py-1 focus:bg-white focus:outline-none"
+                  placeholder="📦 Dirección de envío (si se envía a domicilio)"
+                  value={direccionEnvio}
+                  onChange={(e) => setDireccionEnvio(e.target.value)}
+                  onBlur={(e) => guardarContacto('direccionEnvio', e.target.value)}
+                />
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {pagada ? (
                 <span className="badge bg-green-100 text-green-800">✅ Pagada {cot.pagadaEn ? `· ${fechaHora(cot.pagadaEn)}` : ''}</span>
               ) : (
                 <span className="badge bg-amber-100 text-amber-800">💰 Pendiente de pago</span>
+              )}
+              {!pagada && detalle.comprobantes.length > 0 && (
+                <span className="badge bg-violet-100 font-bold text-violet-800">📎 Comprobante recibido — verificar y ✅ PAGADO</span>
               )}
               {cot.enviadaSinPago && !pagada && (
                 <span className="badge bg-sky-100 text-sky-800">🚚 En Pendientes sin pago</span>

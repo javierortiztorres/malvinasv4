@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { cotizaciones, registros } from '@/db/schema';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { comprobantes, cotizaciones, recetas, registros } from '@/db/schema';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { lineasDesdeRegistros } from '@/lib/cotizador';
 import { cotizarLineas, snapshotParametros } from '@/lib/cotizadorServer';
@@ -22,7 +22,20 @@ export async function GET(req: NextRequest) {
   const q = dni
     ? db.select().from(cotizaciones).where(eq(cotizaciones.dni, dni)).orderBy(desc(cotizaciones.createdAt))
     : db.select().from(cotizaciones).orderBy(desc(cotizaciones.createdAt));
-  return NextResponse.json(await q);
+  const filas = await q;
+
+  // Cuántos comprobantes tiene cada cotización (v2.2.1): la lista lo usa
+  // para el aviso "📎 Comprobante recibido" en las pendientes — clave ahora
+  // que el paciente puede subirlo solo desde el checkout y alguien tiene
+  // que verificar y apretar ✅ PAGADO. Solo el conteo: los archivos nunca
+  // viajan por acá.
+  const conteos = await db
+    .select({ cotizacionId: comprobantes.cotizacionId, n: sql<number>`count(*)::int` })
+    .from(comprobantes)
+    .groupBy(comprobantes.cotizacionId);
+  const porCot = new Map(conteos.map((c) => [c.cotizacionId, c.n]));
+
+  return NextResponse.json(filas.map((c) => ({ ...c, comprobantesCount: porCot.get(c.id) ?? 0 })));
 }
 
 // Crea una cotización a partir de registros PT existentes (los del grupo del
@@ -86,6 +99,13 @@ export async function POST(req: NextRequest) {
     .update(registros)
     .set({ estado: 'pendiente_pago', enProduccion: false, cotizacionId: cot.id, updatedAt: new Date() })
     .where(inArray(registros.id, filas.map((r) => r.id)));
+
+  // Si las fórmulas nacieron de una receta guardada (v2.2.0), la receta
+  // queda vinculada también al pedido recién creado.
+  const recetaId = filas.find((r) => r.recetaId != null)?.recetaId;
+  if (recetaId != null) {
+    await db.update(recetas).set({ cotizacionId: cot.id }).where(eq(recetas.id, recetaId));
+  }
 
   return NextResponse.json(cot);
 }

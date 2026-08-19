@@ -13,6 +13,10 @@ export type TabDef = { id: string; label: string };
 const TABS_ADMIN: TabDef[] = [
   { id: 'lector', label: '📄 Lector de recetas' },
   { id: 'cotizaciones', label: '💰 Cotizaciones' },
+  // Seguimiento (v2.2.0): tabla de pedidos PAGADOS con cobro, receta,
+  // ticket farmacia, envío y estado — SOLO Admin (datos de plata y de
+  // pacientes juntos; el server revalida en /api/seguimiento).
+  { id: 'seguimiento', label: '📒 Seguimiento' },
   { id: 'agenda-pt', label: '🗓️ Agenda PT' },
   { id: 'agenda-pi', label: '🗓️ Agenda PI' },
   { id: 'agenda-ac', label: '🗓️ Agenda AC' },

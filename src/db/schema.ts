@@ -188,6 +188,11 @@ export const registros = pgTable('registros', {
   // Nullable: los registros creados sin pasar por Atención no tienen una.
   cotizacionId: integer('cotizacion_id'),
 
+  // Receta de la que nació este registro (v2.2.0) — apunta a `recetas`.
+  // La setea el Lector al guardar el PDF; null para lo anterior o para
+  // recetas por foto/texto sin archivo.
+  recetaId: integer('receta_id'),
+
   // Entrega al paciente (Agenda de Atención al cliente, color azul): la
   // marca Atención cuando el pedido salió/se retiró. Aparte del flujo de
   // producción — un registro terminado puede tardar días en entregarse.
@@ -404,6 +409,23 @@ export const cotizaciones = pgTable('cotizaciones', {
   cotizadoPor: text('cotizado_por').notNull().default(''),
   pagadaEn: timestamp('pagada_en', { withTimezone: true }),
 
+  // Seguimiento (v2.2.0): datos de cobro y envío del pedido. Los completa
+  // el checkout al pagar (pagada-externa), Atención en el detalle
+  // (celular/dirección) o el Admin editando en la solapa 📒 Seguimiento.
+  // El PUT general de cotizaciones NO los toca (whitelist): solo el PATCH
+  // /seguimiento y pagada-externa escriben acá.
+  celular: text('celular').notNull().default(''),
+  direccionEnvio: text('direccion_envio').notNull().default(''),
+  // Texto libre: "Transferencia (alias)", "Mercado Pago · 3 cuotas",
+  // "Dinero en cuenta", "Efectivo"… Si hay comprobante subido, la solapa
+  // muestra el archivo; si no, muestra esto.
+  medioPago: text('medio_pago').notNull().default(''),
+  montoCobrado: real('monto_cobrado'), // lo realmente cobrado (null = sin dato)
+  // Monto del envío INCLUIDO en el cobro — el "ticket farmacia" (lo que se
+  // le factura a la farmacia) es montoCobrado − envioMonto. Si es null se
+  // deriva de parametros.envio + config del snapshot.
+  envioMonto: real('envio_monto'),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -415,6 +437,25 @@ export const cotizaciones = pgTable('cotizaciones', {
 export const comprobantes = pgTable('comprobantes', {
   id: serial('id').primaryKey(),
   cotizacionId: integer('cotizacion_id').notNull(),
+  nombreArchivo: text('nombre_archivo').notNull().default(''),
+  mime: text('mime').notNull().default(''),
+  tamanoBytes: integer('tamano_bytes').notNull().default(0),
+  datosBase64: text('datos_base64').notNull().default(''),
+  subidoPor: text('subido_por').notNull().default(''),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Recetas (v2.2.0) — el ARCHIVO de la receta (PDF del Lector, o PDF/foto
+// subida a mano desde 📒 Seguimiento), guardado dentro de Neon igual que
+// los comprobantes (decisión de Tomi 14-ago: antes no se guardaba nada;
+// ahora la receta queda como respaldo legal del pedido). Tabla aparte para
+// que las listas nunca carguen el base64 — el archivo solo viaja por
+// GET /api/recetas/[id]. Se vincula por los dos lados: registros.receta_id
+// (todas las fórmulas nacidas de esa receta) y recetas.cotizacion_id
+// (cuando el pedido ya tiene cotización).
+export const recetas = pgTable('recetas', {
+  id: serial('id').primaryKey(),
+  cotizacionId: integer('cotizacion_id'),
   nombreArchivo: text('nombre_archivo').notNull().default(''),
   mime: text('mime').notNull().default(''),
   tamanoBytes: integer('tamano_bytes').notNull().default(0),
@@ -450,4 +491,5 @@ export type RegistroPi = typeof registrosPi.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
 export type Cotizacion = typeof cotizaciones.$inferSelect;
 export type Comprobante = typeof comprobantes.$inferSelect;
+export type Receta = typeof recetas.$inferSelect;
 export type CotizadorDroga = typeof cotizadorDrogas.$inferSelect;
