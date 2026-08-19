@@ -62,7 +62,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const [row] = await db.update(registros).set(patch).where(eq(registros.id, id)).returning();
     return NextResponse.json(row);
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     console.error('PUT /api/registros/[id]/estado — update:', e);
-    return NextResponse.json({ error: 'Error al actualizar el registro en la base de datos' }, { status: 500 });
+    return NextResponse.json({ error: `DB error: ${msg}` }, { status: 500 });
   }
 }
