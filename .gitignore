@@ -1,6 +1,10 @@
 .env
 .env.local
 .env*.local
+.env.docker
+
+# Recetas médicas — datos personales de pacientes
+RX/
 
 node_modules/
 .next/
