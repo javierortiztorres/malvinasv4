@@ -162,33 +162,43 @@ export default function RotuloEditor({
         .txt-farmacia { font-weight: 700; font-size: 5pt; white-space: pre-line; word-break: break-word; }
         .txt-regulatoria { font-size: 4.2pt; line-height: 1.25; word-break: break-word; white-space: pre-line; }
 
+        /* ── Rótulo grande apaisado 100×60mm ──
+           Layout: título centrado arriba (ancho completo) /
+           col izq (0-50mm): médico+paciente · farmacia+lote+fechas /
+           col der (50-100mm): composición · indicación              */
         .rotulo-grande {
           width: 100mm; height: 60mm; flex-shrink: 0;
           background: #fff; border: 1px dashed #98a2b3;
-          display: flex; flex-direction: row; overflow: hidden;
+          display: flex; flex-direction: column; overflow: hidden;
           transform: scale(2); transform-origin: top center;
           font-family: Arial, Helvetica, sans-serif; line-height: 1.2; color: #111;
         }
-        .rotulo-grande .col { display: flex; flex-direction: column; overflow: hidden; border-right: 0.15mm solid #555; }
-        .rotulo-grande .col:last-child { border-right: none; }
-        .rotulo-grande .row { padding: 0.7mm; overflow: hidden; border-bottom: 0.15mm solid #555; }
-        .rotulo-grande .row:last-child { border-bottom: none; }
-        .col-izq { flex: 0 0 49mm; }
-        .col-der { flex: 1 1 0; }
-        .row-g-titulo      { flex: 0 0 10mm; }
-        .row-g-medico      { flex: 0 0 12mm; }
-        .row-g-composicion { flex: 1 1 0; }
-        .row-g-indicacion  { flex: 0 0 12mm; }
-        .row-g-farmacia    { flex: 0 0 10mm; }
+        .rg-titulo {
+          flex: 0 0 12mm; border-bottom: 0.15mm solid #555;
+          display: flex; align-items: center; justify-content: center;
+          padding: 0.7mm; overflow: hidden;
+        }
+        .rg-cuerpo { flex: 1 1 0; display: flex; flex-direction: row; overflow: hidden; }
+        .col-izq {
+          flex: 0 0 50mm; border-right: 0.15mm solid #555;
+          display: flex; flex-direction: column; overflow: hidden;
+        }
+        .col-der { flex: 1 1 0; display: flex; flex-direction: column; overflow: hidden; }
+        .col-izq .row, .col-der .row {
+          padding: 0.7mm; overflow: hidden; border-bottom: 0.15mm solid #555;
+        }
+        .col-izq .row:last-child, .col-der .row:last-child { border-bottom: none; }
+        .row-g-medico      { flex: 0 0 13mm; }
         .row-g-regulatoria { flex: 1 1 0; }
+        .row-g-composicion { flex: 1 1 0; }
+        .row-g-indicacion  { flex: 0 0 11mm; }
         .txt-g-titulo { font-family: 'Arial Black', Arial, sans-serif; font-weight: 900;
-          font-size: 8pt; line-height: 1.1; white-space: pre-line; word-break: break-word; }
-        .txt-g-medico { font-weight: 700; font-size: 5.5pt; white-space: pre-line; word-break: break-word; }
-        .txt-g-composicion { font-size: 5pt; line-height: 1.2; word-break: break-word; }
-        .txt-g-composicion .comp-header { font-weight: 700; }
-        .txt-g-indicacion { font-size: 5.5pt; line-height: 1.2; word-break: break-word; }
-        .txt-g-farmacia { font-weight: 700; font-size: 5.5pt; white-space: pre-line; word-break: break-word; }
+          font-size: 10pt; line-height: 1.1; white-space: pre-line; word-break: break-word; text-align: center; }
+        .txt-g-medico { font-weight: 700; font-size: 7pt; white-space: pre-line; word-break: break-word; }
         .txt-g-regulatoria { font-size: 4.5pt; line-height: 1.25; word-break: break-word; white-space: pre-line; }
+        .txt-g-composicion { font-size: 6pt; line-height: 1.2; word-break: break-word; }
+        .txt-g-composicion .comp-header { font-weight: 700; }
+        .txt-g-indicacion { font-size: 6.5pt; font-weight: 700; line-height: 1.2; word-break: break-word; }
 
         @media print {
           .no-print { display: none !important; }
@@ -324,29 +334,31 @@ export default function RotuloEditor({
       <div className="wrapper-etiqueta">
         {esGrande ? (
           <div className="rotulo-grande">
-            <div className="col col-izq">
-              <div className="row row-g-titulo">
-                <div className="txt-g-titulo">{datos.titulo}</div>
-              </div>
-              <div className="row row-g-medico">
-                <div className="txt-g-medico">{datos.medicoPaciente}</div>
-              </div>
-              <div className="row row-g-composicion">
-                <div className="txt-g-composicion">
-                  <div className="comp-header">Composicion:</div>
-                  {datos.composicion.map((l, i) => <div key={i}>{l}</div>)}
+            {/* Título — ancho completo */}
+            <div className="rg-titulo">
+              <div className="txt-g-titulo">{datos.titulo}</div>
+            </div>
+            <div className="rg-cuerpo">
+              {/* Columna izquierda: médico/paciente + farmacia+lote+fechas */}
+              <div className="col-izq">
+                <div className="row row-g-medico">
+                  <div className="txt-g-medico">{datos.medicoPaciente}</div>
+                </div>
+                <div className="row row-g-regulatoria">
+                  <div className="txt-g-regulatoria">{datos.farmacia}{'\n'}{datos.regulatoria}</div>
                 </div>
               </div>
-            </div>
-            <div className="col col-der">
-              <div className="row row-g-indicacion">
-                <div className="txt-g-indicacion">{datos.indicacion}</div>
-              </div>
-              <div className="row row-g-farmacia">
-                <div className="txt-g-farmacia">{datos.farmacia}</div>
-              </div>
-              <div className="row row-g-regulatoria">
-                <div className="txt-g-regulatoria">{datos.regulatoria}</div>
+              {/* Columna derecha: composición + indicación */}
+              <div className="col-der">
+                <div className="row row-g-composicion">
+                  <div className="txt-g-composicion">
+                    <div className="comp-header">Composicion:</div>
+                    {datos.composicion.map((l, i) => <div key={i}>{l}</div>)}
+                  </div>
+                </div>
+                <div className="row row-g-indicacion">
+                  <div className="txt-g-indicacion">{datos.indicacion}</div>
+                </div>
               </div>
             </div>
           </div>

@@ -103,11 +103,12 @@ function escapeXmlAttr(text: string): string {
 function textBlock(params: {
   fontsize: string; fontbold: string; fontfamily: string;
   t: string; h: string; texto: string; zvalue: number;
-  l?: string; w?: string;
+  l?: string; w?: string; alignment?: string;
 }): string {
   const { fontsize, fontbold, fontfamily, t, h, texto, zvalue } = params;
   const l = params.l ?? '2';
   const w = params.w ?? '28';
+  const alignment = params.alignment ?? '0';
   const len = texto.length;
   const esc = escapeXmlAttr(texto);
   return (
@@ -118,7 +119,7 @@ function textBlock(params: {
     ` isVIP="false" h="${h}" fontstrikeout="false" lock="false" showcustomtime="false" timeformat="0"` +
     ` addorsub="0" t="${t}" textlength="${len}" fontfamily="${fontfamily}" memory="0" customtime=""` +
     ` interval="1" linespacing="0" arcpercent="0.5" dateformat="0" colorflag="0" day="0"` +
-    ` fontitalic="false" customdate="" dateSystem="1" alignment="0" minute="0" l="${l}"` +
+    ` fontitalic="false" customdate="" dateSystem="1" alignment="${alignment}" minute="0" l="${l}"` +
     ` blackground="false" datasource="0" fontunderline="false">\n` +
     `<textlist>\n` +
     `<text repeat="1" keyinput="0" month="0" dbname="" minvalueflag="0" year="0" second="0"` +
@@ -145,6 +146,18 @@ function lineBlock(t: number, zvalue: number, l = 2, length = 28): string {
   );
 }
 
+// Línea vertical para el rótulo grande (copias exactas de atributos del template)
+function verticalLineBlock(x: number, yEnd: number, length: number, zvalue: number): string {
+  const l = (x - 0.7).toFixed(6);
+  return (
+    `<drawobj colorflag="0" h="${length.toFixed(6)}" itemmirror="0" itemtype="1"` +
+    ` l="${l}" linedegree="270.000000"` +
+    ` linelength="${length.toFixed(6)}" linestartx="${x.toFixed(6)}"` +
+    ` linestarty="${yEnd.toFixed(6)}" linetype="0" linewidth="0.2" lock="false"` +
+    ` rotate="0" t="${yEnd.toFixed(6)}" w="1.400050" zvalue="${zvalue}"/>\n`
+  );
+}
+
 // ─── Tipo de rótulo según cápsulas por envase ────────────────────────────────
 // < 60 caps → chico vertical 32×64mm
 // ≥ 60 caps → grande apaisado 100×60mm
@@ -168,7 +181,7 @@ function buildDdlChico(datos: DatosRotulo): string {
   let zvalue = 1;
   for (const b of bloques) partes.push(textBlock({ ...b, zvalue: zvalue++ }));
   for (const t of [12, 22, 42, 49, 56]) partes.push(lineBlock(t, zvalue++));
-  return ddlWrapper('32', '64', partes.join(''));
+  return ddlWrapper('32', '64', '600', partes.join(''));
 }
 
 function generarDdlChico(r: Registro, sucursalId?: string): string {
@@ -176,37 +189,69 @@ function generarDdlChico(r: Registro, sucursalId?: string): string {
 }
 
 // ─── DDL apaisado grande (100×60mm) ──────────────────────────────────────────
-// Columna izquierda (l=2, w=47): título · médico/paciente · composición
-// Columna derecha  (l=52, w=46): indicación · farmacia · regulatoria
+// Layout basado en el template Docs/PLANTILLA ROTULO GRANDE.ddl:
+//   Título centrado arriba (abarca todo el ancho)
+//   Columna izquierda (0-50mm): médico/paciente · farmacia + lote/fechas
+//   Columna derecha  (50-100mm): composición · indicación
+//   Línea vertical divisora a x=50mm (y=12.66 a y=49.93)
 function buildDdlGrande(datos: DatosRotulo): string {
   const compTexto = 'Composicion:\n' + datos.composicion.join('\n');
-  const bloquesIzq = [
-    { fontsize: '8',   fontbold: 'true',  fontfamily: 'Arial Black', t: '2',  h: '8',  texto: datos.titulo,        l: '2',  w: '47' },
-    { fontsize: '5.5', fontbold: 'true',  fontfamily: 'Arial Black', t: '11', h: '10', texto: datos.medicoPaciente, l: '2',  w: '47' },
-    { fontsize: '5',   fontbold: 'false', fontfamily: 'Arial',       t: '22', h: '38', texto: compTexto,            l: '2',  w: '47' },
-  ];
-  const bloquesDer = [
-    { fontsize: '5.5', fontbold: 'false', fontfamily: 'Arial',       t: '2',  h: '10', texto: datos.indicacion,    l: '52', w: '46' },
-    { fontsize: '5.5', fontbold: 'true',  fontfamily: 'Arial Black', t: '13', h: '8',  texto: datos.farmacia,      l: '52', w: '46' },
-    { fontsize: '4.5', fontbold: 'false', fontfamily: 'Arial',       t: '22', h: '38', texto: datos.regulatoria,   l: '52', w: '46' },
-  ];
+  // Columna izquierda: farmacia (primera línea de suc) + regulatoria juntos
+  const regulatoriaCompleta = datos.farmacia + '\n' + datos.regulatoria;
+
   const partes: string[] = [];
   let zvalue = 1;
-  for (const b of [...bloquesIzq, ...bloquesDer]) partes.push(textBlock({ ...b, zvalue: zvalue++ }));
-  for (const t of [10, 21]) partes.push(lineBlock(t, zvalue++, 2, 47));
-  for (const t of [12, 21]) partes.push(lineBlock(t, zvalue++, 52, 46));
-  return ddlWrapper('100', '60', partes.join(''));
+
+  // Título centrado (alignment=1) en la parte superior
+  partes.push(textBlock({
+    fontsize: '10', fontbold: 'false', fontfamily: 'Arial Black',
+    t: '1.835640', h: '9.525010', texto: datos.titulo,
+    l: '31.779700', w: '36.440750', alignment: '1', zvalue: zvalue++,
+  }));
+
+  // Médico/Paciente — columna izquierda superior
+  partes.push(textBlock({
+    fontsize: '7', fontbold: 'false', fontfamily: 'Arial Black',
+    t: '13.233530', h: '10.318760', texto: datos.medicoPaciente,
+    l: '2.356070', w: '46.000000', zvalue: zvalue++,
+  }));
+
+  // Farmacia + lote/fechas/leyendas — columna izquierda inferior
+  partes.push(textBlock({
+    fontsize: '4.5', fontbold: 'false', fontfamily: 'Arial',
+    t: '25.000000', h: '24.000000', texto: regulatoriaCompleta,
+    l: '2.356070', w: '46.000000', zvalue: zvalue++,
+  }));
+
+  // Composición — columna derecha superior
+  partes.push(textBlock({
+    fontsize: '6', fontbold: 'false', fontfamily: 'Arial',
+    t: '11.500000', h: '36.000000', texto: compTexto,
+    l: '51.331830', w: '46.529500', zvalue: zvalue++,
+  }));
+
+  // Indicación — columna derecha inferior
+  partes.push(textBlock({
+    fontsize: '6.5', fontbold: 'true', fontfamily: 'Arial',
+    t: '49.074430', h: '10.000000', texto: datos.indicacion,
+    l: '51.331830', w: '46.529500', zvalue: zvalue++,
+  }));
+
+  // Línea vertical divisora a x=50mm (de y≈12.66 a y≈49.93)
+  partes.push(verticalLineBlock(50.0, 49.928540, 37.265680, zvalue++));
+
+  return ddlWrapper('100', '60', '8', partes.join(''));
 }
 
 function generarDdlGrande(r: Registro, sucursalId?: string): string {
   return buildDdlGrande(armarDatosRotulo(r, sucursalId));
 }
 
-function ddlWrapper(w: string, h: string, labelobjects: string): string {
+function ddlWrapper(w: string, h: string, printerdpi: string, labelobjects: string): string {
   return (
     "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>\n" +
     '<DLabel version="3.2.8" source="pc">\n' +
-    `<paper w="${w}" h="${h}" rotate="0" printerdpi="600" printmethod="1" colcount="1"` +
+    `<paper w="${w}" h="${h}" rotate="0" printerdpi="${printerdpi}" printmethod="1" colcount="1"` +
     ' colspacing="1" zoomfactor="2.2351741790771484" printcount="1" papertype="0"' +
     ' paperdescription="" paddingtop="0" paddingleft="0" paddingright="0" paddingbottom="0"' +
     ' hspacing="0" vspacing="0" rowcount="1">\n' +
