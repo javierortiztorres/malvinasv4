@@ -99,9 +99,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       body.loteNumero = asignado;
     }
 
-    // Fecha y hora de fin: automática al terminar (B-31), no depende de que
-    // el operador se acuerde de cargarla a mano.
-    body.fechaHoraFin = ahoraDatetimeLocal();
+    // Fecha y hora de fin: se respeta si el operador la cargó; si no, se
+    // registra el momento exacto en que se presionó TERMINAR (B-31).
+    if (!body.fechaHoraFin) body.fechaHoraFin = ahoraDatetimeLocal();
 
     // VALIDACIÓN ESTRICTA en el servidor: no se puede terminar incompleto.
     const faltan = faltantes(body);
