@@ -213,6 +213,7 @@ const BASE_REGISTRO: Registro = {
   fechaHoraInicio: '', fechaHoraFin: '', operador: '', supervisor: '',
   fechaElab: '', fechaVto: '', devueltoPor: null, devueltoEn: null,
   fotos: [], archivado: false, archivadoEn: null, archivadoPor: null,
+  rotuloOverrides: null,
   createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'),
 } as Registro;
 const Reg = (p: Partial<Registro>): Registro => ({ ...BASE_REGISTRO, ...p });

@@ -13,6 +13,13 @@ import { sql } from 'drizzle-orm';
 
 // ---------- Tipos JSON embebidos ----------
 
+export type RotuloOverrides = {
+  tipo?: 'chico' | 'grande';
+  titulo?: string;
+  indicacion?: string;
+  composicion?: string[];
+};
+
 export type ActivoFormula = {
   activo: string;
   dosis: number; // dosis según receta (por toma)
@@ -203,6 +210,11 @@ export const registros = pgTable('registros', {
   noProducibleMotivo: text('no_producible_motivo'),
 
   fotos: jsonb('fotos').$type<string[]>().notNull().default([]), // registro fotográfico OPCIONAL
+
+  // Personalizaciones del rótulo guardadas por el operador (texto editado
+  // en la página de rótulo). null = sin personalización, se usa el texto
+  // auto-generado. Se aplica por encima de los valores calculados del registro.
+  rotuloOverrides: jsonb('rotulo_overrides').$type<RotuloOverrides | null>().default(null),
 
   // Archivado (v2.1.3, reemplaza al borrado físico): un registro archivado
   // no aparece en listas, estadísticas, necesidades ni agendas, pero

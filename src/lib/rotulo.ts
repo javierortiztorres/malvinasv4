@@ -1,6 +1,8 @@
-import type { Registro } from '@/db/schema';
+import type { Registro, RotuloOverrides } from '@/db/schema';
 import { SUCURSALES, LEYENDAS_ROTULO } from './config';
 import { dosisPorCapsula, fechaAR, formatoLote } from './utils';
+
+export type { RotuloOverrides };
 
 // Rótulo para la rotuladora: bloque de texto de 4 apartados, copiable.
 export function generarRotulo(r: Registro, sucursalId: string): string {
@@ -45,22 +47,22 @@ export type DatosRotulo = {
   regulatoria: string;   // pre-joined con \n
 };
 
-export function armarDatosRotulo(r: Registro, sucursalId = 'badra-alberdi'): DatosRotulo {
+export function armarDatosRotulo(r: Registro, sucursalId = 'badra-alberdi', overrides?: RotuloOverrides | null): DatosRotulo {
   const suc = SUCURSALES.find((s) => s.id === sucursalId) ?? SUCURSALES[0];
 
-  const titulo = `${r.capsulasPorEnvase ?? '—'} CÁPSULAS HPMC\nPERSONALIZADAS`;
+  const tituloBase = `${r.capsulasPorEnvase ?? '—'} CÁPSULAS HPMC\nPERSONALIZADAS`;
   const medicoPaciente = `Dr./Dra.: ${r.medico}\nMP: ${r.matricula}\nPaciente: ${r.paciente}`;
 
-  const composicion: string[] = (r.formula ?? []).map(
+  const composicionBase: string[] = (r.formula ?? []).map(
     (a) => `- ${a.activo}: ${dosisPorCapsula(a, r.capsulasPorToma)}`
   );
   if ((r.excipientes ?? []).length > 0) {
-    composicion.push(`Excipientes: ${r.excipientes.join(', ')} c.s.p.`);
+    composicionBase.push(`Excipientes: ${r.excipientes.join(', ')} c.s.p.`);
   } else {
-    composicion.push('Excipientes c.s.p.');
+    composicionBase.push('Excipientes c.s.p.');
   }
 
-  const indicacion = `Indicacion: ${r.indicacion}`;
+  const indicacionBase = `Indicacion: ${r.indicacion}`;
   const farmacia = suc.lineas[0];
   const regulatoria = [
     ...suc.lineas.slice(1),
@@ -71,7 +73,20 @@ export function armarDatosRotulo(r: Registro, sucursalId = 'badra-alberdi'): Dat
     'USO INTERNO',
   ].join('\n');
 
-  return { titulo, medicoPaciente, composicion, indicacion, farmacia, regulatoria };
+  return {
+    titulo: overrides?.titulo ?? tituloBase,
+    medicoPaciente,
+    composicion: overrides?.composicion ?? composicionBase,
+    indicacion: overrides?.indicacion ?? indicacionBase,
+    farmacia,
+    regulatoria,
+  };
+}
+
+// Genera DDL directamente desde DatosRotulo — usable en el cliente
+// para reflejar ediciones en vivo sin pasar por el servidor.
+export function ddlDesdeDatos(datos: DatosRotulo, tipo: 'chico' | 'grande'): string {
+  return tipo === 'grande' ? buildDdlGrande(datos) : buildDdlChico(datos);
 }
 
 // ─── Generación .ddl (Dlabel) ─────────────────────────────────────────────────
@@ -139,10 +154,8 @@ export function tipoRotuloPorCaps(capsulasPorEnvase: number | null | undefined):
 }
 
 // ─── DDL vertical chico (32×64mm) ────────────────────────────────────────────
-function generarDdlChico(r: Registro, sucursalId?: string): string {
-  const datos = armarDatosRotulo(r, sucursalId);
+function buildDdlChico(datos: DatosRotulo): string {
   const compTexto = 'Composicion:\n' + datos.composicion.join('\n');
-
   const bloques = [
     { fontsize: '7',   fontbold: 'true',  fontfamily: 'Arial Black', t: '2',  h: '10', texto: datos.titulo },
     { fontsize: '5',   fontbold: 'true',  fontfamily: 'Arial Black', t: '12', h: '10', texto: datos.medicoPaciente },
@@ -151,43 +164,42 @@ function generarDdlChico(r: Registro, sucursalId?: string): string {
     { fontsize: '5',   fontbold: 'true',  fontfamily: 'Arial Black', t: '49', h: '7',  texto: datos.farmacia },
     { fontsize: '4.2', fontbold: 'false', fontfamily: 'Arial',       t: '56', h: '8',  texto: datos.regulatoria },
   ];
-  const separadores = [12, 22, 42, 49, 56];
-
   const partes: string[] = [];
   let zvalue = 1;
   for (const b of bloques) partes.push(textBlock({ ...b, zvalue: zvalue++ }));
-  for (const t of separadores) partes.push(lineBlock(t, zvalue++));
-
+  for (const t of [12, 22, 42, 49, 56]) partes.push(lineBlock(t, zvalue++));
   return ddlWrapper('32', '64', partes.join(''));
+}
+
+function generarDdlChico(r: Registro, sucursalId?: string): string {
+  return buildDdlChico(armarDatosRotulo(r, sucursalId));
 }
 
 // ─── DDL apaisado grande (100×60mm) ──────────────────────────────────────────
 // Columna izquierda (l=2, w=47): título · médico/paciente · composición
 // Columna derecha  (l=52, w=46): indicación · farmacia · regulatoria
-function generarDdlGrande(r: Registro, sucursalId?: string): string {
-  const datos = armarDatosRotulo(r, sucursalId);
+function buildDdlGrande(datos: DatosRotulo): string {
   const compTexto = 'Composicion:\n' + datos.composicion.join('\n');
-
   const bloquesIzq = [
-    { fontsize: '8',   fontbold: 'true',  fontfamily: 'Arial Black', t: '2',  h: '8',  texto: datos.titulo,          l: '2',  w: '47' },
-    { fontsize: '5.5', fontbold: 'true',  fontfamily: 'Arial Black', t: '11', h: '10', texto: datos.medicoPaciente,   l: '2',  w: '47' },
-    { fontsize: '5',   fontbold: 'false', fontfamily: 'Arial',       t: '22', h: '38', texto: compTexto,              l: '2',  w: '47' },
+    { fontsize: '8',   fontbold: 'true',  fontfamily: 'Arial Black', t: '2',  h: '8',  texto: datos.titulo,        l: '2',  w: '47' },
+    { fontsize: '5.5', fontbold: 'true',  fontfamily: 'Arial Black', t: '11', h: '10', texto: datos.medicoPaciente, l: '2',  w: '47' },
+    { fontsize: '5',   fontbold: 'false', fontfamily: 'Arial',       t: '22', h: '38', texto: compTexto,            l: '2',  w: '47' },
   ];
   const bloquesDer = [
-    { fontsize: '5.5', fontbold: 'false', fontfamily: 'Arial',       t: '2',  h: '10', texto: datos.indicacion,       l: '52', w: '46' },
-    { fontsize: '5.5', fontbold: 'true',  fontfamily: 'Arial Black', t: '13', h: '8',  texto: datos.farmacia,         l: '52', w: '46' },
-    { fontsize: '4.5', fontbold: 'false', fontfamily: 'Arial',       t: '22', h: '38', texto: datos.regulatoria,      l: '52', w: '46' },
+    { fontsize: '5.5', fontbold: 'false', fontfamily: 'Arial',       t: '2',  h: '10', texto: datos.indicacion,    l: '52', w: '46' },
+    { fontsize: '5.5', fontbold: 'true',  fontfamily: 'Arial Black', t: '13', h: '8',  texto: datos.farmacia,      l: '52', w: '46' },
+    { fontsize: '4.5', fontbold: 'false', fontfamily: 'Arial',       t: '22', h: '38', texto: datos.regulatoria,   l: '52', w: '46' },
   ];
-
   const partes: string[] = [];
   let zvalue = 1;
   for (const b of [...bloquesIzq, ...bloquesDer]) partes.push(textBlock({ ...b, zvalue: zvalue++ }));
-  // Separadores columna izquierda
   for (const t of [10, 21]) partes.push(lineBlock(t, zvalue++, 2, 47));
-  // Separadores columna derecha
   for (const t of [12, 21]) partes.push(lineBlock(t, zvalue++, 52, 46));
-
   return ddlWrapper('100', '60', partes.join(''));
+}
+
+function generarDdlGrande(r: Registro, sucursalId?: string): string {
+  return buildDdlGrande(armarDatosRotulo(r, sucursalId));
 }
 
 function ddlWrapper(w: string, h: string, labelobjects: string): string {
